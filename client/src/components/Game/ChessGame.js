@@ -159,6 +159,7 @@ const ChessGame = () => {
           position={position}
           onPieceDrop={onDrop}
           onPieceDragBegin={onPieceDragStart}
+          boardOrientation={playerColor} // Add this line to flip board based on player's color
           customSquareStyles={{
             ...possibleMoves.reduce((obj, square) => ({
               ...obj,

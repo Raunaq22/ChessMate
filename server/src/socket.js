@@ -76,7 +76,7 @@ const configureSocket = (io) => {
       }
     });
 
-    socket.on('move', async ({ gameId, move, fen }) => {
+    socket.on('move', async ({ gameId, move, fen, moveNotation }) => {
       console.log('Move received:', { gameId, move, fen });
 
       try {
@@ -105,7 +105,12 @@ const configureSocket = (io) => {
         await game.save();
 
         // Broadcast move to other players
-        socket.to(`game-${gameId}`).emit('move', move);
+        socket.to(`game-${gameId}`).emit('move', {
+          from: move.from,
+          to: move.to,
+          fen: fen,
+          moveNotation: moveNotation
+        });
       } catch (error) {
         console.error('Error processing move:', error);
         socket.emit('error', { message: 'Failed to process move' });

@@ -1,103 +1,102 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, className }) => {
-  // Use a ref to store the current time value to avoid unnecessary re-renders
-  const timeRef = useRef(initialTime);
-  // State for display purposes only
-  const [displayTime, setDisplayTime] = useState(initialTime);
-  // Track when the timer was last started
-  const startTimeRef = useRef(null);
-  // Track last time we reported a change
-  const lastReportTimeRef = useRef(null);
-  // Track the animation frame ID
-  const animationFrameId = useRef(null);
-  // Track previous running state
-  const wasRunningRef = useRef(isRunning);
-  // Track if an increment was already applied
-  const incrementAppliedRef = useRef(false);
-
-  // Sync with initialTime when it changes
-  useEffect(() => {
-    if (Math.abs(initialTime - timeRef.current) > 0.1) {
-      timeRef.current = initialTime;
-      setDisplayTime(initialTime);
-      console.log('Timer reset to:', initialTime);
-    }
-  }, [initialTime]);
-
-  // Main timer logic using requestAnimationFrame for smoother updates
-  useEffect(() => {
-    const updateTimer = () => {
-      if (!startTimeRef.current) return;
-      
-      const now = Date.now();
-      const elapsed = (now - startTimeRef.current) / 1000;
-      startTimeRef.current = now;
-      
-      // Update internal time
-      const newTime = Math.max(0, timeRef.current - elapsed);
-      timeRef.current = newTime;
-      
-      // Update display time at most 10 times per second
-      setDisplayTime(newTime);
-      
-      // Only report changes every 500ms to reduce network traffic
-      if (!lastReportTimeRef.current || now - lastReportTimeRef.current > 500) {
-        onTimeChange?.(newTime);
-        lastReportTimeRef.current = now;
-      }
-      
-      if (newTime <= 0) {
-        onTimeUp?.();
-        return;
-      }
-      
-      animationFrameId.current = requestAnimationFrame(updateTimer);
-    };
-    
-    if (isRunning && timeRef.current > 0) {
-      // Start the timer
-      startTimeRef.current = Date.now();
-      incrementAppliedRef.current = false;
-      animationFrameId.current = requestAnimationFrame(updateTimer);
-    } else {
-      // Stop the timer
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
-      }
-      
-      // Apply increment when timer stops (if it was running before)
-      if (wasRunningRef.current && !isRunning && increment > 0 && !incrementAppliedRef.current) {
-        const newTime = timeRef.current + increment;
-        timeRef.current = newTime;
-        setDisplayTime(newTime);
-        onTimeChange?.(newTime);
-        incrementAppliedRef.current = true;
-      }
-    }
-    
-    wasRunningRef.current = isRunning;
-    
-    return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    };
-  }, [isRunning, increment, onTimeUp, onTimeChange]);
-
-  // Format time display
-  const minutes = Math.floor(displayTime / 60);
-  const seconds = Math.floor(displayTime % 60);
-  const deciseconds = Math.floor((displayTime % 1) * 10);
+const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
+  const [timeLeft, setTimeLeft] = useState(initialTime || 600); 
+  const incrementApplied = useRef(false);
+  const lastRunningState = useRef(isRunning);
+  const lastUpdateTime = useRef(Date.now());
+  const previousTime = useRef(initialTime);
   
-  const timeDisplay = displayTime < 10
-    ? `${minutes}:${seconds.toString().padStart(2, '0')}.${deciseconds}`
-    : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  // Format time as mm:ss
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Better sync with server time values
+  useEffect(() => {
+    if (initialTime !== undefined && Math.abs(initialTime - previousTime.current) > 1) {
+      console.log(`Timer reset: ${timeLeft} -> ${initialTime}`);
+      setTimeLeft(initialTime);
+      previousTime.current = initialTime;
+    }
+  }, [initialTime, timeLeft]);
+
+  // More accurate timer with millisecond precision
+  const updateTimer = useCallback(() => {
+    if (timeLeft <= 0 || gameEnded) {
+      if (timeLeft <= 0 && onTimeUp) onTimeUp();
+      return;
+    }
+    
+    const now = Date.now();
+    const elapsed = (now - lastUpdateTime.current) / 1000;
+    
+    // More reliable update logic
+    if (elapsed > 0 && elapsed < 1.1) {
+      lastUpdateTime.current = now;
+      
+      setTimeLeft(prev => {
+        const newTime = Math.max(0, prev - elapsed);
+        // Only send time updates at reasonable intervals to reduce network traffic
+        if (onTimeChange && Math.abs(prev - newTime) >= 0.2) {
+          onTimeChange(newTime);
+        }
+        return newTime;
+      });
+    } else {
+      // Reset if elapsed time is unreasonable
+      lastUpdateTime.current = now;
+    }
+  }, [timeLeft, onTimeUp, onTimeChange, gameEnded]);
+
+  // Improved increment handling
+  useEffect(() => {
+    if (lastRunningState.current !== isRunning) {
+      lastUpdateTime.current = Date.now();
+      console.log(`Timer running state changed: ${lastRunningState.current} -> ${isRunning}`);
+      
+      // Apply increment when timer stops running (after making a move)
+      if (!isRunning && lastRunningState.current && increment > 0 && !gameEnded && !incrementApplied.current) {
+        console.log(`Applying increment: ${increment}`);
+        setTimeLeft(prev => {
+          const newTime = prev + increment;
+          if (onTimeChange) onTimeChange(newTime); // Notify parent of increment
+          return newTime;
+        });
+        incrementApplied.current = true;
+      } else if (isRunning) {
+        // Reset the flag when timer starts again
+        incrementApplied.current = false;
+      }
+      
+      lastRunningState.current = isRunning;
+    }
+  }, [isRunning, increment, onTimeChange, gameEnded]);
+
+  // Run timer with higher frequency for smoother countdown
+  useEffect(() => {
+    let interval;
+    if (isRunning && timeLeft > 0 && !gameEnded) {
+      lastUpdateTime.current = Date.now();
+      interval = setInterval(updateTimer, 50); // Update more frequently for smoother display
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft, updateTimer, gameEnded]);
+
+  // Stop timer when game ends
+  useEffect(() => {
+    if (gameEnded) {
+      incrementApplied.current = false;
+    }
+  }, [gameEnded]);
 
   return (
-    <div className={`font-mono text-xl ${className || ''} ${displayTime < 30 ? 'text-red-600' : ''}`}>
-      {timeDisplay}
+    <div className={`px-4 py-2 rounded-lg ${timeLeft < 30 ? 'bg-red-100' : 'bg-gray-100'}`}>
+      <div className={`text-2xl font-mono font-bold ${timeLeft < 30 ? 'text-red-600' : 'text-gray-800'}`}>
+        {formatTime(timeLeft)}
+      </div>
     </div>
   );
 };

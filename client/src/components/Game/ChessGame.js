@@ -133,7 +133,9 @@ const ChessGame = () => {
     
     // Get possible moves for the piece
     const moves = game.moves({ square: sourceSquare, verbose: true });
-    setPossibleMoves(moves.map(move => move.to));
+    const targetSquares = moves.map(move => move.to);
+    console.log('Possible moves:', targetSquares); // Debug to see if moves are being found
+    setPossibleMoves(targetSquares);
     return true;
   };
 
@@ -160,7 +162,7 @@ const ChessGame = () => {
         console.log('Game not started yet');
         return false;
       }
-
+  
       // Current turn color
       const currentTurn = game.turn() === 'w' ? 'white' : 'black';
       
@@ -169,47 +171,55 @@ const ChessGame = () => {
         console.log('Not your turn');
         return false;
       }
-
+  
+      // Create a copy of the game to check the move
+      const gameCopy = new Chess(game.fen());
+      
       // Try to make the move
-      const newGame = new Chess(game.fen());
-      const move = newGame.move({
+      const move = gameCopy.move({
         from: sourceSquare,
         to: targetSquare,
         promotion: 'q' // Always promote to queen for simplicity
       });
-
-      if (move) {
-        const isWhiteTurnAfter = newGame.turn() === 'w';
-        
-        setGame(newGame);
-        setPosition(newGame.fen());
-        setIsWhiteTimerRunning(isWhiteTurnAfter);
-        setIsBlackTimerRunning(!isWhiteTurnAfter);
-
-        // Add move to history immediately
-        setMoveHistory(prev => [...prev, { notation: move.san, fen: newGame.fen() }]);
-
-        const isGameOver = checkGameStatus(newGame);
-        
-        socket.emit('move', {
-          gameId,
-          move: { from: sourceSquare, to: targetSquare },
-          fen: newGame.fen(),
-          moveNotation: move.san,
-          whiteTimeLeft: whiteTime,
-          blackTimeLeft: blackTime,
-          isWhiteTimerRunning: isWhiteTurnAfter,
-          isBlackTimerRunning: !isWhiteTurnAfter,
-          isGameOver
-        });
-
-        setPossibleMoves([]);
-        return true;
+  
+      // If the move is invalid, return false
+      if (!move) {
+        console.log('Invalid move');
+        return false;
       }
+  
+      const isWhiteTurnAfter = gameCopy.turn() === 'w';
+      
+      // Update local state
+      setGame(gameCopy);
+      setPosition(gameCopy.fen());
+      setIsWhiteTimerRunning(isWhiteTurnAfter);
+      setIsBlackTimerRunning(!isWhiteTurnAfter);
+  
+      // Add move to history
+      setMoveHistory(prev => [...prev, { notation: move.san, fen: gameCopy.fen() }]);
+  
+      const isGameOver = checkGameStatus(gameCopy);
+      
+      // Notify server
+      socket.emit('move', {
+        gameId,
+        move: { from: sourceSquare, to: targetSquare },
+        fen: gameCopy.fen(),
+        moveNotation: move.san,
+        whiteTimeLeft: whiteTime,
+        blackTimeLeft: blackTime,
+        isWhiteTimerRunning: isWhiteTurnAfter,
+        isBlackTimerRunning: !isWhiteTurnAfter,
+        isGameOver
+      });
+  
+      setPossibleMoves([]);
+      return true;
     } catch (error) {
       console.error('Move error:', error);
+      return false;
     }
-    return false;
   };
 
   const handleTimeUp = (color) => {
@@ -256,45 +266,47 @@ const ChessGame = () => {
           {gameStatus}
         </div>
       )}
-      <div className="flex flex-col items-center w-full md:w-2/3">
-        <div className="mb-4 flex justify-between w-full">
-          <div className="font-bold">{blackPlayer} (Black)</div>
-          <Timer
-            initialTime={blackTime}
-            increment={timeIncrement}
-            isRunning={isBlackTimerRunning && gameStarted}
-            onTimeUp={() => handleTimeUp('b')}
-            onTimeChange={(time) => handleTimeUpdate('black', time)}
-          />
-        </div>
+<div className="flex flex-col items-center w-full md:w-2/3">
+  <div className="mb-4 flex justify-between w-full">
+    <div className="font-bold">
+      {playerColor === 'white' ? blackPlayer : whitePlayer} ({playerColor === 'white' ? 'Black' : 'White'})
+    </div>
+    <Timer
+      initialTime={playerColor === 'white' ? blackTime : whiteTime}
+      increment={timeIncrement}
+      isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted}
+      onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
+      onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
+    />
+  </div>
 
-        <Chessboard 
-          position={position}
-          onPieceDrop={onDrop}
-          onPieceDragBegin={onPieceDragStart}
-          boardOrientation={playerColor}
-          // Remove this constraint - it's preventing dragging
-          // arePiecesDraggable={gameStarted && game.turn() === (playerColor === 'white' ? 'w' : 'b')}
-          customSquareStyles={possibleMoves.reduce((obj, square) => {
-            obj[square] = {
-              background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
-              borderRadius: '50%'
-            };
-            return obj;
-          }, {})}
-        />
+  <Chessboard 
+  position={position}
+  onPieceDrop={onDrop}
+  onPieceDragBegin={onPieceDragStart}
+  boardOrientation={playerColor}
+    customSquareStyles={possibleMoves.reduce((obj, square) => {
+      obj[square] = {
+        background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+        borderRadius: '50%'
+      };
+      return obj;
+    }, {})}
+  />
 
-        <div className="mt-4 flex justify-between w-full">
-          <div className="font-bold">{whitePlayer} (White)</div>
-          <Timer
-            initialTime={whiteTime}
-            increment={timeIncrement}
-            isRunning={isWhiteTimerRunning && gameStarted}
-            onTimeUp={() => handleTimeUp('w')}
-            onTimeChange={(time) => handleTimeUpdate('white', time)}
-          />
-        </div>
-      </div>
+  <div className="mt-4 flex justify-between w-full">
+    <div className="font-bold">
+      {playerColor === 'white' ? whitePlayer : blackPlayer} ({playerColor === 'white' ? 'White' : 'Black'})
+    </div>
+    <Timer
+      initialTime={playerColor === 'white' ? whiteTime : blackTime}
+      increment={timeIncrement}
+      isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted}
+      onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
+      onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
+    />
+  </div>
+</div>
       
       <div className="w-full md:w-1/3">
         <div className="bg-white rounded-lg shadow-md p-4">

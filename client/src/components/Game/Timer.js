@@ -1,64 +1,103 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-const Timer = ({ 
-  initialTime, 
-  increment, 
-  isRunning, 
-  onTimeUp, 
-  onTimeChange,
-  className 
-}) => {
-  const [timeLeft, setTimeLeft] = useState(initialTime);
+const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, className }) => {
+  // Use a ref to store the current time value to avoid unnecessary re-renders
+  const timeRef = useRef(initialTime);
+  // State for display purposes only
+  const [displayTime, setDisplayTime] = useState(initialTime);
+  // Track when the timer was last started
+  const startTimeRef = useRef(null);
+  // Track last time we reported a change
+  const lastReportTimeRef = useRef(null);
+  // Track the animation frame ID
+  const animationFrameId = useRef(null);
+  // Track previous running state
+  const wasRunningRef = useRef(isRunning);
+  // Track if an increment was already applied
+  const incrementAppliedRef = useRef(false);
 
-  // Reset timer when initialTime changes
+  // Sync with initialTime when it changes
   useEffect(() => {
-    setTimeLeft(initialTime);
+    if (Math.abs(initialTime - timeRef.current) > 0.1) {
+      timeRef.current = initialTime;
+      setDisplayTime(initialTime);
+      console.log('Timer reset to:', initialTime);
+    }
   }, [initialTime]);
 
-  // Main timer logic
+  // Main timer logic using requestAnimationFrame for smoother updates
   useEffect(() => {
-    let intervalId;
+    const updateTimer = () => {
+      if (!startTimeRef.current) return;
+      
+      const now = Date.now();
+      const elapsed = (now - startTimeRef.current) / 1000;
+      startTimeRef.current = now;
+      
+      // Update internal time
+      const newTime = Math.max(0, timeRef.current - elapsed);
+      timeRef.current = newTime;
+      
+      // Update display time at most 10 times per second
+      setDisplayTime(newTime);
+      
+      // Only report changes every 500ms to reduce network traffic
+      if (!lastReportTimeRef.current || now - lastReportTimeRef.current > 500) {
+        onTimeChange?.(newTime);
+        lastReportTimeRef.current = now;
+      }
+      
+      if (newTime <= 0) {
+        onTimeUp?.();
+        return;
+      }
+      
+      animationFrameId.current = requestAnimationFrame(updateTimer);
+    };
     
-    if (isRunning && timeLeft > 0) {
-      // Update every 1000ms (1 second) for proper second-by-second countdown
-      intervalId = setInterval(() => {
-        const newTime = Math.max(0, timeLeft - 1);
-        setTimeLeft(newTime);
+    if (isRunning && timeRef.current > 0) {
+      // Start the timer
+      startTimeRef.current = Date.now();
+      incrementAppliedRef.current = false;
+      animationFrameId.current = requestAnimationFrame(updateTimer);
+    } else {
+      // Stop the timer
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      }
+      
+      // Apply increment when timer stops (if it was running before)
+      if (wasRunningRef.current && !isRunning && increment > 0 && !incrementAppliedRef.current) {
+        const newTime = timeRef.current + increment;
+        timeRef.current = newTime;
+        setDisplayTime(newTime);
         onTimeChange?.(newTime);
-        
-        // Check if time is up
-        if (newTime === 0) {
-          onTimeUp?.();
-          clearInterval(intervalId);
-        }
-      }, 1000);
-    } else if (!isRunning && intervalId) {
-      // Add increment when timer stops
-      if (increment > 0) {
-        const newTime = timeLeft + increment;
-        setTimeLeft(newTime);
-        onTimeChange?.(newTime);
+        incrementAppliedRef.current = true;
       }
     }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isRunning, timeLeft, increment, onTimeUp, onTimeChange]);
-
-  const formatTime = (seconds) => {
-    if (seconds === null || seconds === undefined) return '--:--';
     
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+    wasRunningRef.current = isRunning;
+    
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [isRunning, increment, onTimeUp, onTimeChange]);
+
+  // Format time display
+  const minutes = Math.floor(displayTime / 60);
+  const seconds = Math.floor(displayTime % 60);
+  const deciseconds = Math.floor((displayTime % 1) * 10);
+  
+  const timeDisplay = displayTime < 10
+    ? `${minutes}:${seconds.toString().padStart(2, '0')}.${deciseconds}`
+    : `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   return (
-    <div className={`text-2xl font-mono font-bold ${
-      timeLeft < 30 ? 'text-red-600' : 'text-gray-800'
-    } ${className}`}>
-      {formatTime(timeLeft)}
+    <div className={`font-mono text-xl ${className || ''} ${displayTime < 30 ? 'text-red-600' : ''}`}>
+      {timeDisplay}
     </div>
   );
 };

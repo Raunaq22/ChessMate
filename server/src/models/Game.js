@@ -39,6 +39,27 @@ const Game = sequelize.define('Game', {
   status: {
     type: DataTypes.ENUM('waiting', 'playing', 'completed'),
     defaultValue: 'waiting'
+  },
+  time_control: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'unlimited' // 'bullet', 'blitz', 'rapid', 'unlimited'
+  },
+  initial_time: {
+    type: DataTypes.INTEGER,
+    allowNull: true // time in seconds
+  },
+  increment: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0 // increment in seconds
+  },
+  white_time: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  black_time: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, {
   tableName: 'games',
@@ -69,7 +90,7 @@ Game.createNewGame = async function(playerId) {
   return await this.create({
     player1_id: playerId,
     status: 'waiting',
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     move_history: [],
     start_time: null,
     end_time: null

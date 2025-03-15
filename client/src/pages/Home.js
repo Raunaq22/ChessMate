@@ -7,7 +7,7 @@ const Home = () => {
   const { isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
   
-  const handleCreateGame = async () => {
+  const handleCreateGame = async (timeControl) => {
     if (!isAuthenticated) {
       navigate('/login');
       return;

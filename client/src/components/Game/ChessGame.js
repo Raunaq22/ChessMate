@@ -4,6 +4,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { AuthContext } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
+import Timer from './Timer';
 
 const ChessGame = () => {
   const { gameId } = useParams();
@@ -17,6 +18,14 @@ const ChessGame = () => {
   const [disconnected, setDisconnected] = useState(false);
   const [possibleMoves, setPossibleMoves] = useState([]);
   const [moveHistory, setMoveHistory] = useState([]);
+  const [gameStatus, setGameStatus] = useState(null);
+  const [whiteTime, setWhiteTime] = useState(0);
+  const [blackTime, setBlackTime] = useState(0);
+  const [isWhiteTimerRunning, setIsWhiteTimerRunning] = useState(false);
+  const [isBlackTimerRunning, setIsBlackTimerRunning] = useState(false);
+  const [timeIncrement, setTimeIncrement] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [playerIds, setPlayerIds] = useState({ white: null, black: null });
 
   useEffect(() => {
     if (!gameId || !currentUser?.user_id) return;
@@ -24,26 +33,9 @@ const ChessGame = () => {
     const newSocket = io(process.env.REACT_APP_API_URL, {
       withCredentials: true,
       query: { 
-        gameId,
-        userId: currentUser.user_id
+        gameId, 
+        userId: currentUser.user_id 
       }
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
-    };
-  }, [gameId, currentUser?.user_id]);
-
-  useEffect(() => {
-    if (!gameId || !currentUser?.user_id) return;
-
-    const newSocket = io(process.env.REACT_APP_API_URL, {
-      withCredentials: true,
-      query: { gameId, userId: currentUser.user_id }
     });
 
     newSocket.on('connect', () => {
@@ -51,30 +43,62 @@ const ChessGame = () => {
       newSocket.emit('joinGame', { gameId, userId: currentUser.user_id });
     });
 
-    newSocket.on('gameState', ({ fen, playerColor }) => {
+    newSocket.on('gameState', ({ 
+      fen, 
+      playerColor, 
+      initialTime, 
+      increment, 
+      isWhiteTimerRunning, 
+      isBlackTimerRunning,
+      whitePlayerId,
+      blackPlayerId,
+      started
+    }) => {
+      console.log('Game state received', {
+        playerColor,
+        started,
+        whitePlayerId,
+        blackPlayerId
+      });
+      
+      const newGame = new Chess(fen);
+      setGame(newGame);
       setPosition(fen);
       setPlayerColor(playerColor);
+      setWhiteTime(initialTime);
+      setBlackTime(initialTime);
+      setTimeIncrement(increment);
+      setIsWhiteTimerRunning(isWhiteTimerRunning);
+      setIsBlackTimerRunning(isBlackTimerRunning);
+      setPlayerIds({ white: whitePlayerId, black: blackPlayerId });
+      setGameStarted(started);
     });
 
-    newSocket.on('move', ({ from, to, fen, moveNotation }) => {
+    newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning }) => {
       try {
         const newGame = new Chess(fen);
         setGame(newGame);
         setPosition(fen);
-        
-        setMoveHistory(prev => [...prev, {
-          notation: moveNotation,
-          color: newGame.turn() === 'w' ? 'Black' : 'White',
-          fen: fen
-        }]);
+        setIsWhiteTimerRunning(isWhiteTimerRunning);
+        setIsBlackTimerRunning(isBlackTimerRunning);
+        setMoveHistory(prev => [...prev, { notation: moveNotation, fen }]);
       } catch (error) {
         console.error('Error processing received move:', error);
       }
     });
 
     newSocket.on('playerDisconnected', ({ message }) => {
+      setDisconnected(true);
       setGameError(message);
       setTimeout(() => navigate('/lobby'), 3000);
+    });
+
+    newSocket.on('timeUpdate', ({ color, timeLeft }) => {
+      if (color === 'white') {
+        setWhiteTime(timeLeft);
+      } else {
+        setBlackTime(timeLeft);
+      }
     });
 
     setSocket(newSocket);
@@ -85,91 +109,191 @@ const ChessGame = () => {
   }, [gameId, currentUser?.user_id, navigate]);
 
   const onPieceDragStart = (piece, sourceSquare) => {
-    // Only allow moving pieces if it's player's turn
-    if ((game.turn() === 'w' && playerColor !== 'white') ||
-        (game.turn() === 'b' && playerColor !== 'black')) {
+    // Only allow dragging if the game has started
+    if (!gameStarted) {
+      console.log('Game not started yet - cannot drag');
       return false;
     }
-
-    // Get possible moves for the selected piece
-    const moves = game.moves({
-      square: sourceSquare,
-      verbose: true
-    });
+    
+    // Get piece color (w = white, b = black)
+    const pieceColor = piece[0] === 'w' ? 'white' : 'black';
+    
+    // Check if the player is moving their own color pieces
+    if (pieceColor !== playerColor) {
+      console.log('Cannot move opponent pieces');
+      return false;
+    }
+    
+    // Check if it's the player's turn
+    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+    if (currentTurn !== playerColor) {
+      console.log('Not your turn');
+      return false;
+    }
+    
+    // Get possible moves for the piece
+    const moves = game.moves({ square: sourceSquare, verbose: true });
     setPossibleMoves(moves.map(move => move.to));
     return true;
   };
 
+  const checkGameStatus = (chess) => {
+    if (chess.isCheckmate()) {
+      const winner = chess.turn() === 'w' ? 'Black' : 'White';
+      setGameStatus(`Checkmate! ${winner} wins!`);
+      return true;
+    } else if (chess.isDraw()) {
+      setGameStatus('Game Draw');
+      return true;
+    } else if (chess.isCheck()) {
+      setGameStatus('Check!');
+      return false;
+    }
+    setGameStatus(null);
+    return false;
+  };
+
   const onDrop = (sourceSquare, targetSquare) => {
     try {
-      // Create a new chess instance for the move
+      // Check if game has started
+      if (!gameStarted) {
+        console.log('Game not started yet');
+        return false;
+      }
+
+      // Current turn color
+      const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+      
+      // Check if it's this player's turn
+      if (currentTurn !== playerColor) {
+        console.log('Not your turn');
+        return false;
+      }
+
+      // Try to make the move
       const newGame = new Chess(game.fen());
       const move = newGame.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q'
+        promotion: 'q' // Always promote to queen for simplicity
       });
 
       if (move) {
-        // Update local state
+        const isWhiteTurnAfter = newGame.turn() === 'w';
+        
         setGame(newGame);
         setPosition(newGame.fen());
-        
-        // Add move to history with correct notation
-        const notation = {
-          notation: move.san,
-          color: move.color === 'w' ? 'White' : 'Black',
-          fen: newGame.fen(),
-          moveNumber: Math.floor(newGame.moveNumber() / 2) + 1
-        };
-        setMoveHistory(prev => [...prev, notation]);
+        setIsWhiteTimerRunning(isWhiteTurnAfter);
+        setIsBlackTimerRunning(!isWhiteTurnAfter);
 
-        // Emit move to server
+        // Add move to history immediately
+        setMoveHistory(prev => [...prev, { notation: move.san, fen: newGame.fen() }]);
+
+        const isGameOver = checkGameStatus(newGame);
+        
         socket.emit('move', {
           gameId,
           move: { from: sourceSquare, to: targetSquare },
           fen: newGame.fen(),
           moveNotation: move.san,
-          moveNumber: notation.moveNumber
+          whiteTimeLeft: whiteTime,
+          blackTimeLeft: blackTime,
+          isWhiteTimerRunning: isWhiteTurnAfter,
+          isBlackTimerRunning: !isWhiteTurnAfter,
+          isGameOver
         });
 
         setPossibleMoves([]);
         return true;
       }
     } catch (error) {
-      console.error('Invalid move:', error);
+      console.error('Move error:', error);
     }
     return false;
   };
 
+  const handleTimeUp = (color) => {
+    setGameStatus(`${color === 'w' ? 'Black' : 'White'} wins on time!`);
+    socket?.emit('gameOver', {
+      gameId,
+      winner: color === 'w' ? 'black' : 'white',
+      reason: 'timeout'
+    });
+  };
+
+  const handleTimeUpdate = useCallback((color, timeLeft) => {
+    if (socket) {
+      socket.emit('timeUpdate', { gameId, color, timeLeft });
+    }
+  }, [gameId, socket]);
+
+  // Determine which player is playing which color
+  const whitePlayer = playerIds.white === currentUser?.user_id ? 'You' : 'Opponent';
+  const blackPlayer = playerIds.black === currentUser?.user_id ? 'You' : 'Opponent';
+
+  // For debugging purposes
+  console.log('Render state:', {
+    gameStarted,
+    playerColor,
+    currentTurn: game.turn() === 'w' ? 'white' : 'black',
+    canMove: gameStarted && game.turn() === (playerColor === 'white' ? 'w' : 'b')
+  });
+
   return (
     <div className="flex flex-col md:flex-row gap-8 p-4">
       {disconnected && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           Opponent disconnected. Returning to lobby...
         </div>
       )}
       {gameError && (
-        <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+        <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {gameError}
         </div>
       )}
-      <div className="w-full md:w-2/3">
+      {gameStatus && (
+        <div className={`w-full ${gameStatus.includes('wins') ? 'bg-green-100 border-green-400 text-green-700' : 'bg-blue-100 border-blue-400 text-blue-700'} px-4 py-3 rounded mb-4`}>
+          {gameStatus}
+        </div>
+      )}
+      <div className="flex flex-col items-center w-full md:w-2/3">
+        <div className="mb-4 flex justify-between w-full">
+          <div className="font-bold">{blackPlayer} (Black)</div>
+          <Timer
+            initialTime={blackTime}
+            increment={timeIncrement}
+            isRunning={isBlackTimerRunning && gameStarted}
+            onTimeUp={() => handleTimeUp('b')}
+            onTimeChange={(time) => handleTimeUpdate('black', time)}
+          />
+        </div>
+
         <Chessboard 
           position={position}
           onPieceDrop={onDrop}
           onPieceDragBegin={onPieceDragStart}
-          boardOrientation={playerColor} // Add this line to flip board based on player's color
-          customSquareStyles={{
-            ...possibleMoves.reduce((obj, square) => ({
-              ...obj,
-              [square]: {
-                background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
-                borderRadius: '50%'
-              }
-            }), {})
-          }}
+          boardOrientation={playerColor}
+          // Remove this constraint - it's preventing dragging
+          // arePiecesDraggable={gameStarted && game.turn() === (playerColor === 'white' ? 'w' : 'b')}
+          customSquareStyles={possibleMoves.reduce((obj, square) => {
+            obj[square] = {
+              background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+              borderRadius: '50%'
+            };
+            return obj;
+          }, {})}
         />
+
+        <div className="mt-4 flex justify-between w-full">
+          <div className="font-bold">{whitePlayer} (White)</div>
+          <Timer
+            initialTime={whiteTime}
+            increment={timeIncrement}
+            isRunning={isWhiteTimerRunning && gameStarted}
+            onTimeUp={() => handleTimeUp('w')}
+            onTimeChange={(time) => handleTimeUpdate('white', time)}
+          />
+        </div>
       </div>
       
       <div className="w-full md:w-1/3">

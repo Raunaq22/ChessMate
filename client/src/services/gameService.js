@@ -14,9 +14,9 @@ const gameService = {
     }
   },
 
-  createGame: async () => {
+  createGame: async (timeControl) => {
     try {
-      const response = await axios.post(`${API_URL}/api/games`);
+      const response = await axios.post(`${API_URL}/api/games`, timeControl);
       console.log('Game service response:', response.data); // Debug log
       return response.data;
     } catch (error) {

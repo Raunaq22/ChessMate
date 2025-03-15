@@ -1,6 +1,7 @@
 const Game = require('./models/Game');
 const { Chess } = require('chess.js');
 const { Op } = require('sequelize');
+const User = require('./models/User'); // Add this line to import the User model
 
 const configureSocket = (io) => {
   const activeGames = new Map();
@@ -28,55 +29,44 @@ const configureSocket = (io) => {
     const activityInterval = setInterval(updateActivity, 30000);
 
     socket.on('joinGame', async ({ gameId, userId }) => {
-      console.log(`Join game request: { gameId: '${gameId}', userId: ${userId} }`);
-      
-      currentGameId = gameId;
-      currentUserId = userId;
-
       try {
-        // Instead of cancelling, we'll mark old games as completed
-        await Game.update(
-          { status: 'completed' },
-          {
-            where: {
-              player1_id: userId,
-              status: 'waiting',
-              game_id: { [Op.ne]: gameId }
-            }
-          }
-        );
-
         const game = await Game.findByPk(gameId);
-        if (!game || game.status === 'cancelled') {
-          socket.emit('error', { message: 'Game not found or cancelled' });
+        if (!game) {
+          socket.emit('error', { message: 'Game not found' });
+          return;
+        }
+
+        // Prevent same user from joining both sides
+        if (game.player1_id === userId && game.player2_id === userId) {
+          socket.emit('error', { message: 'Cannot play against yourself' });
           return;
         }
 
         const roomName = `game-${gameId}`;
         socket.join(roomName);
 
-        if (!activeGames.has(gameId)) {
-          activeGames.set(gameId, new Set());
-        }
-        activeGames.get(gameId).add(userId);
-
-        console.log(`User ${userId} joined game room ${roomName}`);
-        console.log(`Players in room ${roomName}:`, activeGames.get(gameId).size);
-
+        // Determine player color and role
         const playerColor = game.player1_id === userId ? 'white' : 'black';
+        const isGameStarted = game.status === 'playing';
+
         socket.emit('gameState', {
           fen: game.fen,
-          status: game.status,
-          playerColor
+          playerColor,
+          initialTime: game.initial_time,
+          increment: game.increment,
+          whitePlayerId: game.player1_id,
+          blackPlayerId: game.player2_id,
+          isWhiteTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'w',
+          isBlackTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'b',
+          started: isGameStarted
         });
-
       } catch (error) {
         console.error('Error in joinGame:', error);
         socket.emit('error', { message: 'Failed to join game' });
       }
     });
 
-    socket.on('move', async ({ gameId, move, fen, moveNotation }) => {
+    socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeRemaining, blackTimeRemaining }) => {
       console.log('Move received:', { gameId, move, fen });
 
       try {
@@ -101,19 +91,46 @@ const configureSocket = (io) => {
 
         // Update game in database
         game.fen = fen;
+        game.white_time = whiteTimeRemaining;
+        game.black_time = blackTimeRemaining;
         game.move_history = [...(game.move_history || []), move];
         await game.save();
 
+        const isWhiteTurn = fen.split(' ')[1] === 'w';
+
         // Broadcast move to other players
-        socket.to(`game-${gameId}`).emit('move', {
+        io.to(`game-${gameId}`).emit('move', {
           from: move.from,
           to: move.to,
           fen: fen,
-          moveNotation: moveNotation
+          moveNotation: moveNotation,
+          whiteTimeRemaining,
+          blackTimeRemaining,
+          isWhiteTimerRunning: isWhiteTurn,
+          isBlackTimerRunning: !isWhiteTurn
         });
       } catch (error) {
         console.error('Error processing move:', error);
         socket.emit('error', { message: 'Failed to process move' });
+      }
+    });
+
+    socket.on('timeUpdate', async ({ gameId, color, timeLeft }) => {
+      try {
+        const game = await Game.findByPk(gameId);
+        if (!game) return;
+
+        if (color === 'white') {
+          game.white_time = timeLeft;
+        } else {
+          game.black_time = timeLeft;
+        }
+        await game.save();
+
+        // Broadcast time update to other player
+        socket.to(`game-${gameId}`).emit('timeUpdate', { color, timeLeft });
+      } catch (error) {
+        console.error('Error updating time:', error);
       }
     });
 

@@ -34,21 +34,15 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
 // Create a new game
 router.post('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    // Mark previous games as completed instead of cancelled
-    await Game.update(
-      { status: 'completed' },
-      {
-        where: {
-          player1_id: req.user.user_id,
-          status: 'waiting'
-        }
-      }
-    );
-
-    // Create new game
+    const { timeControl, initialTime, increment } = req.body;
+    
     const game = await Game.create({
       player1_id: req.user.user_id,
       status: 'waiting',
+      initial_time: initialTime,
+      increment: increment,
+      white_time: initialTime,
+      black_time: initialTime,
       fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     });
 

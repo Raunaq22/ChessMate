@@ -1,23 +1,32 @@
 {
   "development": {
-    "username": "root",
+    "username": "raunaq",
     "password": null,
-    "database": "database_development",
+    "database": "chessmate",
     "host": "127.0.0.1",
-    "dialect": "mysql"
+    "port": 5432,
+    "dialect": "postgres"
   },
   "test": {
-    "username": "root",
+    "username": "raunaq",
     "password": null,
-    "database": "database_test",
+    "database": "chessmate_test",
     "host": "127.0.0.1",
-    "dialect": "mysql"
+    "port": 5432,
+    "dialect": "postgres"
   },
   "production": {
-    "username": "root",
+    "username": "raunaq",
     "password": null,
-    "database": "database_production",
+    "database": "chessmate_production",
     "host": "127.0.0.1",
-    "dialect": "mysql"
+    "port": 5432,
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
   }
 }

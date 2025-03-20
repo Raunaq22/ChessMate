@@ -579,7 +579,7 @@ const ChessGame = () => {
     }
   }, [socket, gameId, whiteTime, blackTime, gameEnded]);
 
-  // Update the handleSendMessage function to properly handle chat
+  // Fix the handleSendMessage function to properly structure the message
   const handleSendMessage = (text) => {
     if (!socket || !text || !currentUser) {
       console.error('Cannot send message: missing socket, text, or user');
@@ -587,7 +587,7 @@ const ChessGame = () => {
     }
     
     const message = {
-      text, // <-- just using the text directly
+      text, // The message text
       userId: currentUser.user_id,
       username: currentUser.username,
       timestamp: new Date().toISOString()
@@ -595,11 +595,14 @@ const ChessGame = () => {
     
     console.log('Sending message:', message);
     
-    // Add to local state first
-    setChatMessages(prev => [...prev, message]);
+    // Add to local state immediately for UI responsiveness
+    setChatMessages(prevMessages => [...prevMessages, message]);
     
-    // Then emit to server
-    socket.emit('chat', { gameId, message });
+    // Send to server in the expected format
+    socket.emit('chat', { 
+      gameId, 
+      message // Send the complete message object
+    });
   };
 
   // Fix handleResign to ensure timers stop

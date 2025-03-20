@@ -30,9 +30,13 @@ module.exports = (io) => {
   const getUserProfile = async (userId) => {
     try {
       const user = await db.User.findByPk(userId, {
-        attributes: ['id', 'username', 'elo_rating']
+        attributes: ['user_id', 'username', 'elo_rating']
       });
-      return user?.dataValues;
+      return user ? {
+        id: user.user_id,
+        username: user.username,
+        elo_rating: user.elo_rating
+      } : null;
     } catch (error) {
       console.error('Error fetching user profile:', error);
       return null;
@@ -52,27 +56,23 @@ module.exports = (io) => {
     socket.on('joinGame', async ({ gameId, userId }) => {
       try {
         // Get game from database
-        const gameData = await db.Game.findByPk(gameId, {
-          include: [
-            { model: db.TimeControl, attributes: ['initial_time', 'increment'] }
-          ]
-        });
+        const gameData = await db.Game.findByPk(gameId);
         
         if (!gameData) {
           socket.emit('error', { message: 'Game not found' });
           return;
         }
         
-        const whiteId = gameData.white_player_id;
-        const blackId = gameData.black_player_id;
+        const whiteId = gameData.player1_id;
+        const blackId = gameData.player2_id;
         
         // Initialize or get game state
         let game = games.get(gameId);
         
         if (!game) {
           game = initializeGame(gameId, whiteId, blackId, {
-            initialTime: gameData.TimeControl.initial_time,
-            increment: gameData.TimeControl.increment
+            initialTime: gameData.initial_time,
+            increment: gameData.increment
           });
         }
         
@@ -87,25 +87,33 @@ module.exports = (io) => {
         // Get player profiles
         const [whiteProfile, blackProfile] = await Promise.all([
           getUserProfile(whiteId),
-          getUserProfile(blackId)
+          blackId ? getUserProfile(blackId) : null
         ]);
         
         // Send game state to connected user
         socket.emit('gameState', {
-          fen: game.chess.fen(),
+          fen: gameData.fen,
           playerColor: playerColor || 'spectator',
-          initialTime: gameData.TimeControl.initial_time,
-          increment: gameData.TimeControl.increment,
+          initialTime: gameData.initial_time,
+          increment: gameData.increment,
           isWhiteTimerRunning: game.isWhiteTimerRunning,
           isBlackTimerRunning: game.isBlackTimerRunning,
           whitePlayerId: whiteId,
           blackPlayerId: blackId,
           whitePlayerProfile: whiteProfile,
           blackPlayerProfile: blackProfile,
-          started: game.started,
-          whiteTimeLeft: game.whiteTimeLeft,
-          blackTimeLeft: game.blackTimeLeft,
+          started: gameData.status === 'playing',
+          whiteTimeLeft: gameData.white_time,
+          blackTimeLeft: gameData.black_time,
           firstMoveMade: game.firstMoveMade
+        });
+        
+        // Also emit playerUpdate to all clients in the room
+        io.to(gameId).emit('playerUpdate', {
+          whitePlayerId: whiteId,
+          blackPlayerId: blackId,
+          whitePlayerProfile: whiteProfile,
+          blackPlayerProfile: blackProfile
         });
         
       } catch (error) {
@@ -169,25 +177,18 @@ module.exports = (io) => {
       }
     });
     
-    // Update the chat message handling
+    // FIX: Update the chat message handling to work correctly for both players
     socket.on('chat', ({ gameId, message }) => {
       try {
         console.log(`CHAT: Message received in game ${gameId}:`, message);
         
-        if (!message || !message.text) {
-          console.error('Invalid chat message format');
-          return;
-        }
-        
-        // Get the game from the map
+        // Store messages in the game object for persistence
         const game = games.get(gameId);
-        if (!game) {
-          console.error(`Game ${gameId} not found`);
-          return;
+        if (game) {
+          game.messages.push(message);
         }
         
         // Broadcast to all clients in the room EXCEPT sender
-        console.log(`Broadcasting message to game ${gameId}`);
         socket.to(gameId).emit('chat', message);
         
       } catch (error) {
@@ -311,17 +312,17 @@ module.exports = (io) => {
       }
       
       // Update user ratings
-      if (whiteEloChange !== 0) {
+      if (whiteEloChange !== 0 && game.whitePlayerId) {
         await db.User.increment('elo_rating', { 
           by: whiteEloChange,
-          where: { id: game.whitePlayerId }
+          where: { user_id: game.whitePlayerId }
         });
       }
       
-      if (blackEloChange !== 0) {
+      if (blackEloChange !== 0 && game.blackPlayerId) {
         await db.User.increment('elo_rating', {
           by: blackEloChange,
-          where: { id: game.blackPlayerId }
+          where: { user_id: game.blackPlayerId }
         });
       }
       

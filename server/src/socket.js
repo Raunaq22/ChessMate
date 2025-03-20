@@ -1,7 +1,7 @@
 const Game = require('./models/Game');
 const { Chess } = require('chess.js');
 const { Op } = require('sequelize');
-const User = require('./models/User'); // Add this line to import the User model
+const User = require('./models/User');
 
 const configureSocket = (io) => {
   const activeGames = new Map();
@@ -28,6 +28,8 @@ const configureSocket = (io) => {
       }
     };
 
+    // Run immediately on connection to update activity
+    updateActivity();
     const activityInterval = setInterval(updateActivity, 30000);
 
     socket.on('joinGame', async ({ gameId, userId }) => {
@@ -148,9 +150,33 @@ const configureSocket = (io) => {
             time_control: game.time_control
           }
         });
+        
+        // Track this socket in the activeGames map
+        if (!activeGames.has(gameId)) {
+          activeGames.set(gameId, new Map());
+        }
+        activeGames.get(gameId).set(userId, socket.id);
+        
       } catch (error) {
         console.error('Error in joinGame:', error);
         socket.emit('error', { message: 'Failed to join game' });
+      }
+    });
+
+    // FIX: Modified chat message handling to be compatible with gameHandler.js
+    socket.on('chat', ({ gameId, message }) => {
+      try {
+        console.log(`CHAT: Message from ${message.username} in game ${gameId}:`, message);
+        
+        if (!message || !message.text) {
+          console.error('Invalid chat message format');
+          return;
+        }
+        
+        // Broadcast to all clients in the room EXCEPT sender
+        socket.to(`game-${gameId}`).emit('chat', message);
+      } catch (error) {
+        console.error('Error handling chat message:', error);
       }
     });
 
@@ -222,6 +248,36 @@ const configureSocket = (io) => {
       }
     });
 
+    // Event handlers for draw offers and resignations
+    socket.on('offerDraw', ({ gameId, fromPlayerId }) => {
+      console.log(`Draw offer from ${fromPlayerId} in game ${gameId}`);
+      socket.to(`game-${gameId}`).emit('drawOffer', { fromPlayerId });
+    });
+    
+    socket.on('acceptDraw', ({ gameId }) => {
+      io.to(`game-${gameId}`).emit('gameOver', { reason: 'draw', winner: null });
+      // Update game result in the database
+      updateGameResult(gameId, 'draw');
+    });
+    
+    socket.on('declineDraw', ({ gameId, fromPlayerId }) => {
+      socket.to(`game-${gameId}`).emit('drawOfferRejected', { fromPlayerId });
+    });
+    
+    socket.on('resign', ({ gameId, playerId, color }) => {
+      const winner = color === 'white' ? 'black' : 'white';
+      console.log(`Player ${playerId} resigned as ${color} in game ${gameId}`);
+      
+      io.to(`game-${gameId}`).emit('gameOver', {
+        reason: 'resignation',
+        winner,
+        message: `${color === 'white' ? 'White' : 'Black'} resigned. ${winner === 'white' ? 'White' : 'Black'} wins!`
+      });
+      
+      // Update game result in the database
+      updateGameResult(gameId, 'resignation', winner);
+    });
+
     socket.on('disconnect', async () => {
       clearInterval(activityInterval);
       console.log('Client disconnected:', socket.id);
@@ -248,9 +304,9 @@ const configureSocket = (io) => {
       }
 
       if (currentGameId && currentUserId) {
-        const game = activeGames.get(currentGameId);
-        if (game) {
-          game.delete(currentUserId);
+        const gameUsers = activeGames.get(currentGameId);
+        if (gameUsers) {
+          gameUsers.delete(currentUserId);
           
           // Notify other players in the game
           socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
@@ -258,52 +314,85 @@ const configureSocket = (io) => {
           });
           
           // Clean up empty game
-          if (game.size === 0) {
+          if (gameUsers.size === 0) {
             activeGames.delete(currentGameId);
           }
         }
       }
 
-      if (currentUserId) {
-        try {
-          // Mark all waiting games created by this user as completed
-          await Game.update(
-            { status: 'completed' },
-            {
-              where: {
-                player1_id: currentUserId,
-                status: 'waiting'
-              }
-            }
-          );
-          console.log(`Cleaned up waiting games for user ${currentUserId}`);
-        } catch (error) {
-          console.error('Error cleaning up games:', error);
-        }
-      }
-
       // Find which game room this socket was in
-      for (const [roomName, sockets] of activeGames.entries()) {
-        if (sockets.has(socket.id)) {
-          sockets.delete(socket.id);
-          
-          // If there are still players in the room, notify them
-          if (sockets.size > 0) {
-            io.to(roomName).emit('playerDisconnected', {
-              message: 'Opponent disconnected - Game session ended'
-            });
+      for (const [roomId, users] of activeGames.entries()) {
+        for (const [userId, socketId] of users.entries()) {
+          if (socketId === socket.id) {
+            users.delete(userId);
+            
+            // If there are still players in the room, notify them
+            if (users.size > 0) {
+              io.to(`game-${roomId}`).emit('playerDisconnected', {
+                message: 'Opponent disconnected - Game session ended'
+              });
+            }
+            
+            // Clean up empty rooms
+            if (users.size === 0) {
+              activeGames.delete(roomId);
+            }
+            
+            break;
           }
-          
-          // Clean up empty rooms
-          if (sockets.size === 0) {
-            activeGames.delete(roomName);
-          }
-          
-          break;
         }
       }
     });
   });
+  
+  // Helper function to update game result in the database
+  async function updateGameResult(gameId, reason, winner = null) {
+    try {
+      const game = await Game.findByPk(gameId);
+      if (!game) return;
+      
+      let whiteEloChange = 0;
+      let blackEloChange = 0;
+      let winnerId = null;
+      
+      if (winner === 'white') {
+        whiteEloChange = 15;
+        blackEloChange = -15;
+        winnerId = game.player1_id;
+      } else if (winner === 'black') {
+        whiteEloChange = -15;
+        blackEloChange = 15;
+        winnerId = game.player2_id;
+      }
+      
+      // Update game in database
+      await game.update({
+        status: 'completed',
+        end_time: new Date(),
+        winner_id: winnerId,
+        result: winner ? `${winner}_win` : 'draw'
+      });
+      
+      // Update player ratings
+      if (game.player1_id && whiteEloChange !== 0) {
+        await User.increment('elo_rating', {
+          by: whiteEloChange,
+          where: { user_id: game.player1_id }
+        });
+      }
+      
+      if (game.player2_id && blackEloChange !== 0) {
+        await User.increment('elo_rating', {
+          by: blackEloChange,
+          where: { user_id: game.player2_id }
+        });
+      }
+      
+      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}`);
+    } catch (error) {
+      console.error('Error updating game result:', error);
+    }
+  }
 };
 
 module.exports = configureSocket;

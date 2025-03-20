@@ -8,6 +8,9 @@ const router = express.Router();
 // Get available games
 router.get('/available', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
+    console.log('Fetching available games for user:', req.user.user_id);
+    
+    // Get active games where current user isn't already a player
     const availableGames = await Game.findAll({
       where: {
         status: 'waiting',
@@ -18,12 +21,16 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
       },
       include: [{
         model: User,
-        as: 'firstPlayer',
-        attributes: ['username']
+        as: 'player1', // IMPORTANT: Match the association name with Game model
+        attributes: ['username', 'last_active', 'user_id']
       }],
       order: [['createdAt', 'DESC']]
     });
 
+    console.log(`Found ${availableGames.length} available games`);
+    
+    // Return all games and let the client handle display
+    // Remove the inactive host filtering that's causing problems
     res.json({ availableGames });
   } catch (error) {
     console.error('Error fetching games:', error);

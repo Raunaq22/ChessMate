@@ -30,6 +30,24 @@ export const AuthProvider = ({ children }) => {
     checkLoggedIn();
   }, []);
 
+  // Function to update activity
+  const updateActivity = async () => {
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/activity`);
+    } catch (error) {
+      console.error('Error updating activity:', error);
+    }
+  };
+
+  // Call it on successful login and setup an interval
+  useEffect(() => {
+    if (isAuthenticated) {
+      updateActivity();
+      const interval = setInterval(updateActivity, 60000); // Update every minute
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
   // Login function
   const login = async (email, password) => {
     try {

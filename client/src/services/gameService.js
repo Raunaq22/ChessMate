@@ -14,18 +14,29 @@ const gameService = {
     }
   },
 
-// In gameService.js, update the createGame function
-createGame: async (gameSettings) => {
-  try {
-    // Make sure we're sending all properties
-    const response = await axios.post(`${API_URL}/api/games`, gameSettings);
-    console.log('Game service response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Game service error:', error);
-    throw error;
-  }
-},
+  // Fix the createGame method to ensure proper handling of time values
+  createGame: async (params) => {
+    console.log('Creating game with params:', params);
+    
+    // Ensure initialTime is sent as a number and not null
+    const initialTime = params.initialTime !== null ? params.initialTime : 600;
+  
+    // Create a validated payload with proper types
+    const payload = {
+      timeControl: params.timeControl,
+      initialTime: initialTime, // Ensure this is a number
+      increment: Number(params.increment || 0)
+    };
+  
+    try {
+      const response = await axios.post(`${API_URL}/api/games`, payload);
+      console.log('Game service response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating game:', error);
+      throw error;
+    }
+  },
 
   joinGame: async (gameId) => {
     const response = await axios.post(`${API_URL}/api/games/${gameId}/join`);

@@ -16,8 +16,10 @@ const configureSocket = (io) => {
       const userId = socket.handshake.query.userId;
       if (userId) {
         try {
+          const now = new Date();
+          console.log(`Updating activity for user ${userId} to ${now.toISOString()}`);
           await User.update(
-            { last_active: new Date() },
+            { last_active: now },
             { where: { user_id: userId } }
           );
         } catch (error) {
@@ -49,16 +51,31 @@ const configureSocket = (io) => {
         const playerColor = game.player1_id === userId ? 'white' : 'black';
         const isGameStarted = game.status === 'playing';
 
+        // Add debug logging to check time values
+        console.log(`Game ${gameId} time settings:`, {
+          initialTime: game.initial_time,
+          whiteTime: game.white_time,
+          blackTime: game.black_time,
+          increment: game.increment
+        });
+
+        // Ensure we're sending the correct time values
+        const initialTime = game.initial_time || null;
+        const whiteTime = game.white_time !== null ? game.white_time : initialTime;
+        const blackTime = game.black_time !== null ? game.black_time : initialTime;
+
         socket.emit('gameState', {
           fen: game.fen,
           playerColor,
-          initialTime: game.initial_time,
-          increment: game.increment,
+          initialTime: initialTime,
+          increment: game.increment || 0,
           whitePlayerId: game.player1_id,
           blackPlayerId: game.player2_id,
           isWhiteTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'w',
           isBlackTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'b',
-          started: isGameStarted
+          started: isGameStarted,
+          whiteTimeLeft: whiteTime,
+          blackTimeLeft: blackTime
         });
       } catch (error) {
         console.error('Error in joinGame:', error);
@@ -137,6 +154,27 @@ const configureSocket = (io) => {
     socket.on('disconnect', async () => {
       clearInterval(activityInterval);
       console.log('Client disconnected:', socket.id);
+
+      // Get the user ID from the socket handshake query
+      const userId = socket.handshake.query.userId;
+
+      if (userId) {
+        try {
+          // Mark all waiting games created by this user as completed
+          await Game.update(
+            { status: 'completed' },
+            {
+              where: {
+                player1_id: userId,
+                status: 'waiting'
+              }
+            }
+          );
+          console.log(`Cleaned up waiting games for user ${userId}`);
+        } catch (error) {
+          console.error('Error cleaning up games:', error);
+        }
+      }
 
       if (currentGameId && currentUserId) {
         const game = activeGames.get(currentGameId);

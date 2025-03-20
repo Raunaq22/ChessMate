@@ -3,6 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const passport = require('passport');
+const { Op } = require('sequelize');
+const Game = require('./models/Game');
+const User = require('./models/User');  // Add this import
 require('./config/passport')(passport);
 require('dotenv').config();
 
@@ -44,6 +47,47 @@ app.get('/', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/games', gamesRoutes); 
+
+// Add a cleanup job for abandoned games
+const cleanupAbandonedGames = async () => {
+  try {
+    console.log("Running cleanup for abandoned games...");
+    // Get users who haven't been active in the last 2 minutes
+    const inactiveUsers = await User.findAll({
+      where: {
+        last_active: {
+          [Op.lt]: new Date(Date.now() - 2 * 60 * 1000) // 2 minutes ago
+        }
+      },
+      attributes: ['user_id']
+    });
+    
+    const inactiveUserIds = inactiveUsers.map(user => user.user_id);
+    
+    if (inactiveUserIds.length > 0) {
+      console.log(`Found ${inactiveUserIds.length} inactive users`);
+      // Close any waiting games from inactive users
+      const result = await Game.update(
+        { status: 'completed' },
+        {
+          where: {
+            player1_id: { [Op.in]: inactiveUserIds },
+            status: 'waiting'
+          }
+        }
+      );
+      
+      if (result[0] > 0) {
+        console.log(`Cleaned up ${result[0]} abandoned games from inactive users`);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up abandoned games:', error);
+  }
+};
+
+// Run cleanup job every minute
+setInterval(cleanupAbandonedGames, 60 * 1000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

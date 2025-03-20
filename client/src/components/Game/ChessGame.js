@@ -288,6 +288,26 @@ const ChessGame = () => {
             (winner === 'black' && playerIds.black === currentUser.user_id)) {
           setShowConfetti(true);
         }
+      } else if (reason === 'checkmate') {
+        // Handle checkmate event from the server
+        const winnerColor = winner === 'white' ? 'White' : 'Black';
+        setGameStatus(`Checkmate! ${winnerColor} wins!`);
+        setGameEnded(true);
+        
+        if ((winner === 'white' && playerIds.white === currentUser.user_id) || 
+            (winner === 'black' && playerIds.black === currentUser.user_id)) {
+          setShowConfetti(true);
+        }
+      } else if (reason === 'timeout') {
+        // Handle timeout
+        const winnerColor = winner === 'white' ? 'White' : 'Black';
+        setGameStatus(`${winnerColor} wins on time!`);
+        setGameEnded(true);
+        
+        if ((winner === 'white' && playerIds.white === currentUser.user_id) || 
+            (winner === 'black' && playerIds.black === currentUser.user_id)) {
+          setShowConfetti(true);
+        }
       }
     });
 
@@ -402,16 +422,41 @@ const ChessGame = () => {
     return true;
   };
 
-  // Update the checkGameStatus function to set gameEnded
+  // Update the checkGameStatus function to properly notify both players and emit game over event
   const checkGameStatus = (chess) => {
     if (chess.isCheckmate()) {
       const winner = chess.turn() === 'w' ? 'Black' : 'White';
+      const winnerColor = chess.turn() === 'w' ? 'black' : 'white';
       setGameStatus(`Checkmate! ${winner} wins!`);
-      setGameEnded(true); // Set game ended state
+      setGameEnded(true);
+      
+      // Emit game over event so both players are notified
+      socket?.emit('gameOver', {
+        gameId,
+        winner: winnerColor,
+        reason: 'checkmate'
+      });
+      
+      // Only show confetti to the winner
+      if ((winnerColor === 'white' && playerColor === 'white') ||
+          (winnerColor === 'black' && playerColor === 'black')) {
+        setShowConfetti(true);
+      }
+      
       return true;
     } else if (chess.isDraw()) {
       setGameStatus('Game Draw');
-      setGameEnded(true); // Set game ended state
+      setGameEnded(true);
+      
+      // Emit draw event
+      socket?.emit('gameOver', {
+        gameId,
+        reason: 'draw',
+        type: chess.isStalemate() ? 'stalemate' : 
+              chess.isThreefoldRepetition() ? 'repetition' : 
+              chess.isInsufficientMaterial() ? 'insufficient' : 'fifty-move'
+      });
+      
       return true;
     } else if (chess.isCheck()) {
       setGameStatus('Check!');

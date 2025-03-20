@@ -14,19 +14,22 @@ const gameService = {
     }
   },
 
-  // Fix the createGame method to ensure proper handling of time values
-  createGame: async (params) => {
+  createGame: async (params = {}) => {
     console.log('Creating game with params:', params);
     
-    // Ensure initialTime is sent as a number and not null
-    const initialTime = params.initialTime !== null ? params.initialTime : 600;
+    // Use default values for any missing parameters
+    const timeControl = params.timeControl || 'rapid';
+    const initialTime = params.initialTime !== undefined ? Number(params.initialTime) : 600;
+    const increment = Number(params.increment || 0);
   
     // Create a validated payload with proper types
     const payload = {
-      timeControl: params.timeControl,
-      initialTime: initialTime, // Ensure this is a number
-      increment: Number(params.increment || 0)
+      timeControl: timeControl,
+      initialTime: initialTime, // Must be a number
+      increment: increment // Must be a number
     };
+    
+    console.log('Sending validated payload:', payload);
   
     try {
       const response = await axios.post(`${API_URL}/api/games`, payload);

@@ -108,6 +108,37 @@ const ChessGame = () => {
       newSocket.emit('joinGame', { gameId, userId: currentUser.user_id });
     });
 
+    // Add this new event listener for player updates
+    newSocket.on('playerUpdate', ({ whitePlayerId, blackPlayerId, whitePlayerProfile, blackPlayerProfile }) => {
+      console.log('Player update received:', { whitePlayerProfile, blackPlayerProfile });
+      
+      // Update player IDs
+      setPlayerIds({ 
+        white: whitePlayerId, 
+        black: blackPlayerId 
+      });
+      
+      // Update player profiles
+      setPlayerProfiles({ 
+        white: whitePlayerProfile || null, 
+        black: blackPlayerProfile || null 
+      });
+      
+      // Set opponent joined to true if both players are present
+      if (whitePlayerId && blackPlayerId) {
+        setOpponentJoined(true);
+        
+        // Update opponent name based on current player color
+        if (playerColor === 'white' && blackPlayerProfile?.username) {
+          setOpponentName(blackPlayerProfile.username);
+          console.log('Black player joined:', blackPlayerProfile.username);
+        } else if (playerColor === 'black' && whitePlayerProfile?.username) {
+          setOpponentName(whitePlayerProfile.username);
+          console.log('White player joined:', whitePlayerProfile.username);
+        }
+      }
+    });
+
     newSocket.on('gameState', ({ 
       fen, 
       playerColor, 

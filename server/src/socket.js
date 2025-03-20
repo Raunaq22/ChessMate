@@ -118,6 +118,15 @@ const configureSocket = (io) => {
           increment
         });
 
+        // Important - emit to EVERYONE in the room (including sender)
+        // This ensures all players get updated about each other
+        io.to(roomName).emit('playerUpdate', {
+          whitePlayerId: game.player1_id,
+          blackPlayerId: game.player2_id,
+          whitePlayerProfile: whitePlayerProfile,
+          blackPlayerProfile: blackPlayerProfile
+        });
+
         socket.emit('gameState', {
           fen: game.fen,
           playerColor,

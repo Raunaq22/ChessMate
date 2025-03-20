@@ -671,34 +671,7 @@ const ChessGame = () => {
       {/* Confetti animation */}
       {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
 
-      {/* Game start animation */}
-      <AnimatePresence>
-        {showStartAnimation && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-          >
-            <motion.div 
-              className="bg-white p-8 rounded-lg text-center max-w-md w-full mx-4"
-              initial={{ scale: 0.5, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-2xl font-bold mb-4">Game Starting!</h2>
-              <div className="flex flex-col items-center space-y-4">
-                <div className="text-lg font-medium">
-                  {playerProfiles.white?.username || 'White'} vs {playerProfiles.black?.username || 'Black'}
-                </div>
-                <div className="bg-gray-100 px-4 py-2 rounded-full">
-                  Time Control: {Math.floor(whiteTime / 60)}+{timeIncrement}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* Game status banner */}
       {gameStatus && (
@@ -867,21 +840,7 @@ const ChessGame = () => {
             </div>
           )}
 
-          {/* Waiting for opponent */}
-          {!opponentJoined && !gameEnded && playerIds.white !== playerIds.black && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-90 z-50">
-              <div className="text-2xl mb-4">Waiting for opponent to join...</div>
-              <div className="text-lg mb-8">Game ID: {gameId}</div>
-              <div className="animate-pulse">
-                <div className="flex space-x-4">
-                  <div className="h-12 w-12 rounded-full bg-blue-400"></div>
-                  <div className="h-12 w-12 rounded-full bg-blue-500"></div>
-                  <div className="h-12 w-12 rounded-full bg-blue-600"></div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+         
         
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-md p-4 mb-6 transition-all hover:shadow-lg">
@@ -928,6 +887,7 @@ const ChessGame = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

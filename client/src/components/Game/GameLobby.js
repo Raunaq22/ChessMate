@@ -43,27 +43,31 @@ const GameLobby = () => {
     };
   }, [fetchGames]); // Add fetchGames as dependency
 
-  const handleCreateGame = async (timeControl) => {
-    try {
-      setDebugInfo('Creating game...');
-      const { game } = await gameService.createGame({
-        timeControl: timeControl.name.toLowerCase(),
-        initialTime: timeControl.time,
-        increment: timeControl.increment
-      });
-      
-      setDebugInfo(`Create game response: ${JSON.stringify(game)}`);
-      
-      if (game?.game_id) {
-        navigate(`/game/${game.game_id}`);
-      } else {
-        setDebugInfo('Game created but no game_id returned');
-      }
-    } catch (error) {
-      console.error('Failed to create game:', error);
-      setDebugInfo(`Create error: ${error.message || JSON.stringify(error)}`);
+const handleCreateGame = async (timeControl) => {
+  try {
+    setDebugInfo(`Creating game with time control: ${JSON.stringify(timeControl)}`);
+    
+    // Ensure we're sending the correct parameters
+    const payload = {
+      timeControl: timeControl.name.toLowerCase(),
+      initialTime: timeControl.time,
+      increment: timeControl.increment
+    };
+    
+    console.log('Sending game creation payload:', payload);
+    
+    const response = await gameService.createGame(payload);
+    
+    if (response?.game?.game_id) {
+      navigate(`/game/${response.game.game_id}`);
+    } else {
+      setDebugInfo('Game created but no game_id returned');
     }
-  };
+  } catch (error) {
+    console.error('Failed to create game:', error);
+    setDebugInfo(`Create error: ${error.message || JSON.stringify(error)}`);
+  }
+};
 
   const handleJoinGame = async (gameId) => {
     try {

@@ -32,11 +32,25 @@ const configureSocket = (io) => {
 
     socket.on('joinGame', async ({ gameId, userId }) => {
       try {
+        // Get game data with detailed logging
+        console.log(`Attempting to fetch game ${gameId} for user ${userId}`);
         const game = await Game.findByPk(gameId);
+        
         if (!game) {
+          console.error(`Game ${gameId} not found in database`);
           socket.emit('error', { message: 'Game not found' });
           return;
         }
+        
+        // Log the ACTUAL raw data from the database - crucial for debugging
+        console.log(`GAME DATA FROM DATABASE:`, {
+          game_id: game.game_id,
+          initial_time: game.initial_time,
+          increment: game.increment,
+          white_time: game.white_time,
+          black_time: game.black_time,
+          time_control: game.time_control
+        });
 
         // Prevent same user from joining both sides
         if (game.player1_id === userId && game.player2_id === userId) {
@@ -59,23 +73,37 @@ const configureSocket = (io) => {
           increment: game.increment
         });
 
-        // Ensure we're sending the correct time values
-        const initialTime = game.initial_time || null;
+        // CRITICAL FIX: Use the EXACT values from the database without any defaults/overrides
+        const initialTime = game.initial_time;
         const whiteTime = game.white_time !== null ? game.white_time : initialTime;
         const blackTime = game.black_time !== null ? game.black_time : initialTime;
+        const increment = game.increment || 0;
+        
+        console.log(`Sending time values to client:`, {
+          initialTime,
+          whiteTime,
+          blackTime,
+          increment
+        });
 
         socket.emit('gameState', {
           fen: game.fen,
           playerColor,
           initialTime: initialTime,
-          increment: game.increment || 0,
+          increment: increment,
           whitePlayerId: game.player1_id,
           blackPlayerId: game.player2_id,
           isWhiteTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'w',
           isBlackTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'b',
           started: isGameStarted,
           whiteTimeLeft: whiteTime,
-          blackTimeLeft: blackTime
+          blackTimeLeft: blackTime,
+          // Add raw game data for complete debugging
+          gameData: {
+            initial_time: game.initial_time,
+            increment: game.increment,
+            time_control: game.time_control
+          }
         });
       } catch (error) {
         console.error('Error in joinGame:', error);

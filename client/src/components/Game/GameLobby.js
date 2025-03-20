@@ -59,16 +59,25 @@ const handleCreateGame = async (timeControl) => {
     // Convert values to proper types and validate
     const payload = {
       timeControl: timeControl.name.toLowerCase(),
-      // Important: initialTime must be a number or null, not undefined
-      initialTime: timeControl.time !== undefined ? Number(timeControl.time) : null,
+      // Ensure initialTime is a number or null, never undefined
+      initialTime: timeControl.time !== undefined ? Number(timeControl.time) : 
+                  timeControl.time === null ? null : 600,
       increment: Number(timeControl.increment || 0)
     };
     
-    console.log('Creating game with params:', payload);
+    console.log('Creating game with validated params:', payload);
     
     const response = await gameService.createGame(payload);
     
     if (response?.game?.game_id) {
+      // Log successful game creation with time control details
+      console.log('Game created successfully with time control:', {
+        timeControl: payload.timeControl,
+        initialTime: payload.initialTime,
+        increment: payload.increment,
+        gameId: response.game.game_id
+      });
+      
       // Add a small delay to ensure the game is properly saved in the database
       setTimeout(() => {
         navigate(`/game/${response.game.game_id}`);

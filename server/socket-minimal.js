@@ -1,4 +1,6 @@
 const { Chess } = require('chess.js');
+// Import the database helper instead of trying to import models directly
+const { getGameById } = require('./utils/databaseHelpers');
 
 module.exports = (io) => {
   // Store active games in memory
@@ -12,8 +14,24 @@ module.exports = (io) => {
     socket.join(gameId);
     
     // Handle joining a game
-    socket.on('joinGame', ({ gameId, userId }) => {
+    socket.on('joinGame', async ({ gameId, userId }) => {
       console.log(`User ${userId} joined game ${gameId}`);
+      
+      // Get game data from database using helper
+      const gameData = await getGameById(gameId);
+      
+      if (!gameData) {
+        console.error(`Game ${gameId} not found in database`);
+        socket.emit('error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`Game ${gameId} data from DB:`, {
+        initialTime: gameData.initial_time,
+        increment: gameData.increment,
+        whiteTime: gameData.white_time,
+        blackTime: gameData.black_time
+      });
       
       // Get or create game state
       let game = games.get(gameId);
@@ -23,9 +41,10 @@ module.exports = (io) => {
           chess: new Chess(),
           whitePlayerId: null,
           blackPlayerId: null,
-          whiteTimeLeft: 600,
-          blackTimeLeft: 600,
-          timeIncrement: 5,
+          // Use database values with nullish coalescing for defaults
+          whiteTimeLeft: gameData.white_time ?? gameData.initial_time ?? 600,
+          blackTimeLeft: gameData.black_time ?? gameData.initial_time ?? 600,
+          timeIncrement: gameData.increment ?? 0,
           started: false,
           messages: []
         };
@@ -53,8 +72,9 @@ module.exports = (io) => {
       socket.emit('gameState', {
         fen: game.chess.fen(),
         playerColor,
-        initialTime: 600,
-        increment: 5,
+        // USE THE GAME DATA FROM DATABASE, NOT HARDCODED VALUES
+        initialTime: gameData?.initial_time || 600,
+        increment: gameData?.increment || 0,
         isWhiteTimerRunning: false,
         isBlackTimerRunning: false,
         whitePlayerId: game.whitePlayerId,

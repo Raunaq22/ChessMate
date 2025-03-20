@@ -122,10 +122,22 @@ const ChessGame = () => {
       started,
       whiteTimeLeft,
       blackTimeLeft,
-      firstMoveMade: serverFirstMoveMade
+      firstMoveMade: serverFirstMoveMade,
+      // Add new field to capture raw game data
+      gameData
     }) => {
       const newGame = new Chess(fen);
       
+      // Enhanced debugging - log the full game state object
+      console.log('DETAILED SERVER RESPONSE:', {
+        initialTime, 
+        increment,
+        whiteTimeLeft,
+        blackTimeLeft,
+        gameData // This will show the raw game object if the server sends it
+      });
+      
+      // No default values - use exactly what the server sends
       setGame(newGame);
       setPosition(fen);
       setPlayerColor(playerColor); 
@@ -167,24 +179,9 @@ const ChessGame = () => {
       }
       
       // CRITICAL FIX: Time control initialization
-      // Don't use default values or loadedFromStorage logic here - always use server values!
-      let whiteTimeValue, blackTimeValue;
-      
-      if (whiteTimeLeft !== undefined && whiteTimeLeft !== null) {
-        whiteTimeValue = whiteTimeLeft;
-      } else if (initialTime !== undefined && initialTime !== null) {
-        whiteTimeValue = initialTime;
-      } else {
-        whiteTimeValue = 600; // Only fallback if we absolutely must
-      }
-      
-      if (blackTimeLeft !== undefined && blackTimeLeft !== null) {
-        blackTimeValue = blackTimeLeft;
-      } else if (initialTime !== undefined && initialTime !== null) {
-        blackTimeValue = initialTime;
-      } else {
-        blackTimeValue = 600; // Only fallback if we absolutely must
-      }
+      // Remove fallbacks to force using only server values
+      let whiteTimeValue = whiteTimeLeft !== undefined ? whiteTimeLeft : initialTime;
+      let blackTimeValue = blackTimeLeft !== undefined ? blackTimeLeft : initialTime;
       
       console.log('Final time settings:', {
         white: whiteTimeValue,

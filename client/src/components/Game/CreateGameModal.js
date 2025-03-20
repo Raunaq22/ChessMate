@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const timeControls = [
   { id: 'bullet1', name: 'Bullet', time: 60, increment: 0, label: '1+0' },
@@ -6,12 +6,26 @@ const timeControls = [
   { id: 'blitz5', name: 'Blitz', time: 300, increment: 0, label: '5+0' },
   { id: 'blitz3', name: 'Blitz', time: 180, increment: 2, label: '3+2' },
   { id: 'rapid10', name: 'Rapid', time: 600, increment: 0, label: '10+0' },
+  { id: 'rapid10inc5', name: 'Rapid', time: 600, increment: 5, label: '10+5' },
   { id: 'rapid15', name: 'Rapid', time: 900, increment: 10, label: '15+10' },
   { id: 'unlimited', name: 'Unlimited', time: null, increment: 0, label: 'Unlimited' }
 ];
 
 const CreateGameModal = ({ onClose, onCreateGame }) => {
-  const [selectedTime, setSelectedTime] = useState(timeControls[0]);
+  // Find the 10+5 option as default
+  const defaultTimeIndex = timeControls.findIndex(control => control.id === 'rapid10inc5');
+  const [selectedTime, setSelectedTime] = useState(timeControls[defaultTimeIndex !== -1 ? defaultTimeIndex : 0]);
+
+  // Debug log when selectedTime changes
+  useEffect(() => {
+    console.log('Selected time control changed:', selectedTime);
+  }, [selectedTime]);
+
+  const handleCreateGame = () => {
+    // Debug log right before calling onCreateGame
+    console.log('Creating game with time control:', selectedTime);
+    onCreateGame(selectedTime);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -43,7 +57,7 @@ const CreateGameModal = ({ onClose, onCreateGame }) => {
             Cancel
           </button>
           <button
-            onClick={() => onCreateGame(selectedTime)}
+            onClick={handleCreateGame}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Create Game

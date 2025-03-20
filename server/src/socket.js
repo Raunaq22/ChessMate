@@ -58,6 +58,38 @@ const configureSocket = (io) => {
           return;
         }
 
+        // Store the game ID for this socket
+        currentGameId = gameId;
+        currentUserId = userId;
+
+        // Fetch the player information for both players
+        const [player1, player2] = await Promise.all([
+          User.findByPk(game.player1_id, {
+            attributes: ['user_id', 'username', 'elo_rating']
+          }),
+          game.player2_id ? User.findByPk(game.player2_id, {
+            attributes: ['user_id', 'username', 'elo_rating']
+          }) : null
+        ]);
+
+        // Prepare player profiles with real usernames
+        const whitePlayerProfile = player1 ? {
+          id: player1.user_id,
+          username: player1.username,
+          elo_rating: player1.elo_rating
+        } : null;
+        
+        const blackPlayerProfile = player2 ? {
+          id: player2.user_id,
+          username: player2.username,
+          elo_rating: player2.elo_rating
+        } : null;
+
+        console.log('Player profiles:', {
+          white: whitePlayerProfile,
+          black: blackPlayerProfile
+        });
+
         const roomName = `game-${gameId}`;
         socket.join(roomName);
 
@@ -93,6 +125,8 @@ const configureSocket = (io) => {
           increment: increment,
           whitePlayerId: game.player1_id,
           blackPlayerId: game.player2_id,
+          whitePlayerProfile: whitePlayerProfile,
+          blackPlayerProfile: blackPlayerProfile,
           isWhiteTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'w',
           isBlackTimerRunning: game.status === 'playing' && game.fen.split(' ')[1] === 'b',
           started: isGameStarted,

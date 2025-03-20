@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 5001;
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.IO with minimal handler
+// Initialize Socket.IO
 const io = require('socket.io')(server, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -18,9 +18,9 @@ const io = require('socket.io')(server, {
   }
 });
 
-// Use minimal socket handler that doesn't depend on models
-const socketMinimal = require('../socket-minimal');
-socketMinimal(io);
+// Use the main socket handler
+const socketHandler = require('./socket');
+socketHandler(io);
 
 async function startServer() {
   try {

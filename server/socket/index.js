@@ -12,14 +12,14 @@ module.exports = (server) => {
     pingInterval: 25000
   });
 
-  // Debug middleware
+  // Debug middleware for connection tracing
   io.use((socket, next) => {
     const { gameId, userId } = socket.handshake.query;
-    console.log(`Socket connection attempt - Game: ${gameId}, User: ${userId}`);
+    console.log(`Socket connection attempt - Game: ${gameId}, User: ${userId}, SocketID: ${socket.id}`);
     next();
   });
 
-  // Initialize game handler
+  // Initialize game handler with the io instance
   gameHandler(io);
 
   return io;

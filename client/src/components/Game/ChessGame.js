@@ -314,19 +314,19 @@ const ChessGame = () => {
 
   // Fix the dependency array warning
   useEffect(() => {
-    if (gameStatus && gameStatus.includes('wins')) {
-      const isWinner = (
+    if (gameStatus && (gameStatus.includes('wins') || gameStatus.includes('win'))) {
+      // Show confetti ONLY if the current player is the winner
+      const isWinner = 
         (gameStatus.includes('White wins') && playerColor === 'white') || 
-        (gameStatus.includes('Black wins') && playerColor === 'black')
-      );
+        (gameStatus.includes('Black wins') && playerColor === 'black');
       
       if (isWinner) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 8000);
+      } else {
+        setShowConfetti(false);
       }
     }
-    // We're intentionally not including playerIds and firstMoveMade since we only want
-    // this effect to run when the game status or player color changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStatus, playerColor]);
 
@@ -514,7 +514,12 @@ const ChessGame = () => {
     setGameStatus(`${color === 'w' ? 'Black' : 'White'} wins on time!`);
     setGameEnded(true); // Set game ended state
     
-    if ((color === 'w' && playerColor === 'black') || (color === 'b' && playerColor === 'white')) {
+    // Only show confetti if the current player wins
+    const currentPlayerWon = 
+      (color === 'w' && playerColor === 'black') || 
+      (color === 'b' && playerColor === 'white');
+    
+    if (currentPlayerWon) {
       setShowConfetti(true);
     }
     
@@ -571,9 +576,8 @@ const ChessGame = () => {
     setGameStatus(`${playerColor === 'white' ? 'Black' : 'White'} wins by resignation`);
     setGameEnded(true);
     
-    if (winner !== playerColor) {
-      setShowConfetti(true);
-    }
+    // No confetti shown for the resigning player
+    setShowConfetti(false);
     
     socket?.emit('gameOver', {
       gameId,
@@ -687,7 +691,7 @@ const ChessGame = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Confetti animation */}
+      {/* Confetti animation - only shown to the winner */}
       {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
 
 

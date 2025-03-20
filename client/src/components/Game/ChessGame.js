@@ -134,6 +134,8 @@ const ChessGame = () => {
         increment,
         whiteTimeLeft,
         blackTimeLeft,
+        whitePlayerProfile,
+        blackPlayerProfile,
         gameData // This will show the raw game object if the server sends it
       });
       
@@ -142,12 +144,18 @@ const ChessGame = () => {
       setPosition(fen);
       setPlayerColor(playerColor); 
       
-      // Add debug logging for better troubleshooting
-      console.log('Game state received:', {
-        whitePlayerId, blackPlayerId,
-        initialTime, whiteTimeLeft, blackTimeLeft,
-        increment
+      // Set player profiles with real data from server
+      setPlayerProfiles({
+        white: whitePlayerProfile || null,
+        black: blackPlayerProfile || null
       });
+      
+      // Get opponent name
+      if (playerColor === 'white' && blackPlayerProfile?.username) {
+        setOpponentName(blackPlayerProfile.username);
+      } else if (playerColor === 'black' && whitePlayerProfile?.username) {
+        setOpponentName(whitePlayerProfile.username);
+      }
       
       // Ensure both players are tracked properly
       setPlayerIds({ white: whitePlayerId, black: blackPlayerId });
@@ -288,26 +296,6 @@ const ChessGame = () => {
             (winner === 'black' && playerIds.black === currentUser.user_id)) {
           setShowConfetti(true);
         }
-      } else if (reason === 'checkmate') {
-        // Handle checkmate event from the server
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        setGameStatus(`Checkmate! ${winnerColor} wins!`);
-        setGameEnded(true);
-        
-        if ((winner === 'white' && playerIds.white === currentUser.user_id) || 
-            (winner === 'black' && playerIds.black === currentUser.user_id)) {
-          setShowConfetti(true);
-        }
-      } else if (reason === 'timeout') {
-        // Handle timeout
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        setGameStatus(`${winnerColor} wins on time!`);
-        setGameEnded(true);
-        
-        if ((winner === 'white' && playerIds.white === currentUser.user_id) || 
-            (winner === 'black' && playerIds.black === currentUser.user_id)) {
-          setShowConfetti(true);
-        }
       }
     });
 
@@ -334,19 +322,19 @@ const ChessGame = () => {
 
   // Fix the dependency array warning
   useEffect(() => {
-    if (gameStatus && (gameStatus.includes('wins') || gameStatus.includes('win'))) {
-      // Show confetti ONLY if the current player is the winner
-      const isWinner = 
+    if (gameStatus && gameStatus.includes('wins')) {
+      const isWinner = (
         (gameStatus.includes('White wins') && playerColor === 'white') || 
-        (gameStatus.includes('Black wins') && playerColor === 'black');
+        (gameStatus.includes('Black wins') && playerColor === 'black')
+      );
       
       if (isWinner) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 8000);
-      } else {
-        setShowConfetti(false);
       }
     }
+    // We're intentionally not including playerIds and firstMoveMade since we only want
+    // this effect to run when the game status or player color changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStatus, playerColor]);
 
@@ -422,41 +410,16 @@ const ChessGame = () => {
     return true;
   };
 
-  // Update the checkGameStatus function to properly notify both players and emit game over event
+  // Update the checkGameStatus function to set gameEnded
   const checkGameStatus = (chess) => {
     if (chess.isCheckmate()) {
       const winner = chess.turn() === 'w' ? 'Black' : 'White';
-      const winnerColor = chess.turn() === 'w' ? 'black' : 'white';
       setGameStatus(`Checkmate! ${winner} wins!`);
-      setGameEnded(true);
-      
-      // Emit game over event so both players are notified
-      socket?.emit('gameOver', {
-        gameId,
-        winner: winnerColor,
-        reason: 'checkmate'
-      });
-      
-      // Only show confetti to the winner
-      if ((winnerColor === 'white' && playerColor === 'white') ||
-          (winnerColor === 'black' && playerColor === 'black')) {
-        setShowConfetti(true);
-      }
-      
+      setGameEnded(true); // Set game ended state
       return true;
     } else if (chess.isDraw()) {
       setGameStatus('Game Draw');
-      setGameEnded(true);
-      
-      // Emit draw event
-      socket?.emit('gameOver', {
-        gameId,
-        reason: 'draw',
-        type: chess.isStalemate() ? 'stalemate' : 
-              chess.isThreefoldRepetition() ? 'repetition' : 
-              chess.isInsufficientMaterial() ? 'insufficient' : 'fifty-move'
-      });
-      
+      setGameEnded(true); // Set game ended state
       return true;
     } else if (chess.isCheck()) {
       setGameStatus('Check!');
@@ -559,12 +522,7 @@ const ChessGame = () => {
     setGameStatus(`${color === 'w' ? 'Black' : 'White'} wins on time!`);
     setGameEnded(true); // Set game ended state
     
-    // Only show confetti if the current player wins
-    const currentPlayerWon = 
-      (color === 'w' && playerColor === 'black') || 
-      (color === 'b' && playerColor === 'white');
-    
-    if (currentPlayerWon) {
+    if ((color === 'w' && playerColor === 'black') || (color === 'b' && playerColor === 'white')) {
       setShowConfetti(true);
     }
     
@@ -621,8 +579,9 @@ const ChessGame = () => {
     setGameStatus(`${playerColor === 'white' ? 'Black' : 'White'} wins by resignation`);
     setGameEnded(true);
     
-    // No confetti shown for the resigning player
-    setShowConfetti(false);
+    if (winner !== playerColor) {
+      setShowConfetti(true);
+    }
     
     socket?.emit('gameOver', {
       gameId,
@@ -687,13 +646,28 @@ const ChessGame = () => {
     const profile = isWhite ? playerProfiles.white : playerProfiles.black;
     const playerId = isWhite ? playerIds.white : playerIds.black;
     const isCurrentUser = playerId === currentUser?.user_id;
-    const username = isCurrentUser ? currentUser.username : (profile?.username || 'Opponent');
-    const rating = isCurrentUser ? currentUser.elo_rating || '?' : (profile?.elo_rating || '?');
+    
+    // Get username with fallbacks
+    let username;
+    if (isCurrentUser) {
+      username = currentUser.username;
+    } else if (profile && profile.username) {
+      username = profile.username;
+    } else if (playerId) {
+      username = `Player ${playerId}`;
+    } else {
+      username = 'Waiting...';
+    }
+    
+    // Get rating with fallbacks
+    const rating = isCurrentUser ? 
+      (currentUser.elo_rating || '?') : 
+      (profile?.elo_rating || '?');
     
     return (
       <div 
         className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-        onClick={() => navigate(`/profile/${playerId}`)}
+        onClick={() => playerId && navigate(`/profile/${playerId}`)}
       >
         <div 
           className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold"
@@ -736,7 +710,7 @@ const ChessGame = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Confetti animation - only shown to the winner */}
+      {/* Confetti animation */}
       {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
 
 
@@ -825,7 +799,7 @@ const ChessGame = () => {
 
           {/* Chessboard */}
           <div className="w-full max-w-2xl mx-auto lg:mx-0 mb-4">
-            <Chessboard 
+            <Chessboard
               id="responsive-board"
               position={position}
               onPieceDrop={onDrop}
@@ -907,13 +881,13 @@ const ChessGame = () => {
               </div>
             </div>
           )}
-
          
-        
+        </div>
+
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-md p-4 mb-6 transition-all hover:shadow-lg">
             <h2 className="text-xl font-bold mb-4 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/20000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Game History
@@ -955,7 +929,6 @@ const ChessGame = () => {
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

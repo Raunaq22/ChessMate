@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
-  const [timeLeft, setTimeLeft] = useState(initialTime || 600); 
+  // Make sure we're using the correct initialTime, never defaulting to 600
+  const [timeLeft, setTimeLeft] = useState(() => {
+    console.log(`Timer initializing with time: ${initialTime} seconds`);
+    return initialTime || 0; // Default to 0 not 600
+  }); 
+  
   const incrementApplied = useRef(false);
   const lastRunningState = useRef(isRunning);
   const lastUpdateTime = useRef(Date.now());
   const previousTime = useRef(initialTime);
+  
+  // Debug logging to verify we're getting correct initialTime
+  useEffect(() => {
+    console.log(`Timer initialized with: ${initialTime} seconds, increment: ${increment}`);
+  }, [initialTime, increment]);
   
   // Format time as mm:ss
   const formatTime = (seconds) => {
@@ -14,14 +24,14 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Better sync with server time values
+  // Always sync with server time values when they change
   useEffect(() => {
-    if (initialTime !== undefined && Math.abs(initialTime - previousTime.current) > 1) {
+    if (initialTime !== undefined && initialTime !== null) {
       console.log(`Timer reset: ${timeLeft} -> ${initialTime}`);
       setTimeLeft(initialTime);
       previousTime.current = initialTime;
     }
-  }, [initialTime, timeLeft]);
+  }, [initialTime]); // Only depend on initialTime, not timeLeft
 
   // More accurate timer with millisecond precision
   const updateTimer = useCallback(() => {

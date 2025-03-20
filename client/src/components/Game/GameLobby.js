@@ -23,8 +23,17 @@ const GameLobby = () => {
   const fetchGames = useCallback(async () => {
     try {
       const { availableGames } = await gameService.getAvailableGames();
-      // Filter out expired games
+      console.log("Fetched games:", availableGames);
+      
+      if (!Array.isArray(availableGames)) {
+        console.error("Expected array of games, got:", availableGames);
+        setAvailableGames([]);
+        return;
+      }
+      
+      // Only filter out expired games (created too long ago)
       const activeGames = availableGames.filter(game => !isGameExpired(game));
+      console.log(`Displaying ${activeGames.length} games in lobby`);
       setAvailableGames(activeGames);
     } catch (error) {
       console.error('Failed to fetch games:', error);
@@ -32,7 +41,7 @@ const GameLobby = () => {
     } finally {
       setLoading(false);
     }
-  }, [setAvailableGames, setDebugInfo, setLoading]);
+  }, []);
 
   useEffect(() => {
     fetchGames();
@@ -47,19 +56,23 @@ const handleCreateGame = async (timeControl) => {
   try {
     setDebugInfo(`Creating game with time control: ${JSON.stringify(timeControl)}`);
     
-    // Ensure we're sending the correct parameters
+    // Convert values to proper types and validate
     const payload = {
       timeControl: timeControl.name.toLowerCase(),
-      initialTime: timeControl.time,
-      increment: timeControl.increment
+      // Important: initialTime must be a number or null, not undefined
+      initialTime: timeControl.time !== undefined ? Number(timeControl.time) : null,
+      increment: Number(timeControl.increment || 0)
     };
     
-    console.log('Sending game creation payload:', payload);
+    console.log('Creating game with params:', payload);
     
     const response = await gameService.createGame(payload);
     
     if (response?.game?.game_id) {
-      navigate(`/game/${response.game.game_id}`);
+      // Add a small delay to ensure the game is properly saved in the database
+      setTimeout(() => {
+        navigate(`/game/${response.game.game_id}`);
+      }, 300);
     } else {
       setDebugInfo('Game created but no game_id returned');
     }
@@ -129,6 +142,10 @@ const handleCreateGame = async (timeControl) => {
   const formatTimeControl = (game) => {
     if (!game.initial_time) return 'Unlimited';
     const minutes = Math.floor(game.initial_time / 60);
+    const seconds = game.initial_time % 60;
+    if (seconds > 0) {
+      return `${minutes}:${seconds.toString().padStart(2, '0')}+${game.increment}`;
+    }
     return `${minutes}+${game.increment}`;
   };
 
@@ -170,28 +187,29 @@ const handleCreateGame = async (timeControl) => {
         {availableGames.map(game => (
           <div 
             key={game.game_id}
-            className={`p-4 border rounded-lg ${
-              isGameExpired(game) ? 'opacity-50' : ''
-            }`}
+            className="p-4 border rounded-lg shadow-md hover:shadow-lg transition-shadow"
           >
             <div className="flex justify-between items-center mb-2">
               <span className="font-semibold">
                 Time Control: {formatTimeControl(game)}
               </span>
               <span className="text-sm text-gray-500">
-                Created: {new Date(game.created_at).toLocaleTimeString()}
+                Created: {new Date(game.createdAt || game.created_at).toLocaleTimeString()}
               </span>
             </div>
             <div className="flex justify-between items-center mb-2">
+              <span className="text-sm">
+                Host: {game.player1?.username || 'Unknown'}
+              </span>
               <span className="text-sm text-gray-500">
-                Game ID: {formatGameId(game.game_id)}
+                ID: {formatGameId(game.game_id)}
               </span>
             </div>
             <button
               onClick={() => handleJoinGame(game.game_id)}
-              disabled={isGameExpired(game) || joiningGameId !== null}
+              disabled={joiningGameId !== null}
               className={`w-full mt-2 py-2 px-4 rounded ${
-                isGameExpired(game) || joiningGameId !== null
+                joiningGameId !== null
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-green-500 text-white hover:bg-green-600'
               }`}

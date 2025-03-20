@@ -166,26 +166,36 @@ const ChessGame = () => {
         setGameStarted(true);
       }
       
-      // CRITICAL FIX: Ensure time control is set correctly from server
-      // Only override from storage if this is the first time getting game state
-      if (!gameInitialized.current) {
-        // Make sure we use the server values
-        let initTime = initialTime;
-        if (typeof initTime !== 'number' || initTime < 1) {
-          initTime = 600; // Default 10min only if server value is invalid
-        }
-        
-        setWhiteTime(whiteTimeLeft !== undefined ? whiteTimeLeft : initTime);
-        setBlackTime(blackTimeLeft !== undefined ? blackTimeLeft : initTime);
-        setTimeIncrement(increment || 0);
-        
-        console.log('Setting initial times:', {
-          white: whiteTimeLeft !== undefined ? whiteTimeLeft : initTime,
-          black: blackTimeLeft !== undefined ? blackTimeLeft : initTime,
-          increment: increment || 0
-        });
+      // CRITICAL FIX: Time control initialization
+      // Don't use default values or loadedFromStorage logic here - always use server values!
+      let whiteTimeValue, blackTimeValue;
+      
+      if (whiteTimeLeft !== undefined && whiteTimeLeft !== null) {
+        whiteTimeValue = whiteTimeLeft;
+      } else if (initialTime !== undefined && initialTime !== null) {
+        whiteTimeValue = initialTime;
+      } else {
+        whiteTimeValue = 600; // Only fallback if we absolutely must
       }
       
+      if (blackTimeLeft !== undefined && blackTimeLeft !== null) {
+        blackTimeValue = blackTimeLeft;
+      } else if (initialTime !== undefined && initialTime !== null) {
+        blackTimeValue = initialTime;
+      } else {
+        blackTimeValue = 600; // Only fallback if we absolutely must
+      }
+      
+      console.log('Final time settings:', {
+        white: whiteTimeValue,
+        black: blackTimeValue,
+        increment: increment || 0
+      });
+      
+      setWhiteTime(whiteTimeValue);
+      setBlackTime(blackTimeValue);
+      setTimeIncrement(increment || 0);
+  
       const firstMoveStatus = serverFirstMoveMade !== undefined ? serverFirstMoveMade : firstMoveMade;
       const isWhiteTurn = newGame.turn() === 'w';
       
@@ -467,6 +477,18 @@ const ChessGame = () => {
     
     const isGameOver = checkGameStatus(gameCopy);
     
+    // Use the current timer values
+    const currentWhiteTime = whiteTime;
+    const currentBlackTime = blackTime;
+    
+    // Log time values being sent to server
+    console.log('Move time values:', {
+      white: currentWhiteTime,
+      black: currentBlackTime,
+      isWhiteRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
+      isBlackRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove)
+    });
+    
     socket.emit('move', {
       gameId,
       move: { 
@@ -476,8 +498,8 @@ const ChessGame = () => {
       },
       fen: gameCopy.fen(),
       moveNotation: move.san,
-      whiteTimeLeft: whiteTime,
-      blackTimeLeft: blackTime,
+      whiteTimeLeft: currentWhiteTime,
+      blackTimeLeft: currentBlackTime,
       isWhiteTimerRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
       isBlackTimerRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove),
       isGameOver,

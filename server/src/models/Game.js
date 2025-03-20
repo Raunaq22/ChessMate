@@ -66,7 +66,7 @@ const Game = sequelize.define('Game', {
   timestamps: true
 });
 
-// Define associations
+// Define associations - IMPORTANT: Fix the association names
 Game.belongsTo(User, { as: 'player1', foreignKey: 'player1_id' });
 Game.belongsTo(User, { as: 'player2', foreignKey: 'player2_id' });
 Game.belongsTo(User, { as: 'winner', foreignKey: 'winner_id' });
@@ -139,7 +139,7 @@ Game.findOtherAvailableGames = async function(userId) {
     },
     include: [{
       model: User,
-      as: 'firstPlayer',
+      as: 'player1', // IMPORTANT: Match the association name used above
       attributes: ['username', 'last_active']
     }],
     order: [['createdAt', 'DESC']]
@@ -147,8 +147,10 @@ Game.findOtherAvailableGames = async function(userId) {
 
   // Filter out games where host hasn't been active in the last 10 seconds
   const activeGames = games.filter(game => {
-    const lastActive = new Date(game.firstPlayer.last_active);
-    const tenSecondsAgo = new Date(Date.now() - 10 * 1000); // Changed from 2 minutes to 10 seconds
+    if (!game.player1 || !game.player1.last_active) return false;
+    
+    const lastActive = new Date(game.player1.last_active);
+    const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
     return lastActive > tenSecondsAgo;
   });
 

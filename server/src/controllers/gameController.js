@@ -113,6 +113,7 @@ const getAvailableGames = async (req, res) => {
         player1_id: {
           [Op.ne]: userId // Don't show user's own games
         },
+        is_private: false, // Only show public games in the lobby
         created_at: {
           [Op.gt]: new Date(Date.now() - 10 * 60 * 1000) // 10 minutes ago
         }

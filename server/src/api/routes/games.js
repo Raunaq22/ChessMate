@@ -27,7 +27,8 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
         player2_id: null,
         player1_id: {
           [Op.ne]: req.user.user_id // Not created by current user
-        }
+        },
+        is_private: false // Only show public games in lobby
       },
       include: [{
         model: User,
@@ -39,8 +40,6 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
 
     console.log(`Found ${availableGames.length} available games`);
     
-    // Return all games and let the client handle display
-    // Remove the inactive host filtering that's causing problems
     res.json({ availableGames });
   } catch (error) {
     console.error('Error fetching games:', error);

@@ -30,6 +30,12 @@ const Home = () => {
         >
           Play a Friend
         </button>
+        <button
+          onClick={() => checkAuth('/play-computer')}
+          className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Play Computer
+        </button>
       </div>
     </div>
   );

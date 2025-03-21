@@ -700,10 +700,6 @@ const ChessGame = () => {
     setGameStatus(`${playerColor === 'white' ? 'Black' : 'White'} wins by resignation`);
     setGameEnded(true);
     
-    if (winner !== playerColor) {
-      setShowConfetti(true);
-    }
-    
     socket?.emit('gameOver', {
       gameId,
       winner,

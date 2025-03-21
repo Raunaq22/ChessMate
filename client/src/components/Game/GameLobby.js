@@ -158,8 +158,12 @@ const handleCreateGame = async (timeControl) => {
     return `${minutes}+${game.increment}`;
   };
 
-  const formatGameId = (gameId) => {
-    const idString = String(gameId);
+  const formatGameId = (game) => {
+    // If there's an invite code, display it, otherwise use the game ID
+    if (game.invite_code) {
+      return game.invite_code;
+    }
+    const idString = String(game.game_id);
     return idString.length > 8 ? `${idString.substring(0, 8)}...` : idString;
   };
 
@@ -224,7 +228,7 @@ const handleCreateGame = async (timeControl) => {
                 Host: {game.player1?.username || 'Unknown'}
               </span>
               <span className="text-sm text-gray-500">
-                ID: {formatGameId(game.game_id)}
+                ID: {formatGameId(game)}
               </span>
             </div>
             <button

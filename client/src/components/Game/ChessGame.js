@@ -692,19 +692,12 @@ const ChessGame = () => {
     });
   };
 
-  // Fix handleResign to ensure timers stop
+  // Fix handleResign to show confirmation dialog
   const handleResign = () => {
     if (gameEnded) return;
     
-    const winner = playerColor === 'white' ? 'black' : 'white';
-    setGameStatus(`${playerColor === 'white' ? 'Black' : 'White'} wins by resignation`);
-    setGameEnded(true);
-    
-    socket?.emit('gameOver', {
-      gameId,
-      winner,
-      reason: 'resignation'
-    });
+    // Instead of immediately resigning, show the confirmation dialog
+    setShowResignConfirm(true);
   };
 
   // Simplify confirmResign to just emit the event

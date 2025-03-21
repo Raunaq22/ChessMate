@@ -8,6 +8,8 @@ const PlayWithFriendPage = () => {
   const { currentUser } = useContext(AuthContext);
   const [joinCode, setJoinCode] = useState('');
   const [gameCode, setGameCode] = useState('');
+  // Add new state to track the actual game ID separately from the display code
+  const [createdGameId, setCreatedGameId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,7 +34,15 @@ const PlayWithFriendPage = () => {
       const response = await gameService.createGame(payload);
       
       if (response?.game?.game_id) {
-        setGameCode(response.game.invite_code || response.game.game_id);
+        // Store both the numeric ID and the display code separately
+        const gameId = response.game.game_id;
+        const shareCode = response.game.invite_code || gameId.toString();
+        
+        console.log(`Game created with ID: ${gameId}, invite code: ${shareCode}`);
+        
+        // Store both values in state
+        setCreatedGameId(gameId);
+        setGameCode(shareCode);
       } else {
         setError('Failed to create game');
       }
@@ -53,15 +63,17 @@ const PlayWithFriendPage = () => {
       setLoading(true);
       setError('');
       
+      console.log(`Joining game with code: ${joinCode}`);
       const response = await gameService.joinGameByCode(joinCode);
       
       if (response?.game?.game_id) {
+        console.log(`Successfully joined game with ID: ${response.game.game_id}`);
         navigate(`/game/${response.game.game_id}`);
       } else {
         setError('Failed to join game');
       }
     } catch (error) {
-      setError(`Error: ${error.message}`);
+      setError(`Error: ${error.message || 'Failed to join game'}`);
     } finally {
       setLoading(false);
     }
@@ -77,7 +89,14 @@ const PlayWithFriendPage = () => {
   };
 
   const joinCreatedGame = () => {
-    navigate(`/game/${gameCode}`);
+    // If we have the actual game ID stored, use that directly
+    if (createdGameId) {
+      console.log(`Navigating to game with stored game ID: ${createdGameId}`);
+      navigate(`/game/${createdGameId}`);
+    } else {
+      console.error('No game ID available for direct navigation');
+      setError('Could not find the game. Please create a new game or join with the code.');
+    }
   };
 
   return (
@@ -117,7 +136,10 @@ const PlayWithFriendPage = () => {
           
           <div className="flex justify-between">
             <button
-              onClick={() => setGameCode('')}
+              onClick={() => {
+                setGameCode('');
+                setCreatedGameId(null);
+              }}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100"
             >
               Create Another
@@ -126,7 +148,7 @@ const PlayWithFriendPage = () => {
               onClick={joinCreatedGame}
               className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
             >
-              Join Game
+              Enter Game
             </button>
           </div>
         </div>

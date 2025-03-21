@@ -18,6 +18,16 @@ const gameService = {
       console.log('Creating game with payload:', payload);
       const response = await axios.post(`${API_URL}/api/games`, payload);
       console.log('Game service response:', response.data);
+      
+      // Add more detailed logging of response data
+      if (response.data && response.data.game) {
+        console.log('Game creation successful with details:', {
+          id: response.data.game.game_id,
+          invite_code: response.data.game.invite_code,
+          status: response.data.game.status
+        });
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Error creating game:', error);
@@ -26,23 +36,38 @@ const gameService = {
   },
 
   joinGame: async (gameId) => {
-    const response = await axios.post(`${API_URL}/api/games/${gameId}/join`);
-    return response.data;
+    try {
+      console.log(`Joining game with ID: ${gameId}`);
+      const response = await axios.post(`${API_URL}/api/games/${gameId}/join`);
+      console.log('Join response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error joining game:', error.response?.data || error.message);
+      throw error;
+    }
   },
   
   joinGameByCode: async (code) => {
     try {
+      console.log(`Sending request to join game with code: ${code}`);
       const response = await axios.post(`${API_URL}/api/games/join-by-code`, { code });
+      console.log('Join by code response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error joining game by code:', error);
+      console.error('Error joining game by code:', error.response?.data || error.message);
       throw error;
     }
   },
 
   cancelGame: async (gameId) => {
-    const response = await axios.delete(`${API_URL}/api/games/${gameId}`);
-    return response.data;
+    try {
+      console.log(`Cancelling game ${gameId}`);
+      const response = await axios.delete(`${API_URL}/api/games/${gameId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error cancelling game:', error);
+      throw error;
+    }
   }
 };
 

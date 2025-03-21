@@ -244,7 +244,7 @@ const ChessGame = () => {
       gameInitialized.current = true;
     });
 
-    newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, whiteTimeLeft, blackTimeLeft, firstMoveMade: serverFirstMoveMade }) => {
+    newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, whiteTimeLeft, blackTimeLeft, firstMoveMade: serverFirstMoveMade, gameOverInfo }) => {
       try {
         const newGame = new Chess(fen);
         setGame(newGame);
@@ -270,6 +270,28 @@ const ChessGame = () => {
           }
           return [...prev, { notation: moveNotation, fen }];
         });
+
+        // Check if this move resulted in checkmate (sent by opponent)
+        if (gameOverInfo && gameOverInfo.reason === 'checkmate') {
+          console.log("CHECKMATE detected from received move!");
+          console.log("Winner according to move data:", gameOverInfo.winner);
+          
+          const winnerColor = gameOverInfo.winner === 'white' ? 'White' : 'Black';
+          const isCurrentPlayerWinner = 
+            (gameOverInfo.winner === 'white' && playerIds.white === currentUser.user_id) || 
+            (gameOverInfo.winner === 'black' && playerIds.black === currentUser.user_id);
+          
+          if (isCurrentPlayerWinner) {
+            console.log("Setting winner UI for checkmate from move");
+            setGameStatus(`Checkmate! You win!`);
+            setShowConfetti(true);
+          } else {
+            console.log("Setting loser UI for checkmate from move");
+            setGameStatus(`Checkmate! ${winnerColor} wins!`);
+          }
+          
+          setGameEnded(true);
+        }
       } catch (error) {
         console.error('Error processing received move:', error);
       }
@@ -315,18 +337,70 @@ const ChessGame = () => {
     });
     
     newSocket.on('gameOver', ({ reason, winner }) => {
+      console.log("GAME OVER EVENT RECEIVED:", { reason, winner, playerColor });
+      console.log("Player IDs:", playerIds);
+      console.log("Current user ID:", currentUser.user_id);
+      
       if (reason === 'draw') {
         setGameStatus('Game ended in a draw by agreement');
         setGameEnded(true); // Set game ended state
       } else if (reason === 'resignation') {
         const winnerColor = winner === 'white' ? 'White' : 'Black';
-        setGameStatus(`${winnerColor} wins by resignation!`);
-        setGameEnded(true); // Set game ended state
+        const isCurrentPlayerWinner = 
+          (winner === 'white' && playerIds.white === currentUser.user_id) || 
+          (winner === 'black' && playerIds.black === currentUser.user_id);
         
-        if ((winner === 'white' && playerIds.white === currentUser.user_id) || 
-            (winner === 'black' && playerIds.black === currentUser.user_id)) {
+        // Different messages for winner and loser
+        if (isCurrentPlayerWinner) {
+          setGameStatus(`You win! Your opponent resigned.`);
           setShowConfetti(true);
+        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
+          // Only show this message if current user is a player (not a spectator)
+          setGameStatus(`You resigned. ${winnerColor} wins!`);
+        } else {
+          // Generic message for spectators
+          setGameStatus(`${winnerColor} wins by resignation!`);
         }
+        
+        setGameEnded(true);
+      } else if (reason === 'checkmate') {
+        console.log("CHECKMATE event received from server!");
+        const winnerColor = winner === 'white' ? 'White' : 'Black';
+        const isCurrentPlayerWinner = 
+          (winner === 'white' && playerIds.white === currentUser.user_id) || 
+          (winner === 'black' && playerIds.black === currentUser.user_id);
+        
+        console.log("Is current player the winner?", isCurrentPlayerWinner);
+        
+        if (isCurrentPlayerWinner) {
+          console.log("Setting winner UI for checkmate from server");
+          setGameStatus(`Checkmate! You win!`);
+          setShowConfetti(true);
+        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
+          console.log("Setting loser UI for checkmate from server");
+          setGameStatus(`Checkmate! ${winnerColor} wins!`);
+        } else {
+          console.log("Setting spectator UI for checkmate from server");
+          setGameStatus(`Checkmate! ${winnerColor} wins!`);
+        }
+        
+        setGameEnded(true);
+      } else if (reason === 'timeout') {
+        const winnerColor = winner === 'white' ? 'White' : 'Black';
+        const isCurrentPlayerWinner = 
+          (winner === 'white' && playerIds.white === currentUser.user_id) || 
+          (winner === 'black' && playerIds.black === currentUser.user_id);
+        
+        if (isCurrentPlayerWinner) {
+          setGameStatus(`You win on time!`);
+          setShowConfetti(true);
+        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
+          setGameStatus(`${winnerColor} wins on time!`);
+        } else {
+          setGameStatus(`${winnerColor} wins on time!`);
+        }
+        
+        setGameEnded(true);
       }
     });
 
@@ -441,12 +515,34 @@ const ChessGame = () => {
     return true;
   };
 
-  // Update the checkGameStatus function to set gameEnded
+  // Clean up the checkGameStatus function to be more direct
   const checkGameStatus = (chess) => {
     if (chess.isCheckmate()) {
-      const winner = chess.turn() === 'w' ? 'Black' : 'White';
-      setGameStatus(`Checkmate! ${winner} wins!`);
-      setGameEnded(true); // Set game ended state
+      const winnerColor = chess.turn() === 'w' ? 'black' : 'white';
+      const winner = winnerColor === 'white' ? 'White' : 'Black';
+      
+      // Emit gameOver immediately and ensure it's a reliable message
+      socket?.emit('gameOver', {
+        gameId,
+        winner: winnerColor,
+        reason: 'checkmate'
+      }, (ack) => {
+        // Log if acknowledgment received (optional)
+        if (ack) console.log("Server acknowledged checkmate");
+      });
+      
+      // Check if current player is the winner
+      const isCurrentPlayerWinner = playerColor === winnerColor;
+      
+      // Set personalized message based on if player won or lost
+      if (isCurrentPlayerWinner) {
+        setGameStatus(`Checkmate! You win!`);
+        setShowConfetti(true); // Only winner gets confetti
+      } else {
+        setGameStatus(`Checkmate! ${winner} wins!`);
+      }
+      
+      setGameEnded(true); 
       return true;
     } else if (chess.isDraw()) {
       setGameStatus('Game Draw');
@@ -460,10 +556,10 @@ const ChessGame = () => {
     return false;
   };
 
-  // Make sure we're handling time increment properly in the move handler
+  // Simplify the onDrop function to avoid duplicate event emission
   const onDrop = (sourceSquare, targetSquare) => {
     if (!gameInitialized.current || gameEnded) return false;
-
+    
     const currentTurn = game.turn() === 'w' ? 'white' : 'black';
     if (currentTurn !== playerColor) return false;
 
@@ -497,7 +593,6 @@ const ChessGame = () => {
     
     // Add increment to the player whose turn just ended (FIXED)
     if (firstMoveMade || isFirstMove) {
-      // No need to add increment here, the Timer component will handle it
       setIsWhiteTimerRunning(isWhiteTurnAfter);
       setIsBlackTimerRunning(!isWhiteTurnAfter);
     }
@@ -511,20 +606,16 @@ const ChessGame = () => {
       return [...prev, { notation: move.san, fen: gameCopy.fen() }];
     });
     
-    const isGameOver = checkGameStatus(gameCopy);
+    // Check for checkmate directly
+    const isCheckmate = gameCopy.isCheckmate();
+    const winner = isCheckmate ? 
+      (gameCopy.turn() === 'w' ? 'black' : 'white') : null;
     
     // Use the current timer values
     const currentWhiteTime = whiteTime;
     const currentBlackTime = blackTime;
     
-    // Log time values being sent to server
-    console.log('Move time values:', {
-      white: currentWhiteTime,
-      black: currentBlackTime,
-      isWhiteRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
-      isBlackRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove)
-    });
-    
+    // Include explicit checkmate information in move event
     socket.emit('move', {
       gameId,
       move: { 
@@ -538,9 +629,12 @@ const ChessGame = () => {
       blackTimeLeft: currentBlackTime,
       isWhiteTimerRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
       isBlackTimerRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove),
-      isGameOver,
-      firstMoveMade: true
+      isCheckmate: isCheckmate,  // Explicit flag for checkmate
+      winner: winner             // Include winner information 
     });
+    
+    // Call checkGameStatus after emitting move
+    checkGameStatus(gameCopy);
     
     setPossibleMoves([]);
     return true;
@@ -549,13 +643,6 @@ const ChessGame = () => {
   // Also update the handleTimeUp function
   const handleTimeUp = (color) => {
     if (gameEnded) return; // Prevent duplicate calls
-    
-    setGameStatus(`${color === 'w' ? 'Black' : 'White'} wins on time!`);
-    setGameEnded(true); // Set game ended state
-    
-    if ((color === 'w' && playerColor === 'black') || (color === 'b' && playerColor === 'white')) {
-      setShowConfetti(true);
-    }
     
     socket?.emit('gameOver', {
       gameId,
@@ -624,6 +711,7 @@ const ChessGame = () => {
     });
   };
 
+  // Simplify confirmResign to just emit the event
   const confirmResign = () => {
     socket?.emit('resign', { 
       gameId,
@@ -631,7 +719,7 @@ const ChessGame = () => {
       color: playerColor
     });
     
-    setGameStatus(`${playerColor === 'white' ? 'Black' : 'White'} wins by resignation!`);
+    // Let the socket event handler set the game status
     setShowResignConfirm(false);
   };
 

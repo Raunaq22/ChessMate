@@ -12,6 +12,7 @@ import Register from './components/Auth/Register';
 import { AuthProvider } from './context/AuthContext';
 import ChessGame from './components/Game/ChessGame';
 import GameLobby from './components/Game/GameLobby';
+import PlayWithFriendPage from './pages/PlayWithFriendPage';
 
 function App() {
   return (
@@ -27,6 +28,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <GameLobby />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/play-friend" 
+                element={
+                  <PrivateRoute>
+                    <PlayWithFriendPage />
                   </PrivateRoute>
                 } 
               />

@@ -6,32 +6,16 @@ const gameService = {
   getAvailableGames: async () => {
     try {
       const response = await axios.get(`${API_URL}/api/games/available`);
-      console.log('Game service response:', response.data); // Debug log
       return response.data;
     } catch (error) {
-      console.error('Game service error:', error);
+      console.error('Error fetching games:', error);
       throw error;
     }
   },
 
-  createGame: async (params = {}) => {
-    console.log('Creating game with params:', params);
-    
-    // Use default values for any missing parameters
-    const timeControl = params.timeControl || 'rapid';
-    const initialTime = params.initialTime !== undefined ? Number(params.initialTime) : 600;
-    const increment = Number(params.increment || 0);
-  
-    // Create a validated payload with proper types
-    const payload = {
-      timeControl: timeControl,
-      initialTime: initialTime, // Must be a number
-      increment: increment // Must be a number
-    };
-    
-    console.log('Sending validated payload:', payload);
-  
+  createGame: async (payload = {}) => {
     try {
+      console.log('Creating game with payload:', payload);
       const response = await axios.post(`${API_URL}/api/games`, payload);
       console.log('Game service response:', response.data);
       return response.data;
@@ -44,6 +28,16 @@ const gameService = {
   joinGame: async (gameId) => {
     const response = await axios.post(`${API_URL}/api/games/${gameId}/join`);
     return response.data;
+  },
+  
+  joinGameByCode: async (code) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/games/join-by-code`, { code });
+      return response.data;
+    } catch (error) {
+      console.error('Error joining game by code:', error);
+      throw error;
+    }
   },
 
   cancelGame: async (gameId) => {

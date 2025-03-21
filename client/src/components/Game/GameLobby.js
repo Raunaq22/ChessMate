@@ -170,13 +170,26 @@ const handleCreateGame = async (timeControl) => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Chess Games</h1>
+        <h1 className="text-3xl font-bold">Chess Lobby</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           disabled={joiningGameId !== null}
         >
           Create Game
+        </button>
+      </div>
+      
+      {/* Add link to play with friend option */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+        <p className="text-sm mb-2">
+          Want to play with a friend? Use our friend code system!
+        </p>
+        <button
+          onClick={() => navigate('/play-friend')}
+          className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded text-sm"
+        >
+          Play with a Friend
         </button>
       </div>
 

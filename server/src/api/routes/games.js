@@ -5,6 +5,16 @@ const Game = require('../../models/Game');
 const User = require('../../models/User');
 const router = express.Router();
 
+// Generate a random 6-character code
+const generateInviteCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoiding characters that look similar
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 // Get available games
 router.get('/available', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
@@ -41,7 +51,10 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
 // Create a new game
 router.post('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const { timeControl, initialTime, increment } = req.body;
+    const { timeControl, initialTime, increment, createFriendGame } = req.body;
+    
+    // Generate invite code for friend games
+    const inviteCode = createFriendGame ? generateInviteCode() : null;
     
     const game = await Game.create({
       player1_id: req.user.user_id,
@@ -50,7 +63,9 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
       increment: increment,
       white_time: initialTime,
       black_time: initialTime,
-      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      invite_code: inviteCode,
+      is_private: createFriendGame || false
     });
 
     res.status(201).json({ game });
@@ -94,6 +109,55 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
     res.json({ game });
   } catch (error) {
     console.error('Error joining game:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Join a game using invite code
+router.post('/join-by-code', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ message: 'Game code is required' });
+    }
+    
+    const game = await Game.findOne({
+      where: {
+        invite_code: code,
+        status: 'waiting',
+        player2_id: null
+      }
+    });
+
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found or no longer available' });
+    }
+    
+    // Prevent joining your own game
+    if (game.player1_id === req.user.user_id) {
+      return res.status(400).json({ message: 'Cannot join your own game' });
+    }
+
+    // Update game status
+    game.player2_id = req.user.user_id;
+    game.status = 'playing';
+    await game.save();
+
+    // Mark any other waiting games by this user as completed
+    await Game.update(
+      { status: 'completed' },
+      {
+        where: {
+          player1_id: req.user.user_id,
+          status: 'waiting'
+        }
+      }
+    );
+
+    res.json({ game });
+  } catch (error) {
+    console.error('Error joining game by code:', error);
     res.status(400).json({ message: error.message });
   }
 });

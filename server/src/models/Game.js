@@ -60,6 +60,16 @@ const Game = sequelize.define('Game', {
   black_time: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  invite_code: {
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    unique: true
+  },
+  is_private: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   }
 }, {
   tableName: 'games',

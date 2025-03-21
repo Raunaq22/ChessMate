@@ -180,9 +180,8 @@ const configureSocket = (io) => {
       }
     });
 
-    socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeRemaining, blackTimeRemaining }) => {
-      console.log('Move received:', { gameId, move, fen });
-
+    // Update the move handler to better handle checkmate
+    socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
       try {
         const game = await Game.findByPk(gameId);
         if (!game) {
@@ -190,27 +189,12 @@ const configureSocket = (io) => {
           return;
         }
 
-        // Validate move using chess.js
-        const chessInstance = new Chess(game.fen);
-        const moveResult = chessInstance.move({
-          from: move.from,
-          to: move.to,
-          promotion: 'q'
-        });
-
-        if (!moveResult) {
-          socket.emit('error', { message: 'Invalid move' });
-          return;
-        }
-
         // Update game in database
         game.fen = fen;
-        game.white_time = whiteTimeRemaining;
-        game.black_time = blackTimeRemaining;
+        game.white_time = whiteTimeLeft;
+        game.black_time = blackTimeLeft;
         game.move_history = [...(game.move_history || []), move];
         await game.save();
-
-        const isWhiteTurn = fen.split(' ')[1] === 'w';
 
         // Broadcast move to other players
         io.to(`game-${gameId}`).emit('move', {
@@ -218,14 +202,47 @@ const configureSocket = (io) => {
           to: move.to,
           fen: fen,
           moveNotation: moveNotation,
-          whiteTimeRemaining,
-          blackTimeRemaining,
-          isWhiteTimerRunning: isWhiteTurn,
-          isBlackTimerRunning: !isWhiteTurn
+          whiteTimeLeft,
+          blackTimeLeft,
+          isWhiteTimerRunning,
+          isBlackTimerRunning
         });
+
+        // Handle checkmate immediately after a move if detected
+        if (isCheckmate && winner) {
+          console.log(`Checkmate detected in game ${gameId}. Winner: ${winner}`);
+          
+          // Broadcast to all clients in the room immediately
+          io.to(`game-${gameId}`).emit('gameOver', {
+            reason: 'checkmate',
+            winner: winner
+          });
+          
+          // Update game result in database
+          updateGameResult(gameId, 'checkmate', winner);
+        }
       } catch (error) {
         console.error('Error processing move:', error);
         socket.emit('error', { message: 'Failed to process move' });
+      }
+    });
+
+    // Enhance gameOver event handler with acknowledgment
+    socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
+      console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
+      
+      // Broadcast to all clients in the room (including sender to ensure everyone gets the message)
+      io.to(`game-${gameId}`).emit('gameOver', {
+        reason,
+        winner
+      });
+      
+      // Update game result in database
+      updateGameResult(gameId, reason, winner);
+      
+      // Send acknowledgment if callback exists
+      if (typeof callback === 'function') {
+        callback({ received: true });
       }
     });
 
@@ -348,8 +365,12 @@ const configureSocket = (io) => {
   // Helper function to update game result in the database
   async function updateGameResult(gameId, reason, winner = null) {
     try {
+      console.log(`Updating game result in database: ${gameId}, reason: ${reason}, winner: ${winner}`);
       const game = await Game.findByPk(gameId);
-      if (!game) return;
+      if (!game) {
+        console.log(`Game ${gameId} not found in database`);
+        return;
+      }
       
       let whiteEloChange = 0;
       let blackEloChange = 0;
@@ -370,8 +391,10 @@ const configureSocket = (io) => {
         status: 'completed',
         end_time: new Date(),
         winner_id: winnerId,
-        result: winner ? `${winner}_win` : 'draw'
+        result: winner ? `${winner}_win_by_${reason}` : 'draw'
       });
+      
+      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}`);
       
       // Update player ratings
       if (game.player1_id && whiteEloChange !== 0) {

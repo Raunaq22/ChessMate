@@ -6,10 +6,13 @@ import { AuthContext } from '../context/AuthContext';
 import ComputerGameModal from '../components/Game/ComputerGameModal';
 import chessEngineService from '../utils/chessEngineService';
 import Timer from '../components/Game/Timer';
+import Confetti from 'react-confetti'; // Add this import
+import useWindowSize from '../hooks/useWindowSize'; // Add this import
 
 const ComputerGamePage = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated } = useContext(AuthContext);
+  const { width, height } = useWindowSize(); // Add window size hook for confetti
   
   const [showModal, setShowModal] = useState(true);
   const [game, setGame] = useState(new Chess());
@@ -27,6 +30,7 @@ const ComputerGamePage = () => {
   const [showConfirmResign, setShowConfirmResign] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstMoveMade, setFirstMoveMade] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false); // Add state for confetti
 
   const containerRef = useRef(null);
   const [boardSize, setBoardSize] = useState(480);
@@ -101,6 +105,13 @@ const ComputerGamePage = () => {
       const winner = chess.turn() === 'w' ? 'black' : 'white';
       setGameStatus(`Checkmate! ${winner === 'white' ? 'White' : 'Black'} wins!`);
       setGameEnded(true);
+      
+      // Show confetti if player wins
+      if (winner === playerColor) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 8000);
+      }
+      
       return true;
     } else if (chess.isDraw()) {
       setGameStatus('Draw!');
@@ -113,7 +124,7 @@ const ComputerGamePage = () => {
       setGameStatus(null);
       return false;
     }
-  }, []);
+  }, [playerColor]); // Add playerColor dependency
 
   // Handle player's move
   const onDrop = (sourceSquare, targetSquare) => {
@@ -318,13 +329,27 @@ const ComputerGamePage = () => {
     setShowConfirmResign(false);
   };
 
-  // Handle time up
+  // Handle time up - Improve this function
   const handleTimeUp = (color) => {
     if (gameEnded) return;
     
     const winner = color === 'w' ? 'black' : 'white';
-    setGameStatus(`Time's up! ${winner === 'white' ? 'White' : 'Black'} wins!`);
+    const winnerText = winner === playerColor ? 'You' : 'Computer';
+    const loserText = winner !== playerColor ? 'You' : 'Computer';
+    
+    setGameStatus(`Time's up! ${winnerText} win${winnerText === 'You' ? '' : 's'} on time!`);
+    
+    // Show confetti if player wins on time
+    if (winner === playerColor) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 8000);
+    }
+    
     setGameEnded(true);
+    
+    // Also stop both timers by setting states
+    setIsWhiteTimerRunning(false);
+    setIsBlackTimerRunning(false);
   };
 
   // Handle piece drag start - show possible moves
@@ -361,15 +386,32 @@ const ComputerGamePage = () => {
         />
       )}
 
+      {/* Add confetti when player wins */}
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={500}
+        />
+      )}
+
       {!showModal && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 flex flex-col items-center" ref={containerRef}>
             {/* Game status banner */}
             {gameStatus && (
               <div className={`w-full mb-4 p-4 rounded-lg shadow-md text-center ${
-                gameStatus.includes('Checkmate') || gameStatus.includes('wins') ? 
-                  gameStatus.includes('You resigned') ? 'bg-red-500 text-white' : 'bg-green-500 text-white' :
-                  gameStatus.includes('Draw') ? 'bg-blue-500 text-white' : 'bg-yellow-100 text-yellow-800'
+                gameStatus.includes('Checkmate') ? 
+                  (gameStatus.includes('You win') || gameStatus.includes('White wins') && playerColor === 'white' || 
+                   gameStatus.includes('Black wins') && playerColor === 'black') ? 
+                    'bg-green-500 text-white' : 'bg-red-500 text-white' :
+                gameStatus.includes('Time') ? 
+                  (gameStatus.includes('You win') || (gameStatus.includes('win') && !gameStatus.includes('wins'))) ?
+                    'bg-green-500 text-white' : 'bg-red-500 text-white' :
+                gameStatus.includes('resigned') ? 'bg-red-500 text-white' :
+                gameStatus.includes('Draw') ? 'bg-blue-500 text-white' : 
+                'bg-yellow-100 text-yellow-800'
               }`}>
                 <h2 className="text-xl font-bold">{gameStatus}</h2>
                 {gameEnded && (

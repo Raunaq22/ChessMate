@@ -35,8 +35,13 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
 
   // More accurate timer with millisecond precision
   const updateTimer = useCallback(() => {
-    if (timeLeft <= 0 || gameEnded) {
-      if (timeLeft <= 0 && onTimeUp) onTimeUp();
+    if (gameEnded) return;
+    
+    if (timeLeft <= 0) {
+      if (onTimeUp) {
+        console.log("Time up! Notifying parent component");
+        onTimeUp();
+      }
       return;
     }
     
@@ -53,6 +58,14 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
         if (onTimeChange && Math.abs(prev - newTime) >= 0.2) {
           onTimeChange(newTime);
         }
+        
+        // Check if timer just hit zero
+        if (prev > 0 && newTime <= 0 && onTimeUp) {
+          console.log("Timer just hit zero!");
+          // Use setTimeout to avoid React state update conflicts
+          setTimeout(() => onTimeUp(), 0);
+        }
+        
         return newTime;
       });
     } else {

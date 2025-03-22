@@ -103,6 +103,14 @@ class ChessEngineService {
   }
 
   getNextMove(callback) {
+    // Check if the game is over before calculating a move
+    if (window.currentChessGame && window.currentChessGame.isGameOver()) {
+      console.log('Game is over, not generating move');
+      // Return null to indicate no valid move
+      callback(null);
+      return;
+    }
+    
     console.log('Getting next move with current settings:', {
       difficulty: this.pendingSettings || 'applied',
       difficultyLevel: this.difficultyLevel
@@ -130,9 +138,11 @@ class ChessEngineService {
         callback(move);
       } else {
         console.error('AI did not return a valid move');
+        callback(null);
       }
     } catch (error) {
       console.error('Error during move generation:', error);
+      callback(null);
     }
   }
 

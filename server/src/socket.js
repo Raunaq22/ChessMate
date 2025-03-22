@@ -102,20 +102,22 @@ const configureSocket = (io) => {
           initialTime: game.initial_time,
           whiteTime: game.white_time,
           blackTime: game.black_time,
-          increment: game.increment
+          // Fix: Use getDataValue to bypass the method/property conflict
+          increment: game.getDataValue('increment')
         });
 
         // CRITICAL FIX: Use the EXACT values from the database without any defaults/overrides
         const initialTime = game.initial_time;
         const whiteTime = game.white_time !== null ? game.white_time : initialTime;
         const blackTime = game.black_time !== null ? game.black_time : initialTime;
-        const increment = game.increment || 0;
+        // Fix: Use getDataValue to access raw increment value, avoiding method conflict
+        const incrementValue = game.getDataValue('increment') || 0;
         
         console.log(`Sending time values to client:`, {
           initialTime,
           whiteTime,
           blackTime,
-          increment
+          increment: incrementValue
         });
 
         // Important - emit to EVERYONE in the room (including sender)
@@ -131,7 +133,7 @@ const configureSocket = (io) => {
           fen: game.fen,
           playerColor,
           initialTime: initialTime,
-          increment: increment,
+          increment: incrementValue,  // Use the fixed increment value
           whitePlayerId: game.player1_id,
           blackPlayerId: game.player2_id,
           whitePlayerProfile: whitePlayerProfile,

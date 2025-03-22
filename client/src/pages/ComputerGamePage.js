@@ -103,28 +103,14 @@ const ComputerGamePage = () => {
   const checkGameStatus = useCallback((chess) => {
     if (chess.isCheckmate()) {
       const winner = chess.turn() === 'w' ? 'black' : 'white';
-      setGameStatus(`Checkmate! ${winner === 'white' ? 'White' : 'Black'} wins!`);
       setGameEnded(true);
-      
-      // Show confetti if player wins
-      if (winner === playerColor) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 8000);
-      }
-      
       return true;
     } else if (chess.isDraw()) {
-      setGameStatus('Draw!');
       setGameEnded(true);
       return true;
-    } else if (chess.isCheck()) {
-      setGameStatus('Check!');
-      return false;
-    } else {
-      setGameStatus(null);
-      return false;
     }
-  }, [playerColor]); // Add playerColor dependency
+    return false;
+  }, [playerColor]);
 
   // Handle player's move
   const onDrop = (sourceSquare, targetSquare) => {

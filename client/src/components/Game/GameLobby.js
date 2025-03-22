@@ -62,7 +62,8 @@ const handleCreateGame = async (timeControl) => {
       // Ensure initialTime is a number or null, never undefined
       initialTime: timeControl.time !== undefined ? Number(timeControl.time) : 
                   timeControl.time === null ? null : 600,
-      increment: Number(timeControl.increment || 0)
+      increment: Number(timeControl.increment || 0),
+      label: timeControl.label // Add this line to include the label
     };
     
     console.log('Creating game with validated params:', payload);
@@ -75,6 +76,7 @@ const handleCreateGame = async (timeControl) => {
         timeControl: payload.timeControl,
         initialTime: payload.initialTime,
         increment: payload.increment,
+        label: payload.label,
         gameId: response.game.game_id
       });
       

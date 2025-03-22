@@ -380,6 +380,24 @@ const GameReplayPage = () => {
     return playerColor === 'white' ? 'White' : 'Black';
   };
 
+  // Format time control for display
+  const formatTimeControl = () => {
+    if (!game) return 'Standard';
+    
+    // First check if we have the new time_control_label field
+    if (game.time_control_label) {
+      return game.time_control_label;
+    }
+    
+    // Fall back to calculating it from initial_time and increment
+    if (game.initial_time === null) {
+      return 'Unlimited';
+    }
+    
+    const minutes = Math.floor(game.initial_time / 60);
+    return game.increment > 0 ? `${minutes}+${game.increment}` : `${minutes}+0`;
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -594,7 +612,7 @@ const GameReplayPage = () => {
             <div className="space-y-2">
               <div>
                 <span className="font-semibold">Time Control:</span> 
-                <span className="ml-2">{game?.time_control || 'Standard'}</span>
+                <span className="ml-2">{formatTimeControl()}</span>
               </div>
               <div>
                 <span className="font-semibold">White:</span> 

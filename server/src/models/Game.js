@@ -49,6 +49,10 @@ const Game = sequelize.define('Game', {
     allowNull: false,
     defaultValue: 'unlimited' // 'bullet', 'blitz', 'rapid', 'unlimited'
   },
+  time_control_label: {  // Add this new field
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   initial_time: {
     type: DataTypes.INTEGER,
     allowNull: true // time in seconds

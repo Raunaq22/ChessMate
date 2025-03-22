@@ -8,13 +8,14 @@ const createGame = async (req, res) => {
     const userId = req.user.user_id;
     
     // Extract and validate time control parameters
-    const { timeControl = 'rapid', initialTime, increment = 0 } = req.body;
+    const { timeControl = 'rapid', initialTime, increment = 0, label } = req.body;
     
     // Debug log the received values
     console.log('Creating game with params:', { 
       timeControl, 
       initialTime, 
       increment,
+      label,
       userId
     });
 
@@ -27,6 +28,17 @@ const createGame = async (req, res) => {
       });
     }
 
+    // Format a label if not provided
+    let timeControlLabel = label;
+    if (!timeControlLabel) {
+      if (initialTime === null) {
+        timeControlLabel = "Unlimited";
+      } else {
+        const minutes = Math.floor(initialTime / 60);
+        timeControlLabel = increment > 0 ? `${minutes}+${increment}` : `${minutes}+0`;
+      }
+    }
+
     // Create a new game with explicit time control parameters
     const game = await Game.create({
       player1_id: userId,
@@ -34,6 +46,7 @@ const createGame = async (req, res) => {
       fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       move_history: [],
       time_control: timeControl,
+      time_control_label: timeControlLabel,
       initial_time: initialTime,
       increment: increment,
       white_time: initialTime, // Initialize both times with the initial value
@@ -41,7 +54,7 @@ const createGame = async (req, res) => {
     });
     
     // Debug log the created game
-    console.log(`Game created with ID ${game.game_id}, initial time: ${initialTime}, increment: ${increment}`);
+    console.log(`Game created with ID ${game.game_id}, initial time: ${initialTime}, increment: ${increment}, label: ${timeControlLabel}`);
 
     res.status(201).json({ 
       message: 'Game created successfully', 
@@ -49,6 +62,7 @@ const createGame = async (req, res) => {
         game_id: game.game_id,
         status: game.status,
         time_control: game.time_control,
+        time_control_label: game.time_control_label,
         initial_time: game.initial_time,
         increment: game.increment
       }

@@ -271,7 +271,7 @@ module.exports = (io) => {
     });
     
     // Handle disconnections
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`User ${userId} disconnected from game ${gameId}`);
       
       // If a player disconnects, notify the opponent
@@ -279,9 +279,39 @@ module.exports = (io) => {
       
       if (game) {
         if (game.whitePlayerId == userId || game.blackPlayerId == userId) {
-          socket.to(gameId).emit('playerDisconnected', { 
-            message: 'Your opponent has disconnected'
-          });
+          // Check if game is already over before notifying about disconnection
+          if (game.ended) {
+            // Game already ended - just notify without suggesting redirect
+            socket.to(gameId).emit('playerDisconnected', { 
+              message: 'Your opponent has left the game.',
+              gameActive: false  // Flag to indicate game was already over
+            });
+          } else {
+            try {
+              // Double check with database if the game is completed
+              const gameData = await db.Game.findByPk(gameId);
+              if (gameData && gameData.status === 'completed') {
+                // Game already ended according to database
+                socket.to(gameId).emit('playerDisconnected', { 
+                  message: 'Your opponent has left the game.',
+                  gameActive: false
+                });
+              } else {
+                // Game still active - notify with redirect suggestion
+                socket.to(gameId).emit('playerDisconnected', { 
+                  message: 'Your opponent has disconnected',
+                  gameActive: true  // Flag to indicate this was during active game
+                });
+              }
+            } catch (error) {
+              console.error('Error checking game status:', error);
+              // Default to active game if database check fails
+              socket.to(gameId).emit('playerDisconnected', { 
+                message: 'Your opponent has disconnected',
+                gameActive: true
+              });
+            }
+          }
         } else {
           // Remove from spectators list
           game.spectators = game.spectators.filter(id => id !== userId);

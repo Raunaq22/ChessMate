@@ -325,10 +325,26 @@ const configureSocket = (io) => {
         if (gameUsers) {
           gameUsers.delete(currentUserId);
           
-          // Notify other players in the game
-          socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
-            message: 'Opponent has disconnected. Game session ended.'
-          });
+          try {
+            // Check if the game has already ended before notifying about disconnection
+            const game = await Game.findByPk(currentGameId);
+            
+            if (game && game.status !== 'completed') {
+              // Only notify about disconnection if game is still active
+              socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
+                message: 'Opponent has disconnected. Game session ended.',
+                gameActive: true // Flag to indicate this was during active game
+              });
+            } else {
+              // Game already completed - just notify without suggesting redirect
+              socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
+                message: 'Opponent has left the game.',
+                gameActive: false // Flag to indicate game was already over
+              });
+            }
+          } catch (error) {
+            console.error('Error checking game status on disconnect:', error);
+          }
           
           // Clean up empty game
           if (gameUsers.size === 0) {
@@ -343,11 +359,26 @@ const configureSocket = (io) => {
           if (socketId === socket.id) {
             users.delete(userId);
             
-            // If there are still players in the room, notify them
-            if (users.size > 0) {
-              io.to(`game-${roomId}`).emit('playerDisconnected', {
-                message: 'Opponent disconnected - Game session ended'
-              });
+            try {
+              // Check if the game has already ended before notifying about disconnection
+              const game = await Game.findByPk(roomId);
+              
+              // If there are still players in the room, notify them based on game status
+              if (users.size > 0) {
+                if (game && game.status !== 'completed') {
+                  io.to(`game-${roomId}`).emit('playerDisconnected', {
+                    message: 'Opponent disconnected - Game session ended',
+                    gameActive: true // Flag to indicate this was during active game
+                  });
+                } else {
+                  io.to(`game-${roomId}`).emit('playerDisconnected', {
+                    message: 'Opponent has left the game.',
+                    gameActive: false // Flag to indicate game was already over
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error checking game status on disconnect:', error);
             }
             
             // Clean up empty rooms

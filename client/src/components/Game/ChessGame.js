@@ -299,9 +299,29 @@ const ChessGame = () => {
       }
     });
 
-    newSocket.on('playerDisconnected', ({ message }) => {
+    newSocket.on('playerDisconnected', ({ message, gameActive }) => {
       setDisconnected(true);
-      setTimeout(() => navigate('/lobby'), 3000);
+      
+      // Only redirect if the game was still active and not already ended
+      if (gameActive && !gameEnded) {
+        // Show notification
+        setNotification({
+          message: message || 'Opponent disconnected. Returning to lobby...',
+          type: 'warning'
+        });
+        
+        // Redirect after delay only for active games
+        setTimeout(() => navigate('/lobby'), 3000);
+      } else {
+        // For completed games, just show notification without redirecting
+        setNotification({
+          message: message || 'Opponent has left the game.',
+          type: 'info'
+        });
+        
+        // Clear notification after a few seconds
+        setTimeout(() => setNotification(null), 5000);
+      }
     });
 
     newSocket.on('timeUpdate', ({ color, timeLeft }) => {

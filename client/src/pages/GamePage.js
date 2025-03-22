@@ -75,6 +75,17 @@ const GamePage = () => {
     newSocket.on('chat', (message) => {
       setMessages(prev => [...prev, message]);
     });
+
+    newSocket.on('playerDisconnected', ({ message, gameActive }) => {
+      // Only redirect if game was still active and not completed
+      if (gameActive && gameState.status !== 'completed') {
+        alert(message || 'Opponent disconnected. Returning to lobby...');
+        setTimeout(() => navigate('/lobby'), 3000);
+      } else {
+        // Just display a notification for completed games
+        alert(message || 'Opponent has left the game.');
+      }
+    });
     
     // Join the game room
     newSocket.emit('joinGame', { 
@@ -86,7 +97,7 @@ const GamePage = () => {
     return () => {
       newSocket.disconnect();
     };
-  }, [isAuthenticated, currentUser, gameId, game]);
+  }, [isAuthenticated, currentUser, gameId, game, gameState.status, navigate]);
   
   const onDrop = (sourceSquare, targetSquare) => {
     if (!socket || !isAuthenticated) return false;

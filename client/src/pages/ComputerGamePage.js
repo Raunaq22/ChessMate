@@ -4,7 +4,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { AuthContext } from '../context/AuthContext';
 import ComputerGameModal from '../components/Game/ComputerGameModal';
-import stockfishService from '../utils/stockfishService';
+import chessEngineService from '../utils/chessEngineService';
 import Timer from '../components/Game/Timer';
 
 const ComputerGamePage = () => {
@@ -74,9 +74,9 @@ const ComputerGamePage = () => {
       // Make the current game instance globally available for the fallback mode
       window.currentChessGame = newGame;
       
-      // Initialize Stockfish
-      stockfishService.init();
-      stockfishService.setDifficulty(gameSettings.difficulty);
+      // Initialize Chess Engine
+      chessEngineService.init();
+      chessEngineService.setDifficulty(gameSettings.difficulty);
       
       // If player is black, make computer move first
       if (gameSettings.playerColor === 'black') {
@@ -89,8 +89,8 @@ const ComputerGamePage = () => {
     }
     
     return () => {
-      // Cleanup Stockfish when component unmounts
-      stockfishService.terminate();
+      // Cleanup Chess Engine when component unmounts
+      chessEngineService.terminate();
       window.currentChessGame = null;
     };
   }, [gameSettings]);
@@ -161,7 +161,7 @@ const ComputerGamePage = () => {
           setBlackTime(prev => prev + timeIncrement);
         }
       }
-      
+
       // Switch timers
       if (currentTurn === 'white') {
         setIsWhiteTimerRunning(false);
@@ -193,17 +193,17 @@ const ComputerGamePage = () => {
     setLoading(true);
     
     // Make sure we're working with the most current game state
-    // This ensures the game object passed to stockfish is up-to-date
+    // This ensures the game object passed to chess engine is up-to-date
     const currentGame = chessRef.current;
     window.currentChessGame = currentGame;
     
     console.log("Computer thinking on position:", currentGame.fen());
     
     // Set the current position
-    stockfishService.setBoardPosition(currentGame.fen());
+    chessEngineService.setBoardPosition(currentGame.fen());
     
-    // Get the best move from Stockfish
-    stockfishService.getNextMove((move) => {
+    // Get the best move from Chess Engine
+    chessEngineService.getNextMove((move) => {
       try {
         if (!move) {
           console.error("No valid move returned from engine");

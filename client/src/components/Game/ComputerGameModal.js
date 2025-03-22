@@ -12,11 +12,13 @@ const timeControls = [
   { id: 'unlimited', name: 'Unlimited', time: null, increment: 0, label: 'Unlimited' }
 ];
 
-// Difficulty levels
+// Updated difficulty levels to match js-chess-engine capabilities
 const difficultyLevels = [
+  { id: 'very_easy', name: 'Very Easy', description: 'Absolute beginner level' },
   { id: 'easy', name: 'Easy', description: 'For beginners' },
-  { id: 'medium', name: 'Medium', description: 'For intermediate players' },
-  { id: 'hard', name: 'Hard', description: 'For advanced players' }
+  { id: 'medium', name: 'Medium', description: 'For casual players' },
+  { id: 'hard', name: 'Hard', description: 'For advanced players' },
+  { id: 'very_hard', name: 'Very Hard', description: 'Experienced player level' }
 ];
 
 const ComputerGameModal = ({ onClose, onStartGame }) => {
@@ -25,7 +27,7 @@ const ComputerGameModal = ({ onClose, onStartGame }) => {
   const [selectedTime, setSelectedTime] = useState(
     timeControls[defaultTimeIndex !== -1 ? defaultTimeIndex : 0]
   );
-  const [selectedDifficulty, setSelectedDifficulty] = useState(difficultyLevels[1]); // Default to medium
+  const [selectedDifficulty, setSelectedDifficulty] = useState(difficultyLevels[2]); // Default to medium
   const [playerColor, setPlayerColor] = useState('white');
 
   const handleStartGame = () => {
@@ -43,7 +45,7 @@ const ComputerGameModal = ({ onClose, onStartGame }) => {
         
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2">Select Difficulty</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {difficultyLevels.map(level => (
               <button
                 key={level.id}

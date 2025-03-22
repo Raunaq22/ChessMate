@@ -300,10 +300,10 @@ const ChessGame = () => {
     });
 
     newSocket.on('playerDisconnected', ({ message, gameActive }) => {
-      setDisconnected(true);
-      
-      // Only redirect if the game was still active and not already ended
+      // Only show disconnection UI and redirect if the game was still active
       if (gameActive && !gameEnded) {
+        setDisconnected(true);
+        
         // Show notification
         setNotification({
           message: message || 'Opponent disconnected. Returning to lobby...',
@@ -313,7 +313,7 @@ const ChessGame = () => {
         // Redirect after delay only for active games
         setTimeout(() => navigate('/lobby'), 3000);
       } else {
-        // For completed games, just show notification without redirecting
+        // For completed games, just show a subtle notification without the banner
         setNotification({
           message: message || 'Opponent has left the game.',
           type: 'info'
@@ -321,6 +321,9 @@ const ChessGame = () => {
         
         // Clear notification after a few seconds
         setTimeout(() => setNotification(null), 5000);
+        
+        // DON'T set disconnected to true for completed games
+        // This prevents showing the red disconnection banner
       }
     });
 
@@ -887,8 +890,8 @@ const ChessGame = () => {
         </motion.div>
       )}
 
-      {/* Disconnection warning */}
-      {disconnected && (
+      {/* Disconnection warning - only show if game has not ended */}
+      {disconnected && !gameEnded && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           Opponent disconnected. Returning to lobby...
         </div>

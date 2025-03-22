@@ -328,10 +328,22 @@ module.exports = (io) => {
       const gameData = await db.Game.findByPk(gameId);
       if (!gameData) return;
       
+      // Determine the result value based on winner and reason
+      let resultValue = null;
+      if (winner === 'white') {
+        resultValue = `white_win_by_${reason}`;
+      } else if (winner === 'black') {
+        resultValue = `black_win_by_${reason}`;
+      } else if (reason === 'draw') {
+        resultValue = 'draw';
+      }
+      
       // Update game record
       await gameData.update({
         status: 'completed',
-        result: winner ? (winner === 'white' ? 'white_win' : 'black_win') : 'draw',
+        result: resultValue,
+        winner_id: winner === 'white' ? gameData.player1_id : 
+                  winner === 'black' ? gameData.player2_id : null,
         end_time: new Date()
       });
       

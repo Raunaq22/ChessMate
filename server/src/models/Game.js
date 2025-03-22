@@ -28,6 +28,10 @@ const Game = sequelize.define('Game', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+  result: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   fen: {
     type: DataTypes.STRING,
     defaultValue: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'

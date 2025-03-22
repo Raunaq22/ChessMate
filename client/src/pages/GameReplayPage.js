@@ -232,6 +232,39 @@ const GameReplayPage = () => {
   const formatGameResult = () => {
     if (!game) return '';
     
+    // Check for the new result field first
+    if (game.result) {
+      if (game.result === 'draw') {
+        return 'Game ended in a draw';
+      }
+      
+      // Match patterns like "white_win_by_checkmate" or "black_win_by_resignation"
+      const resultMatch = game.result.match(/(white|black)_win_by_(\w+)/);
+      if (resultMatch) {
+        const color = resultMatch[1].charAt(0).toUpperCase() + resultMatch[1].slice(1);
+        const reason = resultMatch[2];
+        
+        // Format the reason nicely
+        let formattedReason = '';
+        switch (reason) {
+          case 'checkmate':
+            formattedReason = 'by checkmate';
+            break;
+          case 'resignation':
+            formattedReason = 'by resignation';
+            break;
+          case 'timeout':
+            formattedReason = 'on time';
+            break;
+          default:
+            formattedReason = `by ${reason}`;
+        }
+        
+        return `${color} won ${formattedReason}`;
+      }
+    }
+    
+    // Fall back to the old logic if result field is not available
     if (game.result && game.result.includes('draw')) {
       return 'Game ended in a draw';
     }

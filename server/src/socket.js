@@ -402,11 +402,16 @@ const configureSocket = (io) => {
       }
       
       let winnerId = null;
+      let resultValue = null;
       
       if (winner === 'white') {
         winnerId = game.player1_id;
+        resultValue = `white_win_by_${reason}`;
       } else if (winner === 'black') {
         winnerId = game.player2_id;
+        resultValue = `black_win_by_${reason}`;
+      } else if (reason === 'draw') {
+        resultValue = 'draw';
       }
       
       // Update game in database
@@ -414,10 +419,10 @@ const configureSocket = (io) => {
         status: 'completed',
         end_time: new Date(),
         winner_id: winnerId,
-        result: winner ? `${winner}_win_by_${reason}` : 'draw'
+        result: resultValue
       });
       
-      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}`);
+      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}, result: ${resultValue}`);
     } catch (error) {
       console.error('Error updating game result:', error);
     }

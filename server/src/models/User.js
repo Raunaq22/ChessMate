@@ -31,10 +31,6 @@ const User = sequelize.define('User', {
       len: [6, 100]
     }
   },
-  elo_rating: {
-    type: DataTypes.INTEGER,
-    defaultValue: 1200
-  },
   profile_image_url: {
     type: DataTypes.STRING,
     defaultValue: '/assets/default-avatar.png'

@@ -30,12 +30,11 @@ module.exports = (io) => {
   const getUserProfile = async (userId) => {
     try {
       const user = await db.User.findByPk(userId, {
-        attributes: ['user_id', 'username', 'elo_rating']
+        attributes: ['user_id', 'username']
       });
       return user ? {
         id: user.user_id,
-        username: user.username,
-        elo_rating: user.elo_rating
+        username: user.username
       } : null;
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -329,40 +328,11 @@ module.exports = (io) => {
       const gameData = await db.Game.findByPk(gameId);
       if (!gameData) return;
       
-      // Calculate ELO changes
-      let whiteEloChange = 0;
-      let blackEloChange = 0;
-      
-      if (winner === 'white') {
-        whiteEloChange = 15; // Simple ELO calculation - replace with actual formula
-        blackEloChange = -15;
-      } else if (winner === 'black') {
-        whiteEloChange = -15;
-        blackEloChange = 15;
-      }
-      
-      // Update user ratings
-      if (whiteEloChange !== 0 && game.whitePlayerId) {
-        await db.User.increment('elo_rating', { 
-          by: whiteEloChange,
-          where: { user_id: game.whitePlayerId }
-        });
-      }
-      
-      if (blackEloChange !== 0 && game.blackPlayerId) {
-        await db.User.increment('elo_rating', {
-          by: blackEloChange,
-          where: { user_id: game.blackPlayerId }
-        });
-      }
-      
       // Update game record
       await gameData.update({
         status: 'completed',
         result: winner ? (winner === 'white' ? 'white_win' : 'black_win') : 'draw',
-        end_time: new Date(),
-        white_rating_change: whiteEloChange,
-        black_rating_change: blackEloChange
+        end_time: new Date()
       });
       
       // Clean up game state

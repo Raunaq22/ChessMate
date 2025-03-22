@@ -52,10 +52,6 @@ const ProfilePage = () => {
             
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">ELO Rating</p>
-                <p className="text-2xl font-bold">{currentUser.elo_rating || 1200}</p>
-              </div>
-              <div className="bg-gray-100 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Rank</p>
                 <p className="text-2xl font-bold">{currentUser.rank || '-'}</p>
               </div>
@@ -66,6 +62,10 @@ const ProfilePage = () => {
               <div className="bg-gray-100 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Win Rate</p>
                 <p className="text-2xl font-bold">{currentUser.win_rate || '0%'}</p>
+              </div>
+              <div className="bg-gray-100 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Joined</p>
+                <p className="text-2xl font-bold">{new Date(currentUser.created_at).toLocaleDateString()}</p>
               </div>
             </div>
             
@@ -97,7 +97,6 @@ const ProfilePage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opponent</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating Change</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replay</th>
               </tr>
             </thead>
@@ -117,11 +116,6 @@ const ProfilePage = () => {
                       'bg-gray-100 text-gray-800'
                     }`}>
                       {game.result}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={game.rating_change > 0 ? 'text-green-600' : 'text-red-600'}>
-                      {game.rating_change > 0 ? '+' : ''}{game.rating_change}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

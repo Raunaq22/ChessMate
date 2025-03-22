@@ -67,24 +67,22 @@ const configureSocket = (io) => {
         // Fetch the player information for both players
         const [player1, player2] = await Promise.all([
           User.findByPk(game.player1_id, {
-            attributes: ['user_id', 'username', 'elo_rating']
+            attributes: ['user_id', 'username']
           }),
           game.player2_id ? User.findByPk(game.player2_id, {
-            attributes: ['user_id', 'username', 'elo_rating']
+            attributes: ['user_id', 'username']
           }) : null
         ]);
 
         // Prepare player profiles with real usernames
         const whitePlayerProfile = player1 ? {
           id: player1.user_id,
-          username: player1.username,
-          elo_rating: player1.elo_rating
+          username: player1.username
         } : null;
         
         const blackPlayerProfile = player2 ? {
           id: player2.user_id,
-          username: player2.username,
-          elo_rating: player2.elo_rating
+          username: player2.username
         } : null;
 
         console.log('Player profiles:', {
@@ -403,17 +401,11 @@ const configureSocket = (io) => {
         return;
       }
       
-      let whiteEloChange = 0;
-      let blackEloChange = 0;
       let winnerId = null;
       
       if (winner === 'white') {
-        whiteEloChange = 15;
-        blackEloChange = -15;
         winnerId = game.player1_id;
       } else if (winner === 'black') {
-        whiteEloChange = -15;
-        blackEloChange = 15;
         winnerId = game.player2_id;
       }
       
@@ -424,23 +416,6 @@ const configureSocket = (io) => {
         winner_id: winnerId,
         result: winner ? `${winner}_win_by_${reason}` : 'draw'
       });
-      
-      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}`);
-      
-      // Update player ratings
-      if (game.player1_id && whiteEloChange !== 0) {
-        await User.increment('elo_rating', {
-          by: whiteEloChange,
-          where: { user_id: game.player1_id }
-        });
-      }
-      
-      if (game.player2_id && blackEloChange !== 0) {
-        await User.increment('elo_rating', {
-          by: blackEloChange,
-          where: { user_id: game.player2_id }
-        });
-      }
       
       console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}`);
     } catch (error) {

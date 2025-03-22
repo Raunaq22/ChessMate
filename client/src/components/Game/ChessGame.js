@@ -795,11 +795,6 @@ const ChessGame = () => {
       username = 'Waiting...';
     }
     
-    // Get rating with fallbacks
-    const rating = isCurrentUser ? 
-      (currentUser.elo_rating || '?') : 
-      (profile?.elo_rating || '?');
-    
     return (
       <div 
         className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
@@ -812,12 +807,10 @@ const ChessGame = () => {
         </div>
         <div>
           <div className="font-medium">{username}</div>
-          <div className="text-sm flex items-center">
+          <div className="text-sm">
             <span className={color === 'white' ? 'text-yellow-600' : 'text-gray-700'}>
               {color.charAt(0).toUpperCase() + color.slice(1)}
             </span>
-            <span className="mx-1">•</span>
-            <span className="font-medium text-gray-600">{rating}</span>
           </div>
         </div>
       </div>

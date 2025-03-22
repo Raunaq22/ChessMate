@@ -384,12 +384,7 @@ const GameReplayPage = () => {
   const formatTimeControl = () => {
     if (!game) return 'Standard';
     
-    // First check if we have the new time_control_label field
-    if (game.time_control_label) {
-      return game.time_control_label;
-    }
-    
-    // Fall back to calculating it from initial_time and increment
+    // Calculate directly from initial_time and increment
     if (game.initial_time === null) {
       return 'Unlimited';
     }

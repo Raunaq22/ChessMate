@@ -44,15 +44,6 @@ const Game = sequelize.define('Game', {
     type: DataTypes.ENUM('waiting', 'playing', 'completed'),
     defaultValue: 'waiting'
   },
-  time_control: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    defaultValue: 'unlimited' // 'bullet', 'blitz', 'rapid', 'unlimited'
-  },
-  time_control_label: {  // Add this new field
-    type: DataTypes.STRING,
-    allowNull: true
-  },
   initial_time: {
     type: DataTypes.INTEGER,
     allowNull: true // time in seconds

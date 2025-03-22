@@ -50,8 +50,7 @@ const configureSocket = (io) => {
           initial_time: game.initial_time,
           increment: game.getDataValue('increment'), // Fixed to use getDataValue instead of accessing increment directly
           white_time: game.white_time,
-          black_time: game.black_time,
-          time_control: game.time_control
+          black_time: game.black_time
         });
 
         // Prevent same user from joining both sides
@@ -146,8 +145,7 @@ const configureSocket = (io) => {
           // Add raw game data for complete debugging
           gameData: {
             initial_time: game.initial_time,
-            increment: game.increment,
-            time_control: game.time_control
+            increment: game.increment
           }
         });
         

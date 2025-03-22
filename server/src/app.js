@@ -5,13 +5,14 @@ const morgan = require('morgan');
 const passport = require('passport');
 const { Op } = require('sequelize');
 const Game = require('./models/Game');
-const User = require('./models/User');  // Add this import
+const User = require('./models/User');
 require('./config/passport')(passport);
 require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./api/routes/auth');
-const gamesRoutes = require('./api/routes/games'); 
+const gamesRoutes = require('./api/routes/games');
+const usersRoutes = require('./api/routes/users'); // Add this line
 
 const app = express();
 
@@ -46,7 +47,8 @@ app.get('/', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/games', gamesRoutes); 
+app.use('/api/games', gamesRoutes);
+app.use('/api/users', usersRoutes); // Add this line
 
 // Add a cleanup job for abandoned games
 const cleanupAbandonedGames = async () => {

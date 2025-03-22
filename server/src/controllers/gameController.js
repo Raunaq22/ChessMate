@@ -133,8 +133,79 @@ const getAvailableGames = async (req, res) => {
   }
 };
 
+// Get user game history
+const getGameHistory = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    
+    // Find all completed games where the user was a player
+    const games = await Game.findAll({
+      where: {
+        [Op.or]: [
+          { player1_id: userId },
+          { player2_id: userId }
+        ],
+        status: 'completed'
+      },
+      include: [
+        {
+          model: User,
+          as: 'player1',
+          attributes: ['username']
+        },
+        {
+          model: User,
+          as: 'player2',
+          attributes: ['username']
+        },
+        {
+          model: User,
+          as: 'winner',
+          attributes: ['user_id', 'username']
+        }
+      ],
+      order: [['end_time', 'DESC']]
+    });
+    
+    // Format the game history to return meaningful data
+    const formattedGames = games.map(game => {
+      // Determine if current user won
+      const userWon = game.winner && game.winner.user_id === userId;
+      
+      // Determine opponent name
+      let opponentName = 'Unknown';
+      if (game.player1_id === userId && game.player2) {
+        opponentName = game.player2.username;
+      } else if (game.player2_id === userId && game.player1) {
+        opponentName = game.player1.username;
+      }
+      
+      // Determine result
+      let result = 'draw';
+      if (game.winner) {
+        result = userWon ? 'win' : 'loss';
+      }
+      
+      return {
+        game_id: game.game_id,
+        end_time: game.end_time,
+        updated_at: game.updatedAt,
+        opponent_name: opponentName,
+        result: result,
+        winner_name: game.winner ? game.winner.username : null
+      };
+    });
+    
+    res.json(formattedGames);
+  } catch (error) {
+    console.error('Error fetching game history:', error);
+    res.status(500).json({ message: 'Failed to fetch game history' });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
-  getAvailableGames
+  getAvailableGames,
+  getGameHistory,  // Add this export
 };

@@ -3,6 +3,7 @@ const passport = require('passport');
 const { Op } = require('sequelize');
 const Game = require('../../models/Game');
 const User = require('../../models/User');
+const gameController = require('../../controllers/gameController');
 const router = express.Router();
 
 // Generate a random 6-character code
@@ -87,6 +88,9 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
     res.status(400).json({ message: error.message });
   }
 });
+
+// Get user's game history
+router.get('/history', passport.authenticate('jwt', { session: false }), gameController.getGameHistory);
 
 // Join a game using invite code - Make this route come BEFORE the /:gameId routes
 router.post('/join-by-code', passport.authenticate('jwt', { session: false }), async (req, res) => {

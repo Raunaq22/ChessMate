@@ -25,6 +25,10 @@ const GameReplayPage = () => {
   const [debugInfo, setDebugInfo] = useState(null); // Add debug state
   const containerRef = useRef(null);
   const { width: windowWidth } = useWindowSize();
+  const [players, setPlayers] = useState({
+    white: { username: null, loading: false, error: false },
+    black: { username: null, loading: false, error: false }
+  });
 
   // Get API URL with fallback
   const getApiUrl = () => {
@@ -41,6 +45,43 @@ const GameReplayPage = () => {
       setBoardSize(newSize);
     }
   }, [windowWidth, containerRef]);
+
+  // Fetch a user by ID to get username
+  const fetchUsername = async (userId, playerColor) => {
+    if (!userId) return;
+    
+    try {
+      setPlayers(prev => ({
+        ...prev,
+        [playerColor]: { ...prev[playerColor], loading: true, error: false }
+      }));
+      
+      const apiUrl = getApiUrl();
+      const response = await axios.get(`${apiUrl}/api/users/${userId}`);
+      
+      setPlayers(prev => ({
+        ...prev,
+        [playerColor]: {
+          username: response.data.username,
+          loading: false,
+          error: false
+        }
+      }));
+      
+      return response.data.username;
+    } catch (err) {
+      console.error(`Error fetching ${playerColor} player username:`, err);
+      setPlayers(prev => ({
+        ...prev,
+        [playerColor]: {
+          ...prev[playerColor],
+          loading: false,
+          error: true
+        }
+      }));
+      return null;
+    }
+  };
 
   // Load game data
   useEffect(() => {
@@ -64,6 +105,36 @@ const GameReplayPage = () => {
         // Handle both direct response and nested game object structures
         const gameData = response.data.game || response.data;
         setGame(gameData);
+        
+        // Check if we need to fetch player usernames
+        const needPlayer1Username = !gameData.player1 || !gameData.player1.username;
+        const needPlayer2Username = !gameData.player2 || !gameData.player2.username;
+        
+        // If we need to fetch usernames, do it in parallel
+        const fetchPromises = [];
+        
+        if (needPlayer1Username && gameData.player1_id) {
+          fetchPromises.push(fetchUsername(gameData.player1_id, 'white'));
+        } else if (gameData.player1 && gameData.player1.username) {
+          setPlayers(prev => ({
+            ...prev,
+            white: { username: gameData.player1.username, loading: false, error: false }
+          }));
+        }
+        
+        if (needPlayer2Username && gameData.player2_id) {
+          fetchPromises.push(fetchUsername(gameData.player2_id, 'black'));
+        } else if (gameData.player2 && gameData.player2.username) {
+          setPlayers(prev => ({
+            ...prev,
+            black: { username: gameData.player2.username, loading: false, error: false }
+          }));
+        }
+        
+        // Wait for username fetches if needed
+        if (fetchPromises.length > 0) {
+          await Promise.allSettled(fetchPromises);
+        }
         
         // Validate move_history exists and is an array before processing
         const moveHistoryData = Array.isArray(gameData.move_history) ? gameData.move_history : [];
@@ -281,6 +352,34 @@ const GameReplayPage = () => {
     return 'Game completed';
   };
 
+  // Format player name with loading/error states
+  const formatPlayerName = (playerColor) => {
+    const player = players[playerColor];
+    
+    if (player.loading) {
+      return 'Loading...';
+    }
+    
+    if (player.error) {
+      return 'Unknown Player';
+    }
+    
+    if (player.username) {
+      return player.username;
+    }
+    
+    // Fallbacks
+    if (playerColor === 'white' && game?.player1?.username) {
+      return game.player1.username;
+    }
+    
+    if (playerColor === 'black' && game?.player2?.username) {
+      return game.player2.username;
+    }
+    
+    return playerColor === 'white' ? 'White' : 'Black';
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -352,7 +451,7 @@ const GameReplayPage = () => {
         <div>
           <h1 className="text-2xl font-bold mb-2">Game Replay</h1>
           <p className="text-gray-600">
-            {game?.player1?.username || 'White'} vs {game?.player2?.username || 'Black'} • {new Date(game?.end_time || game?.updated_at).toLocaleString()}
+            {formatPlayerName('white')} vs {formatPlayerName('black')} • {new Date(game?.end_time || game?.updated_at).toLocaleString()}
           </p>
           <p className="text-lg font-medium">{formatGameResult()}</p>
         </div>
@@ -499,11 +598,11 @@ const GameReplayPage = () => {
               </div>
               <div>
                 <span className="font-semibold">White:</span> 
-                <span className="ml-2">{game?.player1?.username || 'Unknown'}</span>
+                <span className="ml-2">{formatPlayerName('white')}</span>
               </div>
               <div>
                 <span className="font-semibold">Black:</span> 
-                <span className="ml-2">{game?.player2?.username || 'Unknown'}</span>
+                <span className="ml-2">{formatPlayerName('black')}</span>
               </div>
               <div>
                 <span className="font-semibold">Result:</span> 
@@ -511,9 +610,8 @@ const GameReplayPage = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
-      
+      </div>
       {showAnalysis && (
         <GameAnalysis
           gameHistory={moveHistory}

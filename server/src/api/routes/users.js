@@ -9,4 +9,7 @@ router.get('/stats',
   userController.getUserStats
 );
 
+// Get user by ID (public endpoint for fetching usernames)
+router.get('/:userId', userController.getUserById);
+
 module.exports = router;

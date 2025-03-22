@@ -56,6 +56,28 @@ const getUserStats = async (req, res) => {
   }
 };
 
+// Get user by ID (public endpoint for fetching usernames)
+const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Find user by ID, only return public information
+    const user = await User.findByPk(userId, {
+      attributes: ['user_id', 'username', 'created_at'] // Only return public fields
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Failed to fetch user data' });
+  }
+};
+
 module.exports = {
-  getUserStats
+  getUserStats,
+  getUserById
 };

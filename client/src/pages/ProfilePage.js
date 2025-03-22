@@ -215,7 +215,7 @@ const ProfilePage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <button 
-                      onClick={() => navigate(`/game/${game.game_id}`)}
+                      onClick={() => navigate(`/game-replay/${game.game_id}`)}
                       className="text-primary hover:text-blue-700"
                     >
                       Replay

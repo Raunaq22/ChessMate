@@ -1034,7 +1034,7 @@ const ChessGame = () => {
               Game History
             </h2>
             <div className="h-64 md:h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {moveHistory.length > 0 ? (
+              {moveHistory && moveHistory.length > 0 ? (
                 <div className="grid grid-cols-3 gap-2 text-sm md:text-base">
                   {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
                     const moveIdx = idx * 2;

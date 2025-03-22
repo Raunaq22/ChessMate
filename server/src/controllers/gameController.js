@@ -203,9 +203,71 @@ const getGameHistory = async (req, res) => {
   }
 };
 
+// Get game details by ID
+const getGameById = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    // Find the game with related data
+    const game = await Game.findByPk(gameId, {
+      include: [
+        {
+          model: User,
+          as: 'player1',
+          attributes: ['user_id', 'username']
+        },
+        {
+          model: User,
+          as: 'player2',
+          attributes: ['user_id', 'username']
+        },
+        {
+          model: User,
+          as: 'winner',
+          attributes: ['user_id', 'username']
+        }
+      ]
+    });
+    
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+    
+    // Ensure move_history is always an array, even if null/undefined in database
+    const moveHistory = Array.isArray(game.move_history) ? game.move_history : [];
+    
+    // Temporary debug log to see what's in the database
+    console.log(`Game ${gameId} move history type: ${typeof game.move_history}, isArray: ${Array.isArray(game.move_history)}, length: ${moveHistory.length}`);
+    
+    // Return game data
+    res.json({
+      game_id: game.game_id,
+      player1_id: game.player1_id,
+      player2_id: game.player2_id,
+      status: game.status,
+      result: game.result,
+      move_history: moveHistory, // Use the guaranteed array value
+      fen: game.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Provide default FEN if missing
+      time_control: game.time_control,
+      initial_time: game.initial_time,
+      increment: game.increment,
+      created_at: game.createdAt,
+      end_time: game.end_time,
+      winner_id: game.winner_id,
+      player1: game.player1,
+      player2: game.player2,
+      winner: game.winner
+    });
+  } catch (error) {
+    console.error('Error fetching game details:', error);
+    res.status(500).json({ message: 'Failed to fetch game details' });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
   getAvailableGames,
-  getGameHistory,  // Add this export
+  getGameHistory,
+  getGameById, // Add the new controller function
 };

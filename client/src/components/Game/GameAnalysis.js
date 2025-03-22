@@ -12,6 +12,8 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   const [arrows, setArrows] = useState([]);
   const [boardSize, setBoardSize] = useState(560);
   const [engineReady, setEngineReady] = useState(false);
+  const [isOffBook, setIsOffBook] = useState(false); // Track if we're viewing a position not in the game
+  const [customPosition, setCustomPosition] = useState(null); // Store custom position FEN
   const engineRef = useRef(null);
   const containerRef = useRef(null);
   
@@ -118,53 +120,105 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Set position when current move index changes
+  // Set position when current move index changes or when exploring off-book moves
   useEffect(() => {
-    const newGame = new Chess(initialFen || 'start');
+    let newGame;
     
-    if (currentMoveIndex >= 0 && gameHistory && gameHistory.length > 0) {
-      // Apply moves up to the current index
-      for (let i = 0; i <= currentMoveIndex && i < gameHistory.length; i++) {
-        try {
-          if (gameHistory[i]?.notation) {
-            newGame.move(gameHistory[i].notation);
+    if (isOffBook && customPosition) {
+      // Use the custom position if we're off-book
+      newGame = new Chess(customPosition);
+      setGame(newGame);
+      setPosition(customPosition);
+    } else {
+      // Otherwise, use the game history
+      newGame = new Chess(initialFen || 'start');
+      
+      if (currentMoveIndex >= 0 && gameHistory && gameHistory.length > 0) {
+        // Apply moves up to the current index
+        for (let i = 0; i <= currentMoveIndex && i < gameHistory.length; i++) {
+          try {
+            if (gameHistory[i]?.notation) {
+              newGame.move(gameHistory[i].notation);
+            }
+          } catch (error) {
+            console.error('Invalid move:', gameHistory[i], error);
           }
-        } catch (error) {
-          console.error('Invalid move:', gameHistory[i], error);
         }
       }
+      
+      setGame(newGame);
+      setPosition(newGame.fen());
     }
     
-    setGame(newGame);
-    setPosition(newGame.fen());
-    
-    // Analyze position with Stockfish
+    // Analyze position with Stockfish (regardless of whether it's from game or custom)
     if (engineReady && engineRef.current) {
       setLoading(true);
       engineRef.current.postMessage('stop'); // Stop any previous analysis
       engineRef.current.postMessage(`position fen ${newGame.fen()}`);
       engineRef.current.postMessage('go depth 18'); // Adjust depth based on performance needs
     }
-  }, [currentMoveIndex, gameHistory, initialFen, engineReady]);
+  }, [currentMoveIndex, gameHistory, initialFen, engineReady, isOffBook, customPosition]);
+  
+  // Handle making a move on the board
+  const onDrop = (sourceSquare, targetSquare) => {
+    try {
+      const tempGame = new Chess(position);
+      const move = tempGame.move({
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: 'q', // Default to queen promotion
+      });
+      
+      if (move) {
+        // If move is legal, set to off-book mode and update custom position
+        setIsOffBook(true);
+        setCustomPosition(tempGame.fen());
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Invalid move attempt:', error);
+      return false;
+    }
+  };
+  
+  // Return to game mode from off-book mode
+  const returnToGamePosition = (moveIdx) => {
+    setIsOffBook(false);
+    setCustomPosition(null);
+    setCurrentMoveIndex(moveIdx);
+  };
   
   const handlePreviousMove = () => {
-    if (currentMoveIndex > -1) {
+    if (isOffBook) {
+      // If we're off-book, return to the last position from the game
+      returnToGamePosition(currentMoveIndex);
+    } else if (currentMoveIndex > -1) {
       setCurrentMoveIndex(currentMoveIndex - 1);
     }
   };
   
   const handleNextMove = () => {
+    if (isOffBook) {
+      // If we're off-book, do nothing (or could implement a move history for exploration)
+      return;
+    }
+    
     if (gameHistory && currentMoveIndex < gameHistory.length - 1) {
       setCurrentMoveIndex(currentMoveIndex + 1);
     }
   };
   
   const handleFirstMove = () => {
+    setIsOffBook(false);
+    setCustomPosition(null);
     setCurrentMoveIndex(-1);
   };
   
   const handleLastMove = () => {
     if (gameHistory) {
+      setIsOffBook(false);
+      setCustomPosition(null);
       setCurrentMoveIndex(gameHistory.length - 1);
     }
   };
@@ -185,7 +239,14 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-5/6 flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-bold">Game Analysis</h2>
+          <h2 className="text-xl font-bold">
+            Game Analysis
+            {isOffBook && (
+              <span className="ml-2 text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                Exploring variations
+              </span>
+            )}
+          </h2>
           <button 
             onClick={onClose} 
             className="text-gray-600 hover:text-gray-900"
@@ -212,10 +273,10 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             </div>
           </div>
           
-          {/* Chessboard */}
+          {/* Chessboard - with visual indication for off-book */}
           <div 
             ref={containerRef}
-            className="md:col-span-3 flex flex-col items-center justify-center"
+            className={`md:col-span-3 flex flex-col items-center justify-center ${isOffBook ? 'bg-yellow-50 p-2 rounded' : ''}`}
           >
             <Chessboard
               position={position}
@@ -223,7 +284,20 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
               customArrows={arrows}
               areArrowsAllowed={false}
               showBoardNotation={true}
+              onPieceDrop={onDrop} // Enable making moves
+              customBoardStyle={{
+                opacity: isOffBook ? '0.95' : '1', // Slightly transparent when exploring variations
+              }}
             />
+            
+            {isOffBook && (
+              <button
+                onClick={() => returnToGamePosition(currentMoveIndex)}
+                className="mt-4 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Return to game position
+              </button>
+            )}
           </div>
           
           {/* Move history */}
@@ -234,13 +308,18 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 {gameHistory.map((move, idx) => {
                   const moveNumber = Math.floor(idx / 2) + 1;
                   const isWhiteMove = idx % 2 === 0;
+                  const isCurrentMove = !isOffBook && currentMoveIndex === idx;
                   
                   return (
                     <React.Fragment key={idx}>
                       {isWhiteMove && <span className="text-gray-500">{moveNumber}.</span>}
                       <span 
-                        className={`cursor-pointer py-1 px-1 rounded ${currentMoveIndex === idx ? 'bg-blue-100 font-medium' : 'hover:bg-gray-100'}`}
-                        onClick={() => setCurrentMoveIndex(idx)}
+                        className={`cursor-pointer py-1 px-1 rounded 
+                          ${isCurrentMove ? 'bg-blue-100 font-medium' : 'hover:bg-gray-100'}`}
+                        onClick={() => {
+                          // Always return to game mode when clicking a move
+                          returnToGamePosition(idx);
+                        }}
                       >
                         {move.notation}
                       </span>
@@ -258,7 +337,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             <button 
               onClick={handleFirstMove} 
               className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={currentMoveIndex === -1}
+              disabled={!isOffBook && currentMoveIndex === -1}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2H5zM15 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2h-1z" />
@@ -267,7 +346,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             <button 
               onClick={handlePreviousMove} 
               className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={currentMoveIndex === -1}
+              disabled={!isOffBook && currentMoveIndex === -1}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -276,7 +355,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             <button 
               onClick={handleNextMove} 
               className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={currentMoveIndex === gameHistory.length - 1}
+              disabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -285,7 +364,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             <button 
               onClick={handleLastMove} 
               className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={currentMoveIndex === gameHistory.length - 1}
+              disabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2H5zM15 17a2 2 0 002-2V5a2 2 0 00-2-2h-1a2 2 0 00-2 2v10a2 2 0 002 2h1z" />
@@ -303,6 +382,12 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
               <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">
                 Analyzing position...
               </span>
+            )}
+            {isOffBook && (
+              <div className="mt-2 text-sm text-gray-600">
+                You're exploring a variation. Moves on the board will be analyzed,
+                but aren't part of the original game.
+              </div>
             )}
           </div>
         </div>

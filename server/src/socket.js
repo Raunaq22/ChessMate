@@ -48,7 +48,7 @@ const configureSocket = (io) => {
         console.log(`GAME DATA FROM DATABASE:`, {
           game_id: game.game_id,
           initial_time: game.initial_time,
-          increment: game.increment,
+          increment: game.getDataValue('increment'), // Fixed to use getDataValue instead of accessing increment directly
           white_time: game.white_time,
           black_time: game.black_time,
           time_control: game.time_control

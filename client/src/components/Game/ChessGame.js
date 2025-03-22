@@ -10,6 +10,7 @@ import ChatInput from '../Chat/ChatInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import useWindowSize from '../../hooks/useWindowSize';
+import GameAnalysis from './GameAnalysis';
 
 const STORAGE_KEY = 'chessmate_game_state';
 
@@ -66,6 +67,7 @@ const ChessGame = () => {
   const [moveSquares, setMoveSquares] = useState({});
   const [analysisMode, setAnalysisMode] = useState(false);
   const boardRef = useRef(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   // Responsive board size
   useEffect(() => {
@@ -819,6 +821,10 @@ const ChessGame = () => {
     setMoveSquares(newSquares);
   }, [game]);
 
+  const handleStartAnalysis = () => {
+    setShowAnalysis(true);
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Confetti animation */}
@@ -843,12 +849,20 @@ const ChessGame = () => {
         >
           <h2 className="text-xl font-bold">{gameStatus}</h2>
           {(gameStatus.includes('wins') || gameStatus.includes('Draw')) && (
-            <button
-              onClick={() => navigate('/lobby')}
-              className="mt-3 bg-white text-gray-800 px-4 py-2 rounded-full hover:bg-gray-100"
-            >
-              Back to Lobby
-            </button>
+            <div className="mt-3 space-x-3">
+              <button
+                onClick={() => navigate('/lobby')}
+                className="bg-white text-gray-800 px-4 py-2 rounded-full hover:bg-gray-100"
+              >
+                Back to Lobby
+              </button>
+              <button
+                onClick={handleStartAnalysis}
+                className="bg-blue-700 text-white px-4 py-2 rounded-full hover:bg-blue-800"
+              >
+                Analyse Game
+              </button>
+            </div>
           )}
         </motion.div>
       )}
@@ -1040,6 +1054,13 @@ const ChessGame = () => {
           </div>
         </div>
       </div>
+      {showAnalysis && (
+        <GameAnalysis
+          gameHistory={moveHistory}
+          initialFen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          onClose={() => setShowAnalysis(false)}
+        />
+      )}
     </div>
   );
 };

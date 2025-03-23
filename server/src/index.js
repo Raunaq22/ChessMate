@@ -7,6 +7,9 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 
+// Add this near the top of the file, before any routes that use models
+require('./models/index'); // This sets up all associations
+
 const PORT = process.env.PORT || 5001;
 
 // Set up static file serving

@@ -22,12 +22,6 @@ const DEFAULT_THEMES = {
     darkSquare: '#8ca2ad',
     pieces: 'classic'
   },
-  neon: {
-    name: 'Neon',
-    lightSquare: '#1a1a1a',
-    darkSquare: '#202020',
-    pieces: 'modern'
-  },
   custom: {
     name: 'Custom',
     lightSquare: '#f0d9b5',

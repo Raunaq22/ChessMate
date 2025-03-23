@@ -71,14 +71,32 @@ const Game = sequelize.define('Game', {
     defaultValue: false
   }
 }, {
-  tableName: 'games',
+  tableName: 'games', // Keeping this lowercase as per error message
   timestamps: true
 });
 
-// Define associations - IMPORTANT: Fix the association names
-Game.belongsTo(User, { as: 'player1', foreignKey: 'player1_id' });
-Game.belongsTo(User, { as: 'player2', foreignKey: 'player2_id' });
-Game.belongsTo(User, { as: 'winner', foreignKey: 'winner_id' });
+// Define associations in a function to avoid immediate execution
+Game.associateModels = function(models) {
+  const { User } = models;
+  
+  Game.belongsTo(User, { 
+    as: 'player1', 
+    foreignKey: 'player1_id',
+    targetKey: 'user_id'
+  });
+
+  Game.belongsTo(User, { 
+    as: 'player2', 
+    foreignKey: 'player2_id',
+    targetKey: 'user_id'
+  });
+
+  Game.belongsTo(User, { 
+    as: 'winner', 
+    foreignKey: 'winner_id',
+    targetKey: 'user_id'
+  });
+};
 
 // Static methods for game creation and joining
 Game.findUserActiveGame = async function(userId) {
@@ -99,7 +117,7 @@ Game.createNewGame = async function(playerId) {
   return await this.create({
     player1_id: playerId,
     status: 'waiting',
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     move_history: [],
     start_time: null,
     end_time: null

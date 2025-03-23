@@ -63,8 +63,13 @@ const getUserById = async (req, res) => {
   try {
     const userId = req.params.userId;
     
+    // Validate that userId is actually a number
+    if (!userId || isNaN(parseInt(userId))) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
     // Find user by ID, only return public information
-    const user = await User.findByPk(userId, {
+    const user = await User.findByPk(parseInt(userId), {
       attributes: ['user_id', 'username', 'created_at'] // Only return public fields
     });
     
@@ -179,8 +184,6 @@ const uploadProfileImage = async (req, res) => {
         user.profile_image_url !== '/assets/default-avatar.png' && 
         user.profile_image_url.startsWith('/uploads/profile/')) {
       try {
-        // Based on the log, we can see the actual upload path is in server/public
-        // instead of just /public, so we need to adjust our path resolution
         const serverDir = path.resolve(__dirname, '../../'); // Go up to server directory
         const oldFilePath = path.join(serverDir, 'public', user.profile_image_url);
         

@@ -48,7 +48,18 @@ const GameReplayPage = () => {
 
   // Fetch a user by ID to get username
   const fetchUsername = async (userId, playerColor) => {
-    if (!userId) return;
+    if (!userId || isNaN(parseInt(userId))) {
+      console.log(`Invalid user ID format: ${userId}, skipping fetch`);
+      setPlayers(prev => ({
+        ...prev,
+        [playerColor]: { 
+          username: playerColor === 'white' ? 'White' : 'Black',
+          loading: false, 
+          error: true 
+        }
+      }));
+      return;
+    }
     
     try {
       setPlayers(prev => ({
@@ -74,7 +85,7 @@ const GameReplayPage = () => {
       setPlayers(prev => ({
         ...prev,
         [playerColor]: {
-          ...prev[playerColor],
+          username: playerColor === 'white' ? 'White' : 'Black', // Provide default name
           loading: false,
           error: true
         }

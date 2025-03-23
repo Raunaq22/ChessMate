@@ -5,6 +5,11 @@ export const formatImageUrl = (url) => {
   if (!url) return '/assets/default-avatar.png';
   if (url.startsWith('http')) return url;
   
+  // Ensure we're not returning an API endpoint as a direct image path
+  if (url.includes('/api/users/')) {
+    return '/assets/default-avatar.png';
+  }
+  
   // Return the path as-is
   return url;
 };
@@ -25,6 +30,7 @@ const UserAvatar = ({ user, className = "h-8 w-8 rounded-full object-cover" }) =
       onError={(e) => {
         // Only try to set fallback once to prevent infinite loops
         if (!imageFailed) {
+          console.log(`Image failed to load: ${e.target.src}, falling back to default avatar`);
           setImageFailed(true);
           e.target.src = '/assets/default-avatar.png';
         }

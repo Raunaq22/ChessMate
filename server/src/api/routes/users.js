@@ -71,8 +71,13 @@ router.get('/profile-image/:filename', (req, res) => {
 
 // Default avatar fallback - always returns the default avatar
 router.get('/default-avatar', (req, res) => {
-  const defaultAvatarPath = path.join(__dirname, '../../../public/assets/default-avatar.png');
-  res.sendFile(defaultAvatarPath);
+  try {
+    const defaultAvatarPath = path.join(__dirname, '../../../public/assets/default-avatar.png');
+    res.sendFile(defaultAvatarPath);
+  } catch (error) {
+    console.error('Error serving default avatar:', error);
+    res.status(500).send('Error serving default avatar');
+  }
 });
 
 // Image proxy for CORS issues

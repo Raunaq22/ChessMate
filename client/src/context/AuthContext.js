@@ -115,6 +115,12 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  // Add updateUser function
+  const updateUser = (userData) => {
+    // Update the current user in state
+    setCurrentUser(userData);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -123,7 +129,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
-        logout
+        logout,
+        updateUser // Add this to the context value
       }}
     >
       {children}

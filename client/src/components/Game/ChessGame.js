@@ -869,13 +869,13 @@ const ChessGame = () => {
               (((gameStatus.includes('White wins') && playerColor === 'white') || 
                (gameStatus.includes('Black wins') && playerColor === 'black')) ? 
                  'bg-green-500 text-white' : 'bg-red-500 text-white') : 
-              gameStatus.includes('Draw') ? 
+              gameStatus.includes('draw') ? 
                 'bg-blue-500 text-white' : 
                 'bg-yellow-100 border border-yellow-400 text-yellow-800'
           }`}
         >
           <h2 className="text-xl font-bold">{gameStatus}</h2>
-          {(gameStatus.includes('wins') || gameStatus.includes('Draw')) && (
+          {(gameStatus.includes('wins') || gameStatus.includes('draw')) && (
             <div className="mt-3 space-x-3">
               <button
                 onClick={() => navigate('/lobby')}

@@ -88,11 +88,25 @@ const PlayWithFriendPage = () => {
     }
   };
 
-  const joinCreatedGame = () => {
+  const joinCreatedGame = async () => {
     // If we have the actual game ID stored, use that directly
     if (createdGameId) {
-      console.log(`Navigating to game with stored game ID: ${createdGameId}`);
-      navigate(`/game/${createdGameId}`);
+      try {
+        // Check if the game is still active before joining
+        const gameDetails = await gameService.getGameById(createdGameId);
+        
+        if (gameDetails?.status === 'completed') {
+          // Redirect to replay if the game is completed
+          console.log(`Game ${createdGameId} is already completed. Redirecting to replay...`);
+          navigate(`/game-replay/${createdGameId}`);
+        } else {
+          console.log(`Navigating to game with stored game ID: ${createdGameId}`);
+          navigate(`/game/${createdGameId}`);
+        }
+      } catch (error) {
+        console.error('Error checking game status:', error);
+        navigate(`/game/${createdGameId}`);
+      }
     } else {
       console.error('No game ID available for direct navigation');
       setError('Could not find the game. Please create a new game or join with the code.');

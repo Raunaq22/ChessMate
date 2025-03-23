@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import useWindowSize from '../../hooks/useWindowSize';
 import GameAnalysis from './GameAnalysis';
+import axios from 'axios';
 
 const STORAGE_KEY = 'chessmate_game_state';
 
@@ -28,8 +29,11 @@ const loadSavedGameState = (gameId) => {
 
 const ChessGame = () => {
   const { gameId } = useParams();
-  const { currentUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { currentUser, isAuthenticated } = useContext(AuthContext);
+  
+  // Always declare all hooks at the top level, unconditionally
+  const [initialLoading, setInitialLoading] = useState(true);
   const [game, setGame] = useState(new Chess());
   const [socket, setSocket] = useState(null);
   const [position, setPosition] = useState('start');
@@ -52,22 +56,94 @@ const ChessGame = () => {
   const [offeringDraw, setOfferingDraw] = useState(false);
   const [drawOfferReceived, setDrawOfferReceived] = useState(false);
   const [boardSize, setBoardSize] = useState(480);
-  const containerRef = useRef(null);
-  const { width: windowWidth, height: windowHeight } = useWindowSize();
-  
-  const gameInitialized = useRef(false);
-  const loadedFromStorage = useRef(false);
   const [firstMoveMade, setFirstMoveMade] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [notification, setNotification] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
   const [opponentJoined, setOpponentJoined] = useState(false);
   const [opponentName, setOpponentName] = useState(null);
-
   const [moveSquares, setMoveSquares] = useState({});
   const [analysisMode, setAnalysisMode] = useState(false);
-  const boardRef = useRef(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  
+  const containerRef = useRef(null);
+  const { width: windowWidth, height: windowHeight } = useWindowSize();
+  const gameInitialized = useRef(false);
+  const loadedFromStorage = useRef(false);
+  const boardRef = useRef(null);
+
+  // Define all callbacks and memoized values unconditionally
+  const customPieces = useMemo(() => {
+    // You can customize piece styling here if needed
+    return {};
+  }, []);
+
+  const highlightSquares = useCallback((square) => {
+    const moves = game.moves({ square: square, verbose: true });
+    if (moves.length === 0) return;
+    
+    const newSquares = {};
+    moves.forEach((move) => {
+      newSquares[move.to] = {
+        background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+        borderRadius: '50%'
+      };
+    });
+    setMoveSquares(newSquares);
+  }, [game]);
+
+  const handleTimeUpdate = useCallback((color, timeLeft) => {
+    if (!socket || gameEnded) return;
+    
+    const roundedTime = Math.floor(timeLeft);
+    
+    // Only send updates if time changed by at least 1 second
+    // and no more frequently than once per second
+    if (color === 'white' && Math.abs(whiteTime - roundedTime) >= 1) {
+      // Use setTimeout to ensure we're not flooding the server
+      setTimeout(() => {
+        socket.emit('timeUpdate', { gameId, color: 'white', timeLeft: roundedTime });
+      }, 500); // 500ms throttle
+      
+      // Update local state immediately for UI
+      setWhiteTime(roundedTime);
+    } else if (color === 'black' && Math.abs(blackTime - roundedTime) >= 1) {
+      setTimeout(() => {
+        socket.emit('timeUpdate', { gameId, color: 'black', timeLeft: roundedTime });
+      }, 500); // 500ms throttle
+      
+      // Update local state immediately for UI
+      setBlackTime(roundedTime);
+    }
+  }, [socket, gameId, whiteTime, blackTime, gameEnded]);
+
+  // Check game status on initial load
+  useEffect(() => {
+    const checkGameStatus = async () => {
+      if (!isAuthenticated || !currentUser) return;
+      
+      try {
+        setInitialLoading(true);
+        // Get the game data from the server
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/games/${gameId}`);
+        const gameData = response.data.game || response.data;
+        
+        // If game is completed, redirect to replay page
+        if (gameData.status === 'completed') {
+          console.log(`Game ${gameId} is already completed. Redirecting to replay...`);
+          navigate(`/game-replay/${gameId}`);
+          return;
+        }
+        
+        setInitialLoading(false);
+      } catch (error) {
+        console.error('Error checking game status:', error);
+        setInitialLoading(false);
+      }
+    };
+    
+    checkGameStatus();
+  }, [gameId, currentUser, isAuthenticated, navigate]);
 
   // Responsive board size
   useEffect(() => {
@@ -78,6 +154,7 @@ const ChessGame = () => {
     }
   }, [windowWidth, containerRef]);
 
+  // Initialize from storage and connect socket
   useEffect(() => {
     if (!gameId || !currentUser || !currentUser.user_id) return;
 
@@ -438,7 +515,7 @@ const ChessGame = () => {
     };
   }, [gameId, currentUser, navigate]);
 
-  // Make sure game state is properly initialized when component fully mounts
+  // Properly initialize game state
   useEffect(() => {
     if (gameInitialized.current && game && playerColor) {
       const currentTurn = game.turn() === 'w' ? 'white' : 'black';
@@ -450,7 +527,7 @@ const ChessGame = () => {
     }
   }, [gameStarted, game, playerColor, firstMoveMade]);
 
-  // Fix the dependency array warning
+  // Handle winner confetti
   useEffect(() => {
     if (gameStatus && gameStatus.includes('wins')) {
       const isWinner = (
@@ -468,6 +545,7 @@ const ChessGame = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStatus, playerColor]);
 
+  // Save game state to local storage
   useEffect(() => {
     if (gameId && gameStarted && gameInitialized.current) {
       const gameState = {
@@ -499,8 +577,8 @@ const ChessGame = () => {
     moveHistory
   ]);
 
+  // Cleanup storage on unmount
   useEffect(() => {
-    // Cleanup storage on unmount
     return () => {
       if (gameId) {
         localStorage.removeItem(`${STORAGE_KEY}_${gameId}`);
@@ -508,7 +586,7 @@ const ChessGame = () => {
     };
   }, [gameId]);
 
-  // Fix the overlay issue - check for playerIds directly
+  // Track opponent joined status
   useEffect(() => {
     // If both players have IDs, set opponentJoined to true
     if (playerIds.white && playerIds.black) {
@@ -516,6 +594,7 @@ const ChessGame = () => {
     }
   }, [playerIds]);
 
+  // Rest of the component logic
   const onPieceDragStart = (piece, sourceSquare) => {
     const isFirstWhiteMove = !gameStarted && game.turn() === 'w' && playerColor === 'white';
     
@@ -676,32 +755,6 @@ const ChessGame = () => {
     });
   };
 
-  // Fix the handleTimeUpdate function with throttling
-  const handleTimeUpdate = useCallback((color, timeLeft) => {
-    if (!socket || gameEnded) return;
-    
-    const roundedTime = Math.floor(timeLeft);
-    
-    // Only send updates if time changed by at least 1 second
-    // and no more frequently than once per second
-    if (color === 'white' && Math.abs(whiteTime - roundedTime) >= 1) {
-      // Use setTimeout to ensure we're not flooding the server
-      setTimeout(() => {
-        socket.emit('timeUpdate', { gameId, color: 'white', timeLeft: roundedTime });
-      }, 500); // 500ms throttle
-      
-      // Update local state immediately for UI
-      setWhiteTime(roundedTime);
-    } else if (color === 'black' && Math.abs(blackTime - roundedTime) >= 1) {
-      setTimeout(() => {
-        socket.emit('timeUpdate', { gameId, color: 'black', timeLeft: roundedTime });
-      }, 500); // 500ms throttle
-      
-      // Update local state immediately for UI
-      setBlackTime(roundedTime);
-    }
-  }, [socket, gameId, whiteTime, blackTime, gameEnded]);
-
   // Fix the handleSendMessage function to properly structure the message
   const handleSendMessage = (text) => {
     if (!socket || !text || !currentUser) {
@@ -828,36 +881,23 @@ const ChessGame = () => {
     );
   };
 
-  const customPieces = useMemo(() => {
-    // You can customize piece styling here if needed
-    return {};
-  }, []);
-
-  // Ensure the highlightSquares function works for both colors:
-  const highlightSquares = useCallback((square) => {
-    const moves = game.moves({ square: square, verbose: true });
-    if (moves.length === 0) return;
-    
-    const newSquares = {};
-    moves.forEach((move) => {
-      newSquares[move.to] = {
-        background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
-        borderRadius: '50%'
-      };
-    });
-    setMoveSquares(newSquares);
-  }, [game]);
-
   const handleStartAnalysis = () => {
     setShowAnalysis(true);
   };
+
+  // Loading state
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Confetti animation */}
       {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
-
-
 
       {/* Game status banner */}
       {gameStatus && (

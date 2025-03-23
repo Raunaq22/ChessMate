@@ -213,10 +213,10 @@ const ProfilePage = () => {
                       {game.result || 'Draw'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <button 
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
                       onClick={() => navigate(`/game-replay/${game.game_id}`)}
-                      className="text-primary hover:text-blue-700"
+                      className="text-indigo-600 hover:text-indigo-900"
                     >
                       Replay
                     </button>

@@ -99,6 +99,22 @@ const handleCreateGame = async (timeControl) => {
       setDebugInfo(`Attempting to join game ${gameId}`);
       setJoiningGameId(gameId);
       
+      // Check game status before joining
+      try {
+        const gameDetails = await gameService.getGameById(gameId);
+        if (gameDetails?.status === 'completed') {
+          setJoinError('This game has already ended');
+          setDebugInfo('Cannot join completed game');
+          setJoiningGameId(null);
+          // Redirect to replay if the game is completed
+          navigate(`/game-replay/${gameId}`);
+          return;
+        }
+      } catch (checkError) {
+        console.warn('Error checking game status:', checkError);
+        // Continue with join attempt if checking fails
+      }
+      
       const game = availableGames.find(g => g.game_id === gameId);
       if (!game) {
         setJoinError('Game not found in available games');

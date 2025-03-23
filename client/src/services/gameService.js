@@ -68,6 +68,16 @@ const gameService = {
       console.error('Error cancelling game:', error);
       throw error;
     }
+  },
+
+  getGameById: async (gameId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/games/${gameId}`);
+      return response.data.game || response.data;
+    } catch (error) {
+      console.error('Error fetching game details:', error);
+      throw error;
+    }
   }
 };
 

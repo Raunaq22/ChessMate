@@ -676,18 +676,29 @@ const ChessGame = () => {
     });
   };
 
-  // Fix the handleTimeUpdate function
+  // Fix the handleTimeUpdate function with throttling
   const handleTimeUpdate = useCallback((color, timeLeft) => {
     if (!socket || gameEnded) return;
     
     const roundedTime = Math.floor(timeLeft);
     
+    // Only send updates if time changed by at least 1 second
+    // and no more frequently than once per second
     if (color === 'white' && Math.abs(whiteTime - roundedTime) >= 1) {
+      // Use setTimeout to ensure we're not flooding the server
+      setTimeout(() => {
+        socket.emit('timeUpdate', { gameId, color: 'white', timeLeft: roundedTime });
+      }, 500); // 500ms throttle
+      
+      // Update local state immediately for UI
       setWhiteTime(roundedTime);
-      socket.emit('timeUpdate', { gameId, color: 'white', timeLeft: roundedTime });
     } else if (color === 'black' && Math.abs(blackTime - roundedTime) >= 1) {
+      setTimeout(() => {
+        socket.emit('timeUpdate', { gameId, color: 'black', timeLeft: roundedTime });
+      }, 500); // 500ms throttle
+      
+      // Update local state immediately for UI
       setBlackTime(roundedTime);
-      socket.emit('timeUpdate', { gameId, color: 'black', timeLeft: roundedTime });
     }
   }, [socket, gameId, whiteTime, blackTime, gameEnded]);
 

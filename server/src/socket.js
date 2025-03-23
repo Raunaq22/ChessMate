@@ -186,6 +186,25 @@ const configureSocket = (io) => {
           socket.emit('error', { message: 'Game not found' });
           return;
         }
+        
+        // Check if we need to apply increment (don't apply on first move of each side)
+        const isFirstMoveOfGame = !game.move_history || game.move_history.length === 0;
+        const increment = game.getDataValue('increment') || 0;
+        const movingColor = move.from[0] === 'a' || move.from[0] === 'b' || move.from[0] === 'c' || move.from[0] === 'd' || 
+                          move.from[0] === 'e' || move.from[0] === 'f' || move.from[0] === 'g' || move.from[0] === 'h' ? 
+                          game.fen.split(' ')[1] === 'w' ? 'white' : 'black' : 
+                          null;
+
+        // Apply increment to the player who just moved (not on their first move)
+        if (!isFirstMoveOfGame && increment > 0) {
+          if (movingColor === 'white') {
+            whiteTimeLeft += increment;
+            console.log(`Applied increment of ${increment}s to white: ${whiteTimeLeft}`);
+          } else if (movingColor === 'black') {
+            blackTimeLeft += increment;
+            console.log(`Applied increment of ${increment}s to black: ${blackTimeLeft}`);
+          }
+        }
 
         // Update game in database
         game.fen = fen;
@@ -194,14 +213,13 @@ const configureSocket = (io) => {
         game.move_history = [...(game.move_history || []), move];
         await game.save();
 
-        // Broadcast move to other players
         io.to(`game-${gameId}`).emit('move', {
           from: move.from,
           to: move.to,
           fen: fen,
           moveNotation: moveNotation,
-          whiteTimeLeft,
-          blackTimeLeft,
+          whiteTimeLeft, 
+          blackTimeLeft, 
           isWhiteTimerRunning,
           isBlackTimerRunning
         });

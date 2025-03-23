@@ -133,19 +133,22 @@ const getAvailableGames = async (req, res) => {
   }
 };
 
-// Get user game history
+// Update the getGameHistory function to filter out incomplete games
 const getGameHistory = async (req, res) => {
   try {
     const userId = req.user.user_id;
     
     // Find all completed games where the user was a player
+    // AND both player1_id and player2_id fields are populated
     const games = await Game.findAll({
       where: {
         [Op.or]: [
           { player1_id: userId },
           { player2_id: userId }
         ],
-        status: 'completed'
+        status: 'completed',
+        player1_id: { [Op.ne]: null },  // Ensure player1 exists
+        player2_id: { [Op.ne]: null }   // Ensure player2 exists
       },
       include: [
         {
@@ -290,11 +293,50 @@ const getGame = async (req, res) => {
   }
 };
 
+// Controller function to cancel a game
+const cancelGame = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { gameId } = req.params;
+    
+    // Only allow cancellation of waiting games by the creator
+    const game = await Game.findOne({
+      where: {
+        game_id: gameId,
+        player1_id: userId,
+        status: 'waiting',
+        player2_id: null
+      }
+    });
+
+    if (!game) {
+      return res.status(404).json({ 
+        message: 'Game not found or cannot be cancelled' 
+      });
+    }
+
+    // Delete the game from the database
+    await game.destroy();
+    
+    res.status(200).json({ 
+      message: 'Game cancelled successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error cancelling game:', error);
+    res.status(500).json({ 
+      message: 'Failed to cancel game', 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
   getAvailableGames,
   getGameHistory,
-  getGameById, // Add the new controller function
-  getGame
+  getGameById,
+  getGame,
+  cancelGame
 };

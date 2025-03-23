@@ -12,5 +12,6 @@ router.post('/:gameId/join', gameController.joinGame);
 router.get('/available', gameController.getAvailableGames);
 router.get('/history', gameController.getGameHistory);
 router.get('/:gameId', gameController.getGameById);
+router.delete('/:gameId', authenticateToken, gameController.cancelGame);
 
 module.exports = router;

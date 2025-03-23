@@ -407,31 +407,38 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
       }
     });
 
+    // Update the disconnect event handler to also delete waiting games
     socket.on('disconnect', async () => {
       clearInterval(activityInterval);
       console.log('Client disconnected:', socket.id);
-
+      
       // Get the user ID from the socket handshake query
       const userId = socket.handshake.query.userId;
-
+    
       if (userId) {
         try {
-          // Mark all waiting games created by this user as completed
-          await Game.update(
-            { status: 'completed' },
-            {
-              where: {
-                player1_id: userId,
-                status: 'waiting'
-              }
+          // Find and delete all waiting games created by this user
+          const waitingGames = await Game.findAll({
+            where: {
+              player1_id: userId,
+              status: 'waiting',
+              player2_id: null
             }
-          );
-          console.log(`Cleaned up waiting games for user ${userId}`);
+          });
+          
+          // Log the games we're about to delete
+          console.log(`Cleaning up ${waitingGames.length} waiting games for user ${userId}`);
+          
+          // Delete each game
+          for (const game of waitingGames) {
+            await game.destroy();
+            console.log(`Deleted waiting game ${game.game_id}`);
+          }
         } catch (error) {
           console.error('Error cleaning up games:', error);
         }
       }
-
+    
       if (currentGameId && currentUserId) {
         const gameUsers = activeGames.get(currentGameId);
         if (gameUsers) {
@@ -516,7 +523,7 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
           }
         }
       }
-
+    
       // Find which game room this socket was in
       for (const [roomId, users] of activeGames.entries()) {
         for (const [userId, socketId] of users.entries()) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import gameService from '../../services/gameService';
 import CreateGameModal from './CreateGameModal';
 
@@ -10,6 +10,7 @@ const GameLobby = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [joinError, setJoinError] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
+  const [createdGameId, setCreatedGameId] = useState(null);
   const navigate = useNavigate();
 
   // Helper function to check if a game is expired
@@ -71,7 +72,9 @@ const handleCreateGame = async (timeControl) => {
     const response = await gameService.createGame(payload);
     
     if (response?.game?.game_id) {
-      // Log successful game creation with time control details
+      // Store the created game ID in a state variable
+      setCreatedGameId(response.game.game_id);
+      
       console.log('Game created successfully with time control:', {
         timeControl: payload.timeControl,
         initialTime: payload.initialTime,
@@ -184,6 +187,31 @@ const handleCreateGame = async (timeControl) => {
     const idString = String(game.game_id);
     return idString.length > 8 ? `${idString.substring(0, 8)}...` : idString;
   };
+
+  useEffect(() => {
+    return () => {
+      // Clean up any created game that might have been abandoned
+      if (createdGameId) {
+        console.log(`Cleaning up abandoned game ${createdGameId}`);
+        gameService.cancelGame(createdGameId).catch(error => {
+          console.error('Failed to cancel abandoned game:', error);
+        });
+      }
+    };
+  }, [createdGameId]);
+
+  useBeforeUnload(
+    React.useCallback(() => {
+      if (createdGameId) {
+        // Try to clean up the game synchronously before the page unloads
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `${process.env.REACT_APP_API_URL}/api/games/${createdGameId}`, false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
+        xhr.send();
+      }
+    }, [createdGameId])
+  );
 
   if (loading && availableGames.length === 0) {
     return <div className="text-center py-8">Loading games...</div>;

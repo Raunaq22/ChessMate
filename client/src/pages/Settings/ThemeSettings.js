@@ -36,7 +36,7 @@ const PIECE_STYLES = ['classic', 'modern', 'fantasy', '8-bit'];
 
 const ThemeSettings = () => {
   const { themeKey, updateTheme } = useChessTheme();
-  const [selectedTheme, setSelectedTheme] = useState(themeKey);
+  const [selectedTheme, setSelectedTheme] = useState(themeKey || 'classic');
   const [customTheme, setCustomTheme] = useState({
     lightSquare: '#f0d9b5',
     darkSquare: '#b58863',
@@ -49,35 +49,58 @@ const ThemeSettings = () => {
 
   // Load saved themes from localStorage
   useEffect(() => {
-    const storedThemes = localStorage.getItem('chessmate_themes');
-    if (storedThemes) {
-      try {
-        setSavedThemes(JSON.parse(storedThemes));
-      } catch (error) {
-        console.error('Error loading saved themes:', error);
-        // Fallback to default themes if there's an error
-        setSavedThemes({});
+    // Load saved themes - with error handling
+    try {
+      const storedThemes = localStorage.getItem('chessmate_themes');
+      if (storedThemes) {
+        const parsedThemes = JSON.parse(storedThemes);
+        // Validate that parsedThemes is an object
+        if (parsedThemes && typeof parsedThemes === 'object' && !Array.isArray(parsedThemes)) {
+          setSavedThemes(parsedThemes);
+        } else {
+          console.error('Invalid saved themes format, resetting to empty object');
+          setSavedThemes({});
+        }
       }
+    } catch (error) {
+      console.error('Error loading saved themes:', error);
+      setSavedThemes({});
     }
 
     // Load active theme and sync with context
-    setSelectedTheme(themeKey);
+    setSelectedTheme(themeKey || 'classic');
     
     // If it's a custom theme, load the custom settings
     if (themeKey === 'custom') {
-      const customThemeSettings = localStorage.getItem('chessmate_custom_theme');
-      if (customThemeSettings) {
-        try {
-          setCustomTheme(JSON.parse(customThemeSettings));
-        } catch (error) {
-          console.error('Error loading custom theme:', error);
+      try {
+        const customThemeSettings = localStorage.getItem('chessmate_custom_theme');
+        if (customThemeSettings) {
+          const parsedCustomTheme = JSON.parse(customThemeSettings);
+          // Validate custom theme has required properties
+          if (parsedCustomTheme && 
+              typeof parsedCustomTheme === 'object' && 
+              parsedCustomTheme.lightSquare && 
+              parsedCustomTheme.darkSquare) {
+            setCustomTheme(parsedCustomTheme);
+          } else {
+            console.error('Invalid custom theme format, using default');
+            setCustomTheme(DEFAULT_THEMES.custom);
+          }
         }
+      } catch (error) {
+        console.error('Error loading custom theme:', error);
+        setCustomTheme(DEFAULT_THEMES.custom);
       }
     }
   }, [themeKey]);
 
   // Apply the theme
   const applyTheme = (themeKey) => {
+    if (!themeKey) {
+      console.error('No theme key provided to applyTheme');
+      themeKey = 'classic'; // Fallback to classic
+    }
+    
     setSelectedTheme(themeKey);
     
     // Save the active theme selection to localStorage
@@ -89,7 +112,7 @@ const ThemeSettings = () => {
     // If it's a custom saved theme, set the custom colors
     if (themeKey !== 'custom' && savedThemes[themeKey]) {
       setCustomTheme(savedThemes[themeKey]);
-    } else if (themeKey !== 'custom') {
+    } else if (themeKey !== 'custom' && DEFAULT_THEMES[themeKey]) {
       // Set colors based on predefined theme
       setCustomTheme({
         lightSquare: DEFAULT_THEMES[themeKey].lightSquare,
@@ -100,7 +123,18 @@ const ThemeSettings = () => {
     
     // If it's the custom theme, save the custom settings
     if (themeKey === 'custom') {
-      localStorage.setItem('chessmate_custom_theme', JSON.stringify(customTheme));
+      // Ensure the custom theme is valid before saving
+      const validCustomTheme = {
+        ...customTheme,
+        lightSquare: customTheme.lightSquare || DEFAULT_THEMES.custom.lightSquare,
+        darkSquare: customTheme.darkSquare || DEFAULT_THEMES.custom.darkSquare,
+        pieces: customTheme.pieces || DEFAULT_THEMES.custom.pieces,
+        name: 'Custom'
+      };
+      
+      localStorage.setItem('chessmate_custom_theme', JSON.stringify(validCustomTheme));
+      // Also update the customTheme state to ensure it's valid
+      setCustomTheme(validCustomTheme);
     }
     
     // Show success message
@@ -125,13 +159,19 @@ const ThemeSettings = () => {
       return;
     }
 
+    // Ensure the custom theme is valid before saving
+    const validCustomTheme = {
+      ...customTheme,
+      lightSquare: customTheme.lightSquare || DEFAULT_THEMES.custom.lightSquare,
+      darkSquare: customTheme.darkSquare || DEFAULT_THEMES.custom.darkSquare,
+      pieces: customTheme.pieces || DEFAULT_THEMES.custom.pieces,
+      name: saveThemeName
+    };
+
     // Create new saved themes object
     const newSavedThemes = {
       ...savedThemes,
-      [saveThemeName]: {
-        ...customTheme,
-        name: saveThemeName
-      }
+      [saveThemeName]: validCustomTheme
     };
 
     // Save to localStorage
@@ -176,10 +216,45 @@ const ThemeSettings = () => {
     }, 3000);
   };
 
-  // Current theme to display on the board
-  const currentTheme = selectedTheme === 'custom' ? 
-    customTheme : 
-    (savedThemes[selectedTheme] || DEFAULT_THEMES[selectedTheme]);
+  // Current theme to display on the board - with fallbacks to ensure it's never undefined
+  const getCurrentTheme = () => {
+    if (selectedTheme === 'custom') {
+      // Ensure custom theme has all required properties
+      return {
+        ...DEFAULT_THEMES.custom, // Base fallback
+        ...customTheme, // Override with custom values if available
+        // Ensure these specific properties always exist
+        lightSquare: customTheme?.lightSquare || DEFAULT_THEMES.custom.lightSquare,
+        darkSquare: customTheme?.darkSquare || DEFAULT_THEMES.custom.darkSquare,
+        pieces: customTheme?.pieces || DEFAULT_THEMES.custom.pieces
+      };
+    } 
+    
+    // Try getting from saved themes
+    if (savedThemes[selectedTheme]) {
+      const theme = savedThemes[selectedTheme];
+      // Ensure theme has required properties
+      return {
+        ...DEFAULT_THEMES.classic, // Base fallback
+        ...theme, // Override with saved theme values
+        // Ensure these specific properties always exist
+        lightSquare: theme.lightSquare || DEFAULT_THEMES.classic.lightSquare,
+        darkSquare: theme.darkSquare || DEFAULT_THEMES.classic.darkSquare,
+        pieces: theme.pieces || DEFAULT_THEMES.classic.pieces
+      };
+    }
+    
+    // If not in saved themes, try default themes
+    if (DEFAULT_THEMES[selectedTheme]) {
+      return DEFAULT_THEMES[selectedTheme];
+    }
+    
+    // Final fallback
+    return DEFAULT_THEMES.classic;
+  };
+  
+  // Get current theme with all fallbacks applied
+  const currentTheme = getCurrentTheme();
 
   return (
     <div>
@@ -280,15 +355,15 @@ const ThemeSettings = () => {
                 <div className="flex items-center">
                   <div 
                     className="w-10 h-10 rounded border cursor-pointer mr-2"
-                    style={{ backgroundColor: customTheme.lightSquare }}
+                    style={{ backgroundColor: customTheme.lightSquare || DEFAULT_THEMES.custom.lightSquare }}
                     onClick={() => setColorPickerOpen({ ...colorPickerOpen, light: !colorPickerOpen.light })}
                   ></div>
-                  <span>{customTheme.lightSquare}</span>
+                  <span>{customTheme.lightSquare || DEFAULT_THEMES.custom.lightSquare}</span>
                 </div>
                 {colorPickerOpen.light && (
                   <div className="mt-2">
                     <SketchPicker
-                      color={customTheme.lightSquare}
+                      color={customTheme.lightSquare || DEFAULT_THEMES.custom.lightSquare}
                       onChange={(color) => setCustomTheme({ ...customTheme, lightSquare: color.hex })}
                     />
                   </div>
@@ -303,15 +378,15 @@ const ThemeSettings = () => {
                 <div className="flex items-center">
                   <div 
                     className="w-10 h-10 rounded border cursor-pointer mr-2"
-                    style={{ backgroundColor: customTheme.darkSquare }}
+                    style={{ backgroundColor: customTheme.darkSquare || DEFAULT_THEMES.custom.darkSquare }}
                     onClick={() => setColorPickerOpen({ ...colorPickerOpen, dark: !colorPickerOpen.dark })}
                   ></div>
-                  <span>{customTheme.darkSquare}</span>
+                  <span>{customTheme.darkSquare || DEFAULT_THEMES.custom.darkSquare}</span>
                 </div>
                 {colorPickerOpen.dark && (
                   <div className="mt-2">
                     <SketchPicker
-                      color={customTheme.darkSquare}
+                      color={customTheme.darkSquare || DEFAULT_THEMES.custom.darkSquare}
                       onChange={(color) => setCustomTheme({ ...customTheme, darkSquare: color.hex })}
                     />
                   </div>
@@ -329,7 +404,7 @@ const ThemeSettings = () => {
                       key={style}
                       onClick={() => setCustomTheme({ ...customTheme, pieces: style })}
                       className={`p-2 rounded-lg border transition-all ${
-                        customTheme.pieces === style
+                        (customTheme.pieces || DEFAULT_THEMES.custom.pieces) === style
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-blue-300'
                       }`}

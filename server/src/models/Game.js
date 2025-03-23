@@ -166,22 +166,15 @@ Game.findOtherAvailableGames = async function(userId) {
     },
     include: [{
       model: User,
-      as: 'player1', // IMPORTANT: Match the association name used above
+      as: 'player1',
       attributes: ['username', 'last_active']
     }],
     order: [['createdAt', 'DESC']]
   });
 
-  // Filter out games where host hasn't been active in the last 10 seconds
-  const activeGames = games.filter(game => {
-    if (!game.player1 || !game.player1.last_active) return false;
-    
-    const lastActive = new Date(game.player1.last_active);
-    const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
-    return lastActive > tenSecondsAgo;
-  });
-
-  return activeGames;
+  // Include ALL games regardless of last_active time
+  // This ensures games don't disappear too quickly
+  return games;
 };
 
 Game.cancelGame = async function(gameId, userId) {

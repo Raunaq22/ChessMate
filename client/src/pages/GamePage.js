@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import io from 'socket.io-client';
 import { AuthContext } from '../context/AuthContext';
 import ChatWindow from '../components/Chat/ChatWindow';
+import ThemedChessboard from '../components/Board/ThemedChessboard';
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -190,7 +190,7 @@ const GamePage = () => {
           </div>
           
           <div className="w-full max-w-md mx-auto mb-4">
-            <Chessboard 
+            <ThemedChessboard 
               position={game.fen()} 
               onPieceDrop={onDrop}
               boardOrientation={orientation}

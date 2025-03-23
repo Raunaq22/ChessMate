@@ -417,22 +417,30 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
     
       if (userId) {
         try {
-          // Find and delete all waiting games created by this user
-          const waitingGames = await Game.findAll({
-            where: {
-              player1_id: userId,
-              status: 'waiting',
-              player2_id: null
+          // ONLY clean up waiting games that are specifically flagged for cleanup
+          // DO NOT delete all waiting games by default
+          const cleanupParam = socket.handshake.query.cleanupOnDisconnect;
+          
+          if (cleanupParam === 'true') {
+            // Find and delete all waiting games created by this user
+            const waitingGames = await Game.findAll({
+              where: {
+                player1_id: userId,
+                status: 'waiting',
+                player2_id: null
+              }
+            });
+            
+            // Log the games we're about to delete
+            console.log(`Cleaning up ${waitingGames.length} waiting games for user ${userId}`);
+            
+            // Delete each game
+            for (const game of waitingGames) {
+              await game.destroy();
+              console.log(`Deleted waiting game ${game.game_id}`);
             }
-          });
-          
-          // Log the games we're about to delete
-          console.log(`Cleaning up ${waitingGames.length} waiting games for user ${userId}`);
-          
-          // Delete each game
-          for (const game of waitingGames) {
-            await game.destroy();
-            console.log(`Deleted waiting game ${game.game_id}`);
+          } else {
+            console.log(`User ${userId} disconnected but games will be preserved`);
           }
         } catch (error) {
           console.error('Error cleaning up games:', error);

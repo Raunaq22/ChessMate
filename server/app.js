@@ -21,7 +21,7 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
   try {
     console.log('Fetching available games for user:', req.user.user_id);
     
-    // Get active games where current user isn't already a player - with detailed logging
+    // Get active games where current user isn't already a player
     const availableGames = await Game.findAll({
       where: {
         status: 'waiting',
@@ -29,35 +29,17 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
         player1_id: {
           [Op.ne]: req.user.user_id // Not created by current user
         },
-        // NOTE: Removed is_private filter to show all games for debugging
-        is_private: false
+        is_private: false // Only show public games in lobby
       },
       include: [{
         model: User,
-        as: 'player1',
+        as: 'player1', // IMPORTANT: Match the association name with Game model
         attributes: ['username', 'last_active', 'user_id']
       }],
       order: [['createdAt', 'DESC']]
     });
 
     console.log(`Found ${availableGames.length} available games`);
-    
-    // Add detailed logging about each game found
-    if (availableGames.length > 0) {
-      console.log('Available games details:');
-      availableGames.forEach(game => {
-        console.log(`- Game ID: ${game.game_id}, Created by: ${game.player1?.username || 'Unknown'}, Private: ${game.is_private}`);
-      });
-    } else {
-      // If no games found, log the total count of waiting games regardless of filters
-      const totalWaitingGames = await Game.count({
-        where: {
-          status: 'waiting',
-          player2_id: null
-        }
-      });
-      console.log(`No games available for this user. Total waiting games in system: ${totalWaitingGames}`);
-    }
     
     res.json({ availableGames });
   } catch (error) {
@@ -76,7 +58,6 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
     const inviteCode = generateInviteCode();
     
     console.log(`Creating new game with invite code: ${inviteCode} for user ${creator.user_id}`);
-    console.log(`Game parameters: timeControl=${timeControl}, initialTime=${initialTime}, increment=${increment}, createFriendGame=${createFriendGame}`);
     
     const game = await Game.create({
       player1_id: creator.user_id,
@@ -90,27 +71,7 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
       is_private: createFriendGame || false
     });
 
-    console.log(`Created game with ID ${game.game_id} and invite code ${inviteCode}, is_private=${game.is_private}`);
-    
-    // Broadcast to all connected clients if the game is not private
-    if (!game.is_private && req.app.get('io')) {
-      const gameData = {
-        game_id: game.game_id,
-        initial_time: game.initial_time,
-        increment: game.increment,
-        player1_id: creator.user_id,
-        player1: {
-          username: creator.username,
-          user_id: creator.user_id
-        },
-        status: 'waiting',
-        created_at: game.createdAt
-      };
-      
-      req.app.get('io').emit('newGameAvailable', gameData);
-      console.log(`Broadcasting new game ${game.game_id} to all users`);
-    }
-    
+    console.log(`Created game with ID ${game.game_id} and invite code ${inviteCode}`);
     res.status(201).json({ 
       game: {
         game_id: game.game_id,
@@ -122,6 +83,23 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
         is_private: game.is_private
       }
     });
+    
+    // Emit a socket event to notify the lobby about the new game
+    if (req.app.get('io')) {
+      req.app.get('io').emit('newGameAvailable', {
+        game_id: game.game_id,
+        player1: {
+          user_id: creator.user_id,
+          username: creator.username
+        },
+        initial_time: game.initial_time,
+        increment: game.increment,
+        createdAt: game.createdAt,
+        invite_code: game.invite_code,
+        is_private: game.is_private
+      });
+      console.log(`Emitted newGameAvailable event for game ${game.game_id}`);
+    }
   } catch (error) {
     console.error('Game creation error:', error);
     res.status(400).json({ message: error.message });
@@ -153,7 +131,7 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
     
     if (!game) {
       console.log(`Game with invite code ${code} not found or unavailable`);
-      return res.status(404).json({
+      return res.status(404).json({ 
         message: 'Game not found or no longer available',
         details: 'The game may have been cancelled or someone else has already joined'
       });
@@ -164,7 +142,7 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
     // Prevent joining your own game
     if (game.player1_id === joiner.user_id) {
       console.log(`User ${joiner.user_id} attempted to join their own game ${game.game_id}`);
-      return res.status(400).json({
+      return res.status(400).json({ 
         message: 'Cannot join your own game',
         details: 'You created this game. Wait for someone else to join or use the direct link.'
       });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import gameService from '../../services/gameService';
 import CreateGameModal from './CreateGameModal';
+import io from 'socket.io-client';
 
 const GameLobby = () => {
   const [availableGames, setAvailableGames] = useState([]);
@@ -11,6 +12,8 @@ const GameLobby = () => {
   const [joinError, setJoinError] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
   const [createdGameId, setCreatedGameId] = useState(null);
+  const [socket, setSocket] = useState(null);
+  const [gameJoined, setGameJoined] = useState(false); // Add this line to track if game was joined
   const navigate = useNavigate();
 
   // Helper function to check if a game is expired
@@ -44,14 +47,52 @@ const GameLobby = () => {
     }
   }, []);
 
+  // Initialize socket connection for real-time updates
   useEffect(() => {
+    const newSocket = io(process.env.REACT_APP_API_URL);
+    
+    newSocket.on('connect', () => {
+      console.log('Connected to lobby socket for real-time game updates');
+    });
+    
+    // Listen for new game creation events
+    newSocket.on('newGameAvailable', (gameData) => {
+      console.log('New game available notification received:', gameData);
+      
+      setAvailableGames(prevGames => {
+        // Check if game already exists in the list
+        if (prevGames.some(g => g.game_id === gameData.game_id)) {
+          return prevGames;
+        }
+        
+        // Add the new game to the list
+        return [gameData, ...prevGames];
+      });
+    });
+    
+    setSocket(newSocket);
+    
+    // Cleanup on unmount
+    return () => {
+      console.log('Disconnecting from lobby socket');
+      newSocket.disconnect();
+    };
+  }, []);
+
+  // Fetch games initially and then every 10 seconds as a fallback
+  useEffect(() => {
+    console.log("Initial game fetch");
     fetchGames();
-    const interval = setInterval(fetchGames, 3000);
+    
+    const interval = setInterval(() => {
+      console.log("Periodic game fetch");
+      fetchGames();
+    }, 10000);
     
     return () => {
       clearInterval(interval);
     };
-  }, [fetchGames]); // Add fetchGames as dependency
+  }, [fetchGames]);
 
 const handleCreateGame = async (timeControl) => {
   try {
@@ -82,6 +123,9 @@ const handleCreateGame = async (timeControl) => {
         label: payload.label,
         gameId: response.game.game_id
       });
+      
+      // Mark the game as joined to prevent cleanup
+      setGameJoined(true);
       
       // Add a small delay to ensure the game is properly saved in the database
       setTimeout(() => {
@@ -148,6 +192,12 @@ const handleCreateGame = async (timeControl) => {
           response.game.status === 'playing' &&
           response.game.player2_id) {  // Ensure player 2 is set
         setDebugInfo('Join successful, navigating to game...');
+        
+        // Mark the game as successfully joined
+        if (gameId === createdGameId) {
+          setGameJoined(true);
+        }
+        
         // Add a small delay to allow server state to update
         setTimeout(() => {
           navigate(`/game/${response.game.game_id}`);
@@ -190,27 +240,29 @@ const handleCreateGame = async (timeControl) => {
 
   useEffect(() => {
     return () => {
-      // Clean up any created game that might have been abandoned
-      if (createdGameId) {
+      // Only clean up abandoned games (not games that were properly joined)
+      if (createdGameId && !gameJoined) {
         console.log(`Cleaning up abandoned game ${createdGameId}`);
         gameService.cancelGame(createdGameId).catch(error => {
           console.error('Failed to cancel abandoned game:', error);
         });
+      } else if (createdGameId && gameJoined) {
+        console.log(`Game ${createdGameId} was properly joined, not cleaning up`);
       }
     };
-  }, [createdGameId]);
+  }, [createdGameId, gameJoined]);
 
   useBeforeUnload(
     React.useCallback(() => {
-      if (createdGameId) {
-        // Try to clean up the game synchronously before the page unloads
+      if (createdGameId && !gameJoined) {
+        console.log(`Page unloading, cleaning up game ${createdGameId}`);
         const xhr = new XMLHttpRequest();
         xhr.open('DELETE', `${process.env.REACT_APP_API_URL}/api/games/${createdGameId}`, false);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
         xhr.send();
       }
-    }, [createdGameId])
+    }, [createdGameId, gameJoined])
   );
 
   if (loading && availableGames.length === 0) {

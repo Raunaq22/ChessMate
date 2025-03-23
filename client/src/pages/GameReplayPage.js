@@ -299,57 +299,32 @@ const GameReplayPage = () => {
     setShowAnalysis(true);
   };
   
-  // Format the game result for display
+  // Update the formatGameResult function or similar to handle abandonment results
   const formatGameResult = () => {
-    if (!game) return '';
+    if (!game || !game.result) return 'Unknown result';
     
-    // Check for the new result field first
-    if (game.result) {
-      if (game.result === 'draw') {
-        return 'Game ended in a draw';
-      }
-      
-      // Match patterns like "white_win_by_checkmate" or "black_win_by_resignation"
-      const resultMatch = game.result.match(/(white|black)_win_by_(\w+)/);
-      if (resultMatch) {
-        const color = resultMatch[1].charAt(0).toUpperCase() + resultMatch[1].slice(1);
-        const reason = resultMatch[2];
-        
-        // Format the reason nicely
-        let formattedReason = '';
-        switch (reason) {
-          case 'checkmate':
-            formattedReason = 'by checkmate';
-            break;
-          case 'resignation':
-            formattedReason = 'by resignation';
-            break;
-          case 'timeout':
-            formattedReason = 'on time';
-            break;
-          default:
-            formattedReason = `by ${reason}`;
-        }
-        
-        return `${color} won ${formattedReason}`;
-      }
-    }
-    
-    // Fall back to the old logic if result field is not available
-    if (game.result && game.result.includes('draw')) {
+    if (game.result === 'draw') {
       return 'Game ended in a draw';
+    } else if (game.result.includes('_win_by_')) {
+      const color = game.result.startsWith('white') ? 'White' : 'Black';
+      const reason = game.result.split('_win_by_')[1];
+      
+      // Format different win reasons appropriately
+      switch(reason) {
+        case 'checkmate':
+          return `${color} won by checkmate`;
+        case 'resignation':
+          return `${color} won by resignation`;
+        case 'timeout':
+          return `${color} won on time`;
+        case 'abandonment':
+          return `${color} won by forfeit (opponent disconnected)`;
+        default:
+          return `${color} won (${reason})`;
+      }
     }
     
-    if (game.winner_id) {
-      // Determine if the winner was white or black
-      const winnerColor = game.player1_id === game.winner_id ? 'White' : 'Black';
-      const reason = game.result?.includes('timeout') ? 'on time' : 
-                    game.result?.includes('resignation') ? 'by resignation' : 
-                    'by checkmate';
-      return `${winnerColor} won ${reason}`;
-    }
-    
-    return 'Game completed';
+    return game.result;
   };
 
   // Format player name with loading/error states

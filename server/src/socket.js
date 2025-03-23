@@ -5,6 +5,8 @@ const User = require('./models/User');
 
 const configureSocket = (io) => {
   const activeGames = new Map();
+  // Track disconnected players with timestamps
+  const disconnectedPlayers = new Map(); // Map<userId_gameId, {timestamp, reconnectionTimer}>
 
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
@@ -32,8 +34,26 @@ const configureSocket = (io) => {
     updateActivity();
     const activityInterval = setInterval(updateActivity, 30000);
 
+    // Check if player is reconnecting to an active game
     socket.on('joinGame', async ({ gameId, userId }) => {
       try {
+        // Check if this is a reconnection
+        const disconnectKey = `${userId}_${gameId}`;
+        if (disconnectedPlayers.has(disconnectKey)) {
+          console.log(`Player ${userId} reconnected to game ${gameId} within grace period`);
+          
+          // Clear reconnection timer
+          const reconnectionData = disconnectedPlayers.get(disconnectKey);
+          clearTimeout(reconnectionData.reconnectionTimer);
+          disconnectedPlayers.delete(disconnectKey);
+          
+          // Notify other players that this player has reconnected
+          socket.to(`game-${gameId}`).emit('playerReconnected', {
+            userId,
+            message: 'Your opponent has reconnected'
+          });
+        }
+        
         // Get game data with detailed logging
         console.log(`Attempting to fetch game ${gameId} for user ${userId}`);
         const game = await Game.findByPk(gameId);
@@ -356,20 +376,67 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
           gameUsers.delete(currentUserId);
           
           try {
-            // Check if the game has already ended before notifying about disconnection
+            // Check if the game has already ended
             const game = await Game.findByPk(currentGameId);
             
             if (game && game.status !== 'completed') {
-              // Only notify about disconnection if game is still active
-              socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
-                message: 'Opponent has disconnected. Game session ended.',
-                gameActive: true // Flag to indicate this was during active game
+              // Start reconnection grace period instead of immediately ending the game
+              const disconnectKey = `${currentUserId}_${currentGameId}`;
+              
+              // Let everyone know a player disconnected but might reconnect
+              socket.to(`game-${currentGameId}`).emit('playerTemporarilyDisconnected', {
+                message: 'Opponent disconnected. Waiting 15 seconds for reconnection...',
+                userId: currentUserId
+              });
+              
+              // Set timer for forfeit
+              const reconnectionTimer = setTimeout(async () => {
+                try {
+                  // Double check game status before forfeiting
+                  const currentGame = await Game.findByPk(currentGameId);
+                  
+                  if (currentGame && currentGame.status !== 'completed') {
+                    console.log(`Player ${currentUserId} did not reconnect to game ${currentGameId} - forfeiting`);
+                    
+                    // Determine the winner (the player who didn't disconnect)
+                    const isWhiteDisconnected = currentGame.player1_id == currentUserId;
+                    const winner = isWhiteDisconnected ? 'black' : 'white';
+                    const winnerId = isWhiteDisconnected ? currentGame.player2_id : currentGame.player1_id;
+                    
+                    // Update game in database
+                    await currentGame.update({
+                      status: 'completed',
+                      end_time: new Date(),
+                      winner_id: winnerId,
+                      result: `${winner}_win_by_abandonment`
+                    });
+                    
+                    // Notify remaining player of forfeit win
+                    io.to(`game-${currentGameId}`).emit('gameOver', {
+                      reason: 'abandonment',
+                      winner: winner,
+                      message: `Your opponent disconnected and didn't reconnect. You win by forfeit!`
+                    });
+                  }
+                  
+                  // Clean up disconnected player record
+                  disconnectedPlayers.delete(disconnectKey);
+                  
+                } catch (error) {
+                  console.error('Error handling reconnection timeout:', error);
+                }
+              }, 15000); // 15 seconds grace period
+              
+              // Store disconnection data
+              disconnectedPlayers.set(disconnectKey, {
+                timestamp: Date.now(),
+                reconnectionTimer
               });
             } else {
-              // Game already completed - just notify without suggesting redirect
+              // Game already completed - just notify
               socket.to(`game-${currentGameId}`).emit('playerDisconnected', {
                 message: 'Opponent has left the game.',
-                gameActive: false // Flag to indicate game was already over
+                gameActive: false
               });
             }
           } catch (error) {

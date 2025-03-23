@@ -65,6 +65,8 @@ const ChessGame = () => {
   const [moveSquares, setMoveSquares] = useState({});
   const [analysisMode, setAnalysisMode] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [reconnectionCountdown, setReconnectionCountdown] = useState(0);
+  const [waitingForReconnection, setWaitingForReconnection] = useState(false);
   
   const containerRef = useRef(null);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
@@ -180,7 +182,13 @@ const ChessGame = () => {
       query: { 
         gameId, 
         userId: currentUser.user_id 
-      }
+      },
+      // Add reconnection settings
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     newSocket.on('connect', () => {
@@ -503,7 +511,57 @@ const ChessGame = () => {
         }
         
         setGameEnded(true);
+      } else if (reason === 'abandonment') {
+        const winnerColor = winner === 'white' ? 'White' : 'Black';
+        const isCurrentPlayerWinner = 
+          (winner === 'white' && playerIds.white === currentUser.user_id) || 
+          (winner === 'black' && playerIds.black === currentUser.user_id);
+        
+        if (isCurrentPlayerWinner) {
+          setGameStatus(`You win! Your opponent abandoned the game.`);
+          setShowConfetti(true);
+        } else {
+          setGameStatus(`Game forfeit. ${winnerColor} wins by abandonment.`);
+        }
+        
+        setGameEnded(true);
+        setWaitingForReconnection(false);
       }
+    });
+
+    newSocket.on('playerTemporarilyDisconnected', ({ message, userId }) => {
+      // Show reconnection countdown if opponent disconnected
+      setWaitingForReconnection(true);
+      setReconnectionCountdown(15);
+      
+      // Start countdown
+      const countdownInterval = setInterval(() => {
+        setReconnectionCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      setNotification({
+        message: `${message} (${15}s)`,
+        type: 'warning'
+      });
+    });
+
+    newSocket.on('playerReconnected', ({ message }) => {
+      // Clear reconnection state
+      setWaitingForReconnection(false);
+      setReconnectionCountdown(0);
+      
+      setNotification({
+        message: message || 'Your opponent has reconnected. The game continues!',
+        type: 'success'
+      });
+      
+      setTimeout(() => setNotification(null), 3000);
     });
 
     setSocket(newSocket);
@@ -593,6 +651,16 @@ const ChessGame = () => {
       setOpponentJoined(true);
     }
   }, [playerIds]);
+
+  // Update reconnection countdown notification
+  useEffect(() => {
+    if (waitingForReconnection && reconnectionCountdown > 0) {
+      setNotification({
+        message: `Opponent disconnected. Waiting for reconnection... (${reconnectionCountdown}s)`,
+        type: 'warning'
+      });
+    }
+  }, [reconnectionCountdown, waitingForReconnection]);
 
   // Rest of the component logic
   const onPieceDragStart = (piece, sourceSquare) => {
@@ -1127,6 +1195,17 @@ const ChessGame = () => {
           initialFen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
           onClose={() => setShowAnalysis(false)}
         />
+      )}
+      {/* Reconnection countdown banner */}
+      {waitingForReconnection && reconnectionCountdown > 0 && (
+        <div className="w-full mb-4 p-4 rounded-lg bg-yellow-100 border border-yellow-400 text-yellow-800 text-center">
+          <div className="flex items-center justify-center">
+            <div className="mr-3 animate-spin h-5 w-5 border-t-2 border-yellow-500 rounded-full"></div>
+            <h2 className="text-xl font-bold">
+              Waiting for opponent to reconnect ({reconnectionCountdown}s)
+            </h2>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -228,7 +228,7 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
 router.get('/:gameId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const game = await Game.findByPk(req.params.gameId, {
-      include: ['firstPlayer', 'secondPlayer']
+      include: ['player1', 'player2'] // Updated from 'firstPlayer', 'secondPlayer'
     });
     
     if (!game) {

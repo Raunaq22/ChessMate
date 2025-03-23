@@ -236,9 +236,36 @@ const uploadProfileImage = async (req, res) => {
   }
 };
 
+// Look for any getUserGames or similar functions that might reference firstPlayer
+const getUserGames = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const games = await Game.findAll({
+      where: {
+        [Op.or]: [
+          { player1_id: id },
+          { player2_id: id }
+        ]
+      },
+      include: [
+        { model: User, as: 'player1', attributes: ['username'] },  // Changed from 'firstPlayer' to 'player1'
+        { model: User, as: 'player2', attributes: ['username'] }   // Changed from 'secondPlayer' to 'player2'
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+    
+    res.json(games);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getUserStats,
   getUserById,
   updateUser,
-  uploadProfileImage
+  uploadProfileImage,
+  getUserGames
 };

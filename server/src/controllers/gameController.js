@@ -263,10 +263,38 @@ const getGameById = async (req, res) => {
   }
 };
 
+// Find functions that use "firstPlayer" or "secondPlayer" and replace with "player1" and "player2"
+// For example, if there's a function like:
+
+const getGame = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the problematic include - replace "firstPlayer" with "player1"
+    const game = await Game.findOne({
+      where: { game_id: id },
+      include: [
+        { model: User, as: 'player1', attributes: ['user_id', 'username'] },  // Changed from 'firstPlayer' to 'player1'
+        { model: User, as: 'player2', attributes: ['user_id', 'username'] }   // Make sure this is 'player2', not 'secondPlayer'
+      ]
+    });
+    
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+    
+    res.json(game);
+  } catch (error) {
+    console.error("Game fetch error:", error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
   getAvailableGames,
   getGameHistory,
   getGameById, // Add the new controller function
+  getGame
 };

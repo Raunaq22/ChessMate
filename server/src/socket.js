@@ -323,30 +323,30 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
   }
 });
 
-    // Enhance gameOver event handler with acknowledgment and cache cleanup
-    socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
-      console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
-      
-      // Broadcast to all clients in the room (including sender to ensure everyone gets the message)
-      io.to(`game-${gameId}`).emit('gameOver', {
-        reason,
-        winner
-      });
-      
-      // Update game result in database
-      updateGameResult(gameId, reason, winner);
-      
-      // Clean up message cache for completed games
-      if (gameMessageCache.has(gameId)) {
-        console.log(`Cleaning up message cache for game ${gameId}`);
-        gameMessageCache.delete(gameId);
-      }
-      
-      // Send acknowledgment if callback exists
-      if (typeof callback === 'function') {
-        callback({ received: true });
-      }
-    });
+// Enhance gameOver event handler with acknowledgment and cache cleanup
+socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
+  console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
+  
+  // Broadcast to all clients in the room (including sender to ensure everyone gets the message)
+  io.to(`game-${gameId}`).emit('gameOver', {
+    reason,
+    winner
+  });
+  
+  // Update game result in database
+  updateGameResult(gameId, reason, winner);
+  
+  // Clean up message cache for completed games
+  if (gameMessageCache.has(gameId)) {
+    console.log(`Cleaning up message cache for game ${gameId}`);
+    gameMessageCache.delete(gameId);
+  }
+  
+  // Send acknowledgment if callback exists
+  if (typeof callback === 'function') {
+    callback({ received: true });
+  }
+});
 
     socket.on('timeUpdate', async ({ gameId, color, timeLeft }) => {
       try {
@@ -553,6 +553,23 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
             break;
           }
         }
+      }
+    });
+
+    // Look for any socket handlers that fetch game information
+    socket.on('join-game', async (gameId) => {
+      try {
+        const game = await Game.findOne({
+          where: { game_id: gameId },
+          include: [
+            { model: User, as: 'player1', attributes: ['user_id', 'username'] }, // Changed from 'firstPlayer' to 'player1'
+            { model: User, as: 'player2', attributes: ['user_id', 'username'] }  // Changed from 'secondPlayer' to 'player2'
+          ]
+        });
+        
+        // Rest of the handler...
+      } catch (error) {
+        console.error('Error joining game:', error);
       }
     });
   });

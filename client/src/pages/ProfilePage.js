@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import UserAvatar, { formatImageUrl } from '../components/common/UserAvatar';
 
 const ProfilePage = () => {
   const { currentUser, isAuthenticated } = useContext(AuthContext);
@@ -119,9 +120,10 @@ const ProfilePage = () => {
         <div className="md:flex">
           <div className="md:w-1/3 bg-primary p-8 text-white">
             <div className="flex justify-center mb-4">
-              <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center text-4xl text-primary font-bold">
-                {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '?'}
-              </div>
+              <UserAvatar 
+                user={currentUser} 
+                className="w-32 h-32 rounded-full bg-white object-cover"
+              />
             </div>
             <h2 className="text-2xl font-bold text-center mb-2">{currentUser.username}</h2>
             <p className="text-center text-white text-opacity-80">{currentUser.email}</p>

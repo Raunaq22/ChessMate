@@ -2,6 +2,7 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:5001",
   "dependencies": {
     "@reduxjs/toolkit": "^2.6.1",
     "@testing-library/dom": "^10.4.0",
@@ -14,6 +15,7 @@
     "js-chess-engine": "^1.0.2",
     "react": "^19.0.0",
     "react-chessboard": "^4.7.2",
+    "react-color": "^2.19.3",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.0.0",
     "react-redux": "^9.2.0",

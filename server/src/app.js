@@ -30,6 +30,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(passport.initialize());
 
+// Update CORS configuration
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']  // Add any needed headers
+}));
+
+// Additional CORS headers specifically for image requests
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({

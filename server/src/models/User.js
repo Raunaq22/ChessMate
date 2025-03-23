@@ -33,7 +33,7 @@ const User = sequelize.define('User', {
   },
   profile_image_url: {
     type: DataTypes.STRING,
-    defaultValue: '/assets/default-avatar.png'
+    defaultValue: '/api/users/default-avatar' // Update this to use the new endpoint
   },
   last_active: {
     type: DataTypes.DATE,

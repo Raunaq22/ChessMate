@@ -2,9 +2,27 @@ const app = require('./app');
 const http = require('http');
 const syncDatabase = require('./config/syncDb');
 const db = require('./config/db');
+const express = require('express'); // Add this line to import express
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 5001;
+
+// Set up static file serving
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Create uploads directory if it doesn't exist
+const uploadDir = path.join(__dirname, '../public/uploads/profile');
+if (!fs.existsSync(uploadDir)) {
+  console.log(`Creating upload directory: ${uploadDir}`);
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Log the directories for debugging
+console.log("Static files served from:", path.join(__dirname, '../public'));
+console.log("Upload directory:", uploadDir);
 
 // Create HTTP server
 const server = http.createServer(app);

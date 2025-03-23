@@ -109,7 +109,7 @@ const configureSocket = (io) => {
         const initialTime = game.initial_time;
         const whiteTime = game.white_time !== null ? game.white_time : initialTime;
         const blackTime = game.black_time !== null ? game.black_time : initialTime;
-        // Fix: Use getDataValue to access raw increment value, avoiding method conflict
+        // Always use getDataValue to access the increment property
         const incrementValue = game.getDataValue('increment') || 0;
         
         console.log(`Sending time values to client:`, {
@@ -178,70 +178,84 @@ const configureSocket = (io) => {
       }
     });
 
-    // Update the move handler to better handle checkmate
-    socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
-      try {
-        const game = await Game.findByPk(gameId);
-        if (!game) {
-          socket.emit('error', { message: 'Game not found' });
-          return;
-        }
-        
-        // Check if we need to apply increment (don't apply on first move of each side)
-        const isFirstMoveOfGame = !game.move_history || game.move_history.length === 0;
-        const increment = game.getDataValue('increment') || 0;
-        const movingColor = move.from[0] === 'a' || move.from[0] === 'b' || move.from[0] === 'c' || move.from[0] === 'd' || 
-                          move.from[0] === 'e' || move.from[0] === 'f' || move.from[0] === 'g' || move.from[0] === 'h' ? 
-                          game.fen.split(' ')[1] === 'w' ? 'white' : 'black' : 
-                          null;
-
-        // Apply increment to the player who just moved (not on their first move)
-        if (!isFirstMoveOfGame && increment > 0) {
-          if (movingColor === 'white') {
-            whiteTimeLeft += increment;
-            console.log(`Applied increment of ${increment}s to white: ${whiteTimeLeft}`);
-          } else if (movingColor === 'black') {
-            blackTimeLeft += increment;
-            console.log(`Applied increment of ${increment}s to black: ${blackTimeLeft}`);
-          }
-        }
-
-        // Update game in database
-        game.fen = fen;
-        game.white_time = whiteTimeLeft;
-        game.black_time = blackTimeLeft;
-        game.move_history = [...(game.move_history || []), move];
-        await game.save();
-
-        io.to(`game-${gameId}`).emit('move', {
-          from: move.from,
-          to: move.to,
-          fen: fen,
-          moveNotation: moveNotation,
-          whiteTimeLeft, 
-          blackTimeLeft, 
-          isWhiteTimerRunning,
-          isBlackTimerRunning
-        });
-
-        // Handle checkmate immediately after a move if detected
-        if (isCheckmate && winner) {
-          console.log(`Checkmate detected in game ${gameId}. Winner: ${winner}`);
-          
-          // Broadcast to all clients in the room immediately
-          io.to(`game-${gameId}`).emit('gameOver', {
-            reason: 'checkmate',
-            winner: winner
-          });
-          
-          // Update game result in database
-          updateGameResult(gameId, 'checkmate', winner);
-        }
-      } catch (error) {
-        console.error('Error processing move:', error);
-        socket.emit('error', { message: 'Failed to process move' });
+    // Inside your move event handler in configureSocket.js
+socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
+  try {
+    const game = await Game.findByPk(gameId);
+    if (!game) {
+      socket.emit('error', { message: 'Game not found' });
+      return;
+    }
+    
+    // Safely extract increment value
+    const incrementValue = game.getDataValue('increment') || 0;
+    
+    // Determine which color just made a move from the FEN
+    const currentTurn = fen.split(' ')[1]; // 'w' or 'b'
+    const movingColor = currentTurn === 'w' ? 'black' : 'white'; // If it's white's turn now, black just moved
+    
+    console.log(`Received move: ${move.from} to ${move.to}, moving color: ${movingColor}`);
+    console.log(`Current time values - White: ${whiteTimeLeft}s, Black: ${blackTimeLeft}s`);
+    
+    // Get move count to determine if increment should be applied
+    const moveHistory = game.move_history || [];
+    const moveCount = moveHistory.length;
+    
+    // Apply increment to the player who just moved (skip the first move)
+    const shouldApplyIncrement = incrementValue > 0 && moveCount > 0;
+    
+    if (shouldApplyIncrement) {
+      if (movingColor === 'white') {
+        // Add increment to white's time
+        const oldWhiteTime = whiteTimeLeft;
+        whiteTimeLeft = Math.round(whiteTimeLeft + incrementValue);
+        console.log(`Applied increment to white: ${oldWhiteTime}s → ${whiteTimeLeft}s (+${incrementValue}s)`);
+      } else if (movingColor === 'black') {
+        // Add increment to black's time
+        const oldBlackTime = blackTimeLeft;
+        blackTimeLeft = Math.round(blackTimeLeft + incrementValue);
+        console.log(`Applied increment to black: ${oldBlackTime}s → ${blackTimeLeft}s (+${incrementValue}s)`);
       }
+    }
+
+    // Update game in database with rounded values for consistency
+    game.fen = fen;
+    game.white_time = Math.round(whiteTimeLeft);
+    game.black_time = Math.round(blackTimeLeft);
+    game.move_history = [...moveHistory, move];
+    await game.save();
+
+    // Log all values before sending to client
+    console.log(`Updated time values - White: ${game.white_time}s, Black: ${game.black_time}s`);
+    
+    // Broadcast the move to all clients with the updated times
+    io.to(`game-${gameId}`).emit('move', {
+      from: move.from,
+      to: move.to,
+      fen: fen,
+      moveNotation: moveNotation,
+      whiteTimeLeft: game.white_time,  // Use database values for consistency
+      blackTimeLeft: game.black_time,  // Use database values for consistency 
+      isWhiteTimerRunning,
+      isBlackTimerRunning
     });
+
+    // Handle checkmate
+    if (isCheckmate && winner) {
+      console.log(`Checkmate detected in game ${gameId}. Winner: ${winner}`);
+      
+      io.to(`game-${gameId}`).emit('gameOver', {
+        reason: 'checkmate',
+        winner: winner
+      });
+      
+      updateGameResult(gameId, 'checkmate', winner);
+    }
+  } catch (error) {
+    console.error('Error processing move:', error);
+    socket.emit('error', { message: 'Failed to process move' });
+  }
+});
 
     // Enhance gameOver event handler with acknowledgment
     socket.on('gameOver', ({ gameId, winner, reason }, callback) => {

@@ -179,9 +179,12 @@ const uploadProfileImage = async (req, res) => {
         user.profile_image_url !== '/assets/default-avatar.png' && 
         user.profile_image_url.startsWith('/uploads/profile/')) {
       try {
-        // Get the old file path
-        const oldFilePath = path.join(__dirname, '../../../public', user.profile_image_url);
+        // Based on the log, we can see the actual upload path is in server/public
+        // instead of just /public, so we need to adjust our path resolution
+        const serverDir = path.resolve(__dirname, '../../'); // Go up to server directory
+        const oldFilePath = path.join(serverDir, 'public', user.profile_image_url);
         
+        console.log('Server directory path:', serverDir);
         console.log('Attempting to delete old profile image:', oldFilePath);
         
         // Check if the file exists and delete it
@@ -189,7 +192,24 @@ const uploadProfileImage = async (req, res) => {
           fs.unlinkSync(oldFilePath);
           console.log('Successfully deleted old profile image');
         } else {
-          console.log('Old profile image not found on disk');
+          console.log('Old profile image not found at primary location. Path:', oldFilePath);
+          
+          // Try the path from the upload log as a reference
+          const uploadPathParts = req.file.path.split('/uploads/profile/');
+          if (uploadPathParts.length > 0) {
+            const baseUploadDir = uploadPathParts[0];
+            const oldFileNamePart = user.profile_image_url.split('/').pop();
+            const potentialPath = path.join(baseUploadDir, 'uploads', 'profile', oldFileNamePart);
+            
+            console.log('Trying upload directory reference path:', potentialPath);
+            
+            if (fs.existsSync(potentialPath)) {
+              fs.unlinkSync(potentialPath);
+              console.log('Successfully deleted old profile image using reference path');
+            } else {
+              console.log('Old profile image not found using reference path either');
+            }
+          }
         }
       } catch (err) {
         console.error('Error deleting old profile image:', err);

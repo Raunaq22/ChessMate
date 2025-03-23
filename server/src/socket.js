@@ -7,6 +7,10 @@ const configureSocket = (io) => {
   const activeGames = new Map();
   // Track disconnected players with timestamps
   const disconnectedPlayers = new Map(); // Map<userId_gameId, {timestamp, reconnectionTimer}>
+  
+  // Add cache for chat messages and move history
+  const gameMessageCache = new Map(); // Map<gameId, Array<message>>
+  const MAX_CACHED_MESSAGES = 100; // Limit cache size
 
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
@@ -39,7 +43,9 @@ const configureSocket = (io) => {
       try {
         // Check if this is a reconnection
         const disconnectKey = `${userId}_${gameId}`;
-        if (disconnectedPlayers.has(disconnectKey)) {
+        const isReconnection = disconnectedPlayers.has(disconnectKey);
+        
+        if (isReconnection) {
           console.log(`Player ${userId} reconnected to game ${gameId} within grace period`);
           
           // Clear reconnection timer
@@ -148,6 +154,23 @@ const configureSocket = (io) => {
           blackPlayerProfile: blackPlayerProfile
         });
 
+        // If this is a reconnection, send cached messages
+        if (isReconnection && gameMessageCache.has(gameId)) {
+          const cachedMessages = gameMessageCache.get(gameId);
+          console.log(`Sending ${cachedMessages.length} cached messages to reconnected player ${userId}`);
+          
+          // Send each cached message individually to ensure proper ordering
+          cachedMessages.forEach(message => {
+            socket.emit('chat', message);
+          });
+          
+          // For debugging purposes
+          socket.emit('notification', {
+            type: 'info',
+            message: `Reconnection successful. Loaded ${cachedMessages.length} messages.`
+          });
+        }
+
         socket.emit('gameState', {
           fen: game.fen,
           playerColor,
@@ -162,6 +185,9 @@ const configureSocket = (io) => {
           started: isGameStarted,
           whiteTimeLeft: whiteTime,
           blackTimeLeft: blackTime,
+          // Send the COMPLETE move history for reconnected players to rebuild their state
+          moveHistory: game.move_history || [],
+          firstMoveMade: game.move_history && game.move_history.length > 0,
           // Add raw game data for complete debugging
           gameData: {
             initial_time: game.initial_time,
@@ -181,7 +207,7 @@ const configureSocket = (io) => {
       }
     });
 
-    // FIX: Modified chat message handling to be compatible with gameHandler.js
+    // Modified chat message handling with caching
     socket.on('chat', ({ gameId, message }) => {
       try {
         console.log(`CHAT: Message from ${message.username} in game ${gameId}:`, message);
@@ -189,6 +215,20 @@ const configureSocket = (io) => {
         if (!message || !message.text) {
           console.error('Invalid chat message format');
           return;
+        }
+        
+        // Add message to cache
+        if (!gameMessageCache.has(gameId)) {
+          gameMessageCache.set(gameId, []);
+        }
+        
+        // Get the cache and add the new message
+        const messageCache = gameMessageCache.get(gameId);
+        messageCache.push(message);
+        
+        // Limit cache size by removing oldest messages if needed
+        if (messageCache.length > MAX_CACHED_MESSAGES) {
+          messageCache.shift(); // Remove oldest message
         }
         
         // Broadcast to all clients in the room EXCEPT sender
@@ -277,7 +317,7 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
   }
 });
 
-    // Enhance gameOver event handler with acknowledgment
+    // Enhance gameOver event handler with acknowledgment and cache cleanup
     socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
       console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
       
@@ -289,6 +329,12 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
       
       // Update game result in database
       updateGameResult(gameId, reason, winner);
+      
+      // Clean up message cache for completed games
+      if (gameMessageCache.has(gameId)) {
+        console.log(`Cleaning up message cache for game ${gameId}`);
+        gameMessageCache.delete(gameId);
+      }
       
       // Send acknowledgment if callback exists
       if (typeof callback === 'function') {
@@ -325,6 +371,11 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
       io.to(`game-${gameId}`).emit('gameOver', { reason: 'draw', winner: null });
       // Update game result in the database
       updateGameResult(gameId, 'draw');
+      
+      // Clean up message cache for completed games
+      if (gameMessageCache.has(gameId)) {
+        gameMessageCache.delete(gameId);
+      }
     });
     
     socket.on('declineDraw', ({ gameId, fromPlayerId }) => {
@@ -343,6 +394,11 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
       
       // Update game result in the database
       updateGameResult(gameId, 'resignation', winner);
+      
+      // Clean up message cache for completed games
+      if (gameMessageCache.has(gameId)) {
+        gameMessageCache.delete(gameId);
+      }
     });
 
     socket.on('disconnect', async () => {
@@ -417,6 +473,11 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
                       winner: winner,
                       message: `Your opponent disconnected and didn't reconnect. You win by forfeit!`
                     });
+                    
+                    // Clean up message cache for completed games
+                    if (gameMessageCache.has(currentGameId)) {
+                      gameMessageCache.delete(currentGameId);
+                    }
                   }
                   
                   // Clean up disconnected player record
@@ -520,6 +581,11 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
         winner_id: winnerId,
         result: resultValue
       });
+      
+      // Clean up message cache for completed games
+      if (gameMessageCache.has(gameId)) {
+        gameMessageCache.delete(gameId);
+      }
       
       console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}, result: ${resultValue}`);
     } catch (error) {

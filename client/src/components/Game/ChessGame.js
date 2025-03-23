@@ -241,6 +241,7 @@ const ChessGame = () => {
       whiteTimeLeft,
       blackTimeLeft,
       firstMoveMade: serverFirstMoveMade,
+      moveHistory: serverMoveHistory, // Get move history from server on reconnection
       // Add new field to capture raw game data
       gameData
     }) => {
@@ -304,6 +305,40 @@ const ChessGame = () => {
         setGameStarted(true);
       }
       
+      // Update move history from server on reconnection
+      if (serverMoveHistory && Array.isArray(serverMoveHistory) && serverMoveHistory.length > 0) {
+        console.log(`Received ${serverMoveHistory.length} moves from server on reconnection`);
+        
+        // Process the raw move objects into our expected format
+        const processedMoves = [];
+        const chessInstance = new Chess();
+        
+        for (const moveObj of serverMoveHistory) {
+          try {
+            const result = chessInstance.move({
+              from: moveObj.from,
+              to: moveObj.to,
+              promotion: moveObj.promotion
+            });
+            
+            if (result) {
+              processedMoves.push({
+                notation: result.san,
+                fen: chessInstance.fen()
+              });
+            }
+          } catch (err) {
+            console.error("Error replaying move:", err);
+          }
+        }
+        
+        // Only update if we have valid moves
+        if (processedMoves.length > 0) {
+          setMoveHistory(processedMoves);
+          console.log(`Processed ${processedMoves.length} moves for reconnection`);
+        }
+      }
+      
       // CRITICAL FIX: Time control initialization
       // Remove fallbacks to force using only server values
       let whiteTimeValue = whiteTimeLeft !== undefined ? whiteTimeLeft : initialTime;
@@ -329,6 +364,19 @@ const ChessGame = () => {
       setOpponentJoined(whitePlayerId && blackPlayerId);
       
       gameInitialized.current = true;
+    });
+
+    // Add event listener for notifications
+    newSocket.on('notification', ({ type, message }) => {
+      if (message) {
+        setNotification({
+          message,
+          type: type || 'info'
+        });
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setNotification(null), 5000);
+      }
     });
 
     newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, whiteTimeLeft, blackTimeLeft, firstMoveMade: serverFirstMoveMade, gameOverInfo }) => {

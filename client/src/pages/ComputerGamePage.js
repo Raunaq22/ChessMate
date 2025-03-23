@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
-import { Chessboard } from 'react-chessboard';
 import { AuthContext } from '../context/AuthContext';
 import ComputerGameModal from '../components/Game/ComputerGameModal';
 import chessEngineService from '../utils/chessEngineService';
 import Timer from '../components/Game/Timer';
 import Confetti from 'react-confetti'; // Add this import
 import useWindowSize from '../hooks/useWindowSize'; // Add this import
+import ThemedChessboard from '../components/Board/ThemedChessboard';
 
 const ComputerGamePage = () => {
   const navigate = useNavigate();
@@ -438,7 +438,7 @@ const ComputerGamePage = () => {
 
             {/* Chessboard */}
             <div className="w-full max-w-2xl mx-auto lg:mx-0 mb-4">
-              <Chessboard
+              <ThemedChessboard
                 id="computer-game"
                 position={position}
                 onPieceDrop={onDrop}
@@ -456,8 +456,6 @@ const ComputerGamePage = () => {
                 }
                 areArrowsAllowed={true}
                 showBoardNotation={true}
-                customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-                customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
                 allowDrag={({ piece }) => {
                   if (gameEnded || loading) return false;
                   return (piece[0] === 'w' && playerColor === 'white') || 

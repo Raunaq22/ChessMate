@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
-import { Chessboard } from 'react-chessboard';
 import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 import GameAnalysis from '../components/Game/GameAnalysis';
 import useWindowSize from '../hooks/useWindowSize';
+import ThemedChessboard from '../components/Board/ThemedChessboard';
 
 const GameReplayPage = () => {
   const { gameId } = useParams();
@@ -465,15 +465,13 @@ const GameReplayPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2" ref={containerRef}>
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <Chessboard
+            <ThemedChessboard
               id="replay-board"
               position={position}
               boardOrientation={boardOrientation}
               boardWidth={boardSize}
               areArrowsAllowed={false}
               showBoardNotation={true}
-              customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
             />
           </div>
           

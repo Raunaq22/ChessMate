@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
+import ThemedChessboard from '../Board/ThemedChessboard';
 
 const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   const [game, setGame] = useState(new Chess(initialFen || 'start'));
@@ -278,7 +278,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             ref={containerRef}
             className={`md:col-span-3 flex flex-col items-center justify-center ${isOffBook ? 'bg-yellow-50 p-2 rounded' : ''}`}
           >
-            <Chessboard
+            <ThemedChessboard
               position={position}
               boardWidth={boardSize}
               customArrows={arrows}

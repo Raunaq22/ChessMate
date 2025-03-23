@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SketchPicker } from 'react-color';
-import { Chessboard } from 'react-chessboard';
+import { useChessTheme } from '../../context/ThemeContext';
+import ThemedChessboard from '../../components/Board/ThemedChessboard';
 
 // Default theme options
 const DEFAULT_THEMES = {
@@ -34,7 +35,8 @@ const DEFAULT_THEMES = {
 const PIECE_STYLES = ['classic', 'modern', 'fantasy', '8-bit'];
 
 const ThemeSettings = () => {
-  const [selectedTheme, setSelectedTheme] = useState('classic');
+  const { themeKey, updateTheme } = useChessTheme();
+  const [selectedTheme, setSelectedTheme] = useState(themeKey);
   const [customTheme, setCustomTheme] = useState({
     lightSquare: '#f0d9b5',
     darkSquare: '#b58863',
@@ -58,24 +60,21 @@ const ThemeSettings = () => {
       }
     }
 
-    // Load active theme
-    const activeTheme = localStorage.getItem('chessmate_active_theme');
-    if (activeTheme) {
-      setSelectedTheme(activeTheme);
-      
-      // If it's a custom theme, load the custom settings
-      if (activeTheme === 'custom') {
-        const customThemeSettings = localStorage.getItem('chessmate_custom_theme');
-        if (customThemeSettings) {
-          try {
-            setCustomTheme(JSON.parse(customThemeSettings));
-          } catch (error) {
-            console.error('Error loading custom theme:', error);
-          }
+    // Load active theme and sync with context
+    setSelectedTheme(themeKey);
+    
+    // If it's a custom theme, load the custom settings
+    if (themeKey === 'custom') {
+      const customThemeSettings = localStorage.getItem('chessmate_custom_theme');
+      if (customThemeSettings) {
+        try {
+          setCustomTheme(JSON.parse(customThemeSettings));
+        } catch (error) {
+          console.error('Error loading custom theme:', error);
         }
       }
     }
-  }, []);
+  }, [themeKey]);
 
   // Apply the theme
   const applyTheme = (themeKey) => {
@@ -83,6 +82,9 @@ const ThemeSettings = () => {
     
     // Save the active theme selection to localStorage
     localStorage.setItem('chessmate_active_theme', themeKey);
+    
+    // Update theme in context to apply it globally
+    updateTheme(themeKey);
     
     // If it's a custom saved theme, set the custom colors
     if (themeKey !== 'custom' && savedThemes[themeKey]) {
@@ -160,6 +162,7 @@ const ThemeSettings = () => {
     if (selectedTheme === themeKey) {
       setSelectedTheme('classic');
       localStorage.setItem('chessmate_active_theme', 'classic');
+      updateTheme('classic');
     }
     
     setMessage({
@@ -197,7 +200,7 @@ const ThemeSettings = () => {
         <div className="bg-white p-4 rounded-md shadow-md">
           <h3 className="text-lg font-semibold mb-4">Board Preview</h3>
           <div className="mb-4">
-            <Chessboard
+            <ThemedChessboard
               id="theme-preview"
               position="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
               boardWidth={350}

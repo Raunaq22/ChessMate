@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
-import { Chessboard } from 'react-chessboard';
 import { AuthContext } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
 import Timer from './Timer';
@@ -12,6 +11,7 @@ import Confetti from 'react-confetti';
 import useWindowSize from '../../hooks/useWindowSize';
 import GameAnalysis from './GameAnalysis';
 import axios from 'axios';
+import ThemedChessboard from '../Board/ThemedChessboard';
 
 const STORAGE_KEY = 'chessmate_game_state';
 
@@ -1107,7 +1107,7 @@ const ChessGame = () => {
 
           {/* Chessboard */}
           <div className="w-full max-w-2xl mx-auto lg:mx-0 mb-4">
-            <Chessboard
+            <ThemedChessboard
               id="responsive-board"
               position={position}
               onPieceDrop={onDrop}
@@ -1123,8 +1123,6 @@ const ChessGame = () => {
               }, {})}
               areArrowsAllowed={true}
               showBoardNotation={true}
-              customDarkSquareStyle={{ backgroundColor: '#b58863' }} // Revert to brown
-              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }} // Revert to brown
               customPieces={customPieces}
               ref={boardRef}
               allowDrag={({ piece }) => {

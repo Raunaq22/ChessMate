@@ -138,8 +138,23 @@ module.exports = (io) => {
         game.firstMoveMade = firstMoveMade;
       }
       
+      // If this is the first move or the game just started, update DB start_time
       if (!game.started) {
         game.started = true;
+        
+        // Update the database to set start_time if not already set
+        (async () => {
+          try {
+            const dbGame = await db.Game.findByPk(gameId);
+            if (dbGame && !dbGame.start_time) {
+              dbGame.start_time = new Date();
+              await dbGame.save();
+              console.log(`Set start_time for game ${gameId}`);
+            }
+          } catch (error) {
+            console.error('Error updating game start time:', error);
+          }
+        })();
       }
       
       // Broadcast move to all clients in the room

@@ -121,7 +121,7 @@ Game.joinGame = async function(gameId, playerId) {
 
   game.player2_id = playerId;
   game.status = 'playing';
-  game.start_time = new Date();
+  game.start_time = new Date(); // Explicitly set start_time when game transitions to 'playing'
   await game.save();
 
   return game;

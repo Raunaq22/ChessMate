@@ -247,6 +247,13 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
       return;
     }
     
+    // Set start_time if this is the first move and start_time is not set yet
+    const moveHistory = game.move_history || [];
+    if (moveHistory.length === 0 && !game.start_time) {
+      game.start_time = new Date();
+      console.log(`Setting start time for game ${gameId} to ${game.start_time}`);
+    }
+    
     // Safely extract increment value
     const incrementValue = game.getDataValue('increment') || 0;
     
@@ -258,7 +265,6 @@ socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, black
     console.log(`Current time values - White: ${whiteTimeLeft}s, Black: ${blackTimeLeft}s`);
     
     // Get move count to determine if increment should be applied
-    const moveHistory = game.move_history || [];
     const moveCount = moveHistory.length;
     
     // Apply increment to the player who just moved (skip the first move)

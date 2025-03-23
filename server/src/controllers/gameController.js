@@ -79,6 +79,7 @@ const joinGame = async (req, res) => {
 
     game.player2_id = userId;
     game.status = 'playing';
+    game.start_time = new Date(); // Set start_time when game transitions to 'playing'
     await game.save();
 
     res.status(200).json({ 
@@ -89,7 +90,8 @@ const joinGame = async (req, res) => {
         initial_time: game.initial_time,
         increment: game.increment,
         white_time: game.white_time,
-        black_time: game.black_time
+        black_time: game.black_time,
+        start_time: game.start_time // Include start_time in the response
       }
     });
   } catch (error) {

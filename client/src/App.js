@@ -4,7 +4,6 @@ import PrivateRoute from './components/Auth/PrivateRoute';
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import Home from './pages/Home';
-import GamePage from './pages/GamePage';
 import ProfilePage from './pages/ProfilePage';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';

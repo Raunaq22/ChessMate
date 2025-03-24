@@ -32,7 +32,6 @@ const Navbar = () => {
           
           <div className="flex items-center space-x-6">
             <Link to="/" className="hover:text-chess-hover">Home</Link>
-            <Link to="/leaderboard" className="hover:text-chess-hover">Leaderboard</Link>
             
             {isAuthenticated ? (
               <>

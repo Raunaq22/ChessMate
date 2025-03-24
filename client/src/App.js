@@ -6,7 +6,6 @@ import Footer from './components/common/Footer';
 import Home from './pages/Home';
 import GamePage from './pages/GamePage';
 import ProfilePage from './pages/ProfilePage';
-import LeaderboardPage from './pages/LeaderboardPage';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import { AuthProvider } from './context/AuthContext';
@@ -64,12 +63,25 @@ function App() {
                     </PrivateRoute>
                   } 
                 />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <PrivateRoute>
+                      <ProfilePage />
+                    </PrivateRoute>
+                  } 
+                />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/game-replay/:gameId" element={<GameReplayPage />} /> {/* Add this route */}
-                <Route path="/settings" element={<SettingsPage />}>
+                <Route path="/game-replay/:gameId" element={<GameReplayPage />} />
+                <Route 
+                  path="/settings" 
+                  element={
+                    <PrivateRoute>
+                      <SettingsPage />
+                    </PrivateRoute>
+                  }
+                >
                   <Route path="" element={<Navigate to="profile" />} />
                   <Route path="profile" element={<ProfileSettings />} />
                   <Route path="theme" element={<ThemeSettings />} />

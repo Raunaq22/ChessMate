@@ -18,7 +18,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'descending' });
-  
+
   // Sorting function for the table
   const sortedGameHistory = React.useMemo(() => {
     let sortableGames = [...gameHistory];
@@ -97,7 +97,7 @@ const ProfilePage = () => {
           gamesPlayed: statsRes.data.gamesPlayed || 0,
           winRate: statsRes.data.winRate ? `${statsRes.data.winRate}%` : '0%',
           joined: new Date(currentUser.created_at).toLocaleDateString()
-        });
+        }); 
         
         // Set game history
         setGameHistory(historyRes.data || []);

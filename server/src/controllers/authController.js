@@ -26,7 +26,7 @@ const register = async (req, res) => {
     const user = await User.create({
       username,
       email,
-      password, // Password will be hashed in the User model hooks
+      password, 
       profile_image_url: '/assets/default-avatar.png'
     });
 
@@ -44,7 +44,8 @@ const register = async (req, res) => {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        created_at: user.created_at
       },
       token
     });
@@ -97,7 +98,8 @@ const login = async (req, res) => {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        created_at: user.created_at
       },
       token
     });
@@ -118,7 +120,8 @@ const verify = async (req, res) => {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        created_at: user.created_at
       }
     });
   } catch (error) {

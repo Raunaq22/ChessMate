@@ -1,40 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// Helper function to format image URLs - simplified to avoid recursive API calls
+// Updated formatImageUrl function in this file
 export const formatImageUrl = (url) => {
   if (!url) return '/assets/default-avatar.png';
-  if (url.startsWith('http')) return url;
   
-  // Ensure we're not returning an API endpoint as a direct image path
-  if (url.includes('/api/users/')) {
-    return '/assets/default-avatar.png';
+  // Special handling for Google images
+  if (url.includes('googleusercontent.com')) {
+    console.log("UserAvatar: Google profile image detected:", url);
+    return url;
   }
   
-  // Return the path as-is
+  if (url.startsWith('http')) {
+    return url;
+  }
+  
   return url;
 };
 
-const UserAvatar = ({ user, className = "h-8 w-8 rounded-full object-cover" }) => {
-  const [imageFailed, setImageFailed] = useState(false);
+// Define size classes for different avatar sizes
+const sizeClasses = {
+  xs: 'h-6 w-6',
+  sm: 'h-8 w-8',
+  md: 'h-12 w-12',
+  lg: 'h-16 w-16',
+  xl: 'h-24 w-24'
+};
+
+const UserAvatar = ({ user, className = '', size = 'md' }) => {
+  const [error, setError] = useState(false);
+  const [cachedImage, setCachedImage] = useState(null);
   
-  // Default source
-  const avatarSrc = user?.profile_image_url 
+  const imageUrl = !error && user?.profile_image_url 
     ? formatImageUrl(user.profile_image_url)
     : '/assets/default-avatar.png';
-  
+
+  // Use useEffect to cache the image once it's loaded
+  useEffect(() => {
+    if (user?.profile_image_url && !cachedImage) {
+      // Load and cache image when it's not already cached
+      const img = new Image();
+      img.src = imageUrl;
+      img.onload = () => setCachedImage(imageUrl);
+    }
+  }, [user?.profile_image_url, imageUrl, cachedImage]);
+
   return (
-    <img 
-      src={avatarSrc} 
-      alt={user?.username || "User"}
-      className={className}
+    <img
+      src={cachedImage || imageUrl}
+      alt={user?.username || 'User'}
+      className={`${className} ${sizeClasses[size] || ''}`}
       onError={(e) => {
-        // Only try to set fallback once to prevent infinite loops
-        if (!imageFailed) {
-          console.log(`Image failed to load: ${e.target.src}, falling back to default avatar`);
-          setImageFailed(true);
-          e.target.src = '/assets/default-avatar.png';
-        }
+        console.log("UserAvatar: Image failed to load:", e.target.src);
+        e.target.onerror = null; // Prevent loops
+        e.target.src = '/assets/default-avatar.png';
+        setError(true);
       }}
+      crossOrigin="anonymous" // Try with crossOrigin attribute
     />
   );
 };

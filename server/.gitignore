@@ -1,0 +1,35 @@
+# Dependencies
+/node_modules
+
+# Environment variables (keep example file)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for uploaded files
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# Coverage directory
+/coverage
+
+# Build directory
+/dist
+/build
+
+# OS files
+.DS_Store

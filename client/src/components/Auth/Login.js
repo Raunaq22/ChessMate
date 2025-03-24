@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import OAuthButtons from './OAuth/OAuthButtons';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -90,6 +91,9 @@ const Login = () => {
           </Link>
         </div>
       </form>
+      
+      {/* OAuth login buttons */}
+      <OAuthButtons />
     </div>
   );
 };

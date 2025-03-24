@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
+import OAuthButtons from './OAuth/OAuthButtons';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,21 +25,19 @@ const Register = () => {
   
   const handleSubmit = async e => {
     e.preventDefault();
-    setError('');
-
+    
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
+    
+    setError('');
     setLoading(true);
-
+    
     try {
       const res = await register(username, email, password);
-      // Extract token from response and set it to local storage
       localStorage.setItem('token', res.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.token}`;
-      // Log the user in automatically after registration
       await login(email, password);
       navigate('/');
     } catch (err) {
@@ -138,6 +137,8 @@ const Register = () => {
           </Link>
         </div>
       </form>
+      
+      <OAuthButtons />
     </div>
   );
 };

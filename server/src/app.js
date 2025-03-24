@@ -12,7 +12,7 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./api/routes/auth');
 const gamesRoutes = require('./api/routes/games');
-const usersRoutes = require('./api/routes/users'); // Add this line
+const usersRoutes = require('./api/routes/users'); 
 
 const app = express();
 

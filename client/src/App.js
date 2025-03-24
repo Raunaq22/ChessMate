@@ -18,6 +18,7 @@ import ProfileSettings from './pages/Settings/ProfileSettings';
 import ThemeSettings from './pages/Settings/ThemeSettings';
 import NotificationSettings from './pages/Settings/NotificationSettings';
 import PrivacySettings from './pages/Settings/PrivacySettings';
+import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
@@ -30,57 +31,20 @@ function App() {
             <main className="flex-grow container mx-auto px-4 py-8">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route 
-                  path="/lobby" 
-                  element={
-                    <PrivateRoute>
-                      <GameLobby />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/play-friend" 
-                  element={
-                    <PrivateRoute>
-                      <PlayWithFriendPage />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/play-computer" 
-                  element={
-                    <PrivateRoute>
-                      <ComputerGamePage />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/game/:gameId" 
-                  element={
-                    <PrivateRoute>
-                      <ChessGame />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <PrivateRoute>
-                      <ProfilePage />
-                    </PrivateRoute>
-                  } 
-                />
+                
+                {/* Add OAuth callback route */}
+                <Route path="/oauth-callback" element={<OAuthCallback />} />
+                
+                {/* Existing routes */}
+                <Route path="/lobby" element={<PrivateRoute><GameLobby /></PrivateRoute>} />
+                <Route path="/play-friend" element={<PrivateRoute><PlayWithFriendPage /></PrivateRoute>} />
+                <Route path="/play-computer" element={<PrivateRoute><ComputerGamePage /></PrivateRoute>} />
+                <Route path="/game/:gameId" element={<PrivateRoute><ChessGame /></PrivateRoute>} />
+                <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/game-replay/:gameId" element={<GameReplayPage />} />
-                <Route 
-                  path="/settings" 
-                  element={
-                    <PrivateRoute>
-                      <SettingsPage />
-                    </PrivateRoute>
-                  }
-                >
+                <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>}>
                   <Route path="" element={<Navigate to="profile" />} />
                   <Route path="profile" element={<ProfileSettings />} />
                   <Route path="theme" element={<ThemeSettings />} />

@@ -1,22 +1,50 @@
-const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
+const JwtStrategy = require('passport-jwt').Strategy;
+const ExtractJwt = require('passport-jwt').ExtractJwt;
 const User = require('../models/User');
-const opts = {
+
+// Import OAuth strategies
+require('./oauth/google');
+require('./oauth/microsoft');
+require('./oauth/apple');
+
+const options = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey: process.env.JWT_SECRET
 };
 
 module.exports = (passport) => {
+  // JWT Strategy (existing code)
   passport.use(
-    new JwtStrategy(opts, async (jwt_payload, done) => {
+    new JwtStrategy(options, async (payload, done) => {
       try {
-        const user = await User.findByPk(jwt_payload.id);
+        const user = await User.findByPk(payload.user_id);
         if (user) {
           return done(null, user);
         }
         return done(null, false);
       } catch (error) {
-        return done(error, false);
+        console.error('JWT authentication error:', error);
+        done(error, false);
       }
     })
   );
+
+  // Configure OAuth strategies
+  require('./oauth/google')(passport);
+  require('./oauth/microsoft')(passport);
+  require('./oauth/apple')(passport);
+
+  // Serialize and deserialize user
+  passport.serializeUser((user, done) => {
+    done(null, user.user_id);
+  });
+
+  passport.deserializeUser(async (id, done) => {
+    try {
+      const user = await User.findByPk(id);
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  });
 };

@@ -66,10 +66,10 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if this is an OAuth user without a password
-    if (!user.password && (user.google_id || user.microsoft_id || user.apple_id)) {
+    // Check if this is an OAuth user without a password (Google only)
+    if (!user.password && user.google_id) {
       return res.status(401).json({ 
-        message: 'Please login using the appropriate social login method',
+        message: 'Please login using Google to sign in',
         oauth: true
       });
     }

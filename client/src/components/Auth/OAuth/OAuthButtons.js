@@ -1,7 +1,5 @@
 import React from 'react';
 import GoogleLogin from './GoogleLogin';
-import MicrosoftLogin from './MicrosoftLogin';
-import AppleLogin from './AppleLogin';
 
 const OAuthButtons = () => {
   return (
@@ -15,10 +13,8 @@ const OAuthButtons = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-3">
+      <div className="flex justify-center">
         <GoogleLogin />
-        <MicrosoftLogin />
-        <AppleLogin />
       </div>
     </div>
   );

@@ -36,16 +36,6 @@ const User = sequelize.define('User', {
     allowNull: true,
     unique: true
   },
-  microsoft_id: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    unique: true
-  },
-  apple_id: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    unique: true
-  },
   profile_image_url: {
     type: DataTypes.STRING,
     defaultValue: '/assets/default-avatar.png' // Changed from API endpoint to direct file path

@@ -2,10 +2,8 @@ const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
 const User = require('../models/User');
 
-// Import OAuth strategies
+// Import only Google OAuth strategy
 require('./oauth/google');
-require('./oauth/microsoft');
-require('./oauth/apple');
 
 const options = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -13,7 +11,7 @@ const options = {
 };
 
 module.exports = (passport) => {
-  // JWT Strategy (existing code)
+  // JWT Strategy
   passport.use(
     new JwtStrategy(options, async (payload, done) => {
       try {
@@ -29,10 +27,8 @@ module.exports = (passport) => {
     })
   );
 
-  // Configure OAuth strategies
+  // Configure Google OAuth strategy only
   require('./oauth/google')(passport);
-  require('./oauth/microsoft')(passport);
-  require('./oauth/apple')(passport);
 
   // Serialize and deserialize user
   passport.serializeUser((user, done) => {

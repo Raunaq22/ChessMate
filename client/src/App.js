@@ -8,7 +8,7 @@ import ProfilePage from './pages/ProfilePage';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import { AuthProvider } from './context/AuthContext';
-import ChessGame from './components/Game/ChessGame';
+import GamePage from './pages/GamePage';
 import GameLobby from './components/Game/GameLobby';
 import PlayWithFriendPage from './pages/PlayWithFriendPage';
 import ComputerGamePage from './pages/ComputerGamePage';
@@ -39,7 +39,7 @@ function App() {
                     <Route path="/lobby" element={<PrivateRoute><GameLobby /></PrivateRoute>} />
                     <Route path="/play-friend" element={<PrivateRoute><PlayWithFriendPage /></PrivateRoute>} />
                     <Route path="/play-computer" element={<PrivateRoute><ComputerGamePage /></PrivateRoute>} />
-                    <Route path="/game/:gameId" element={<PrivateRoute><ChessGame /></PrivateRoute>} />
+                    <Route path="/game/:gameId" element={<PrivateRoute><GamePage /></PrivateRoute>} />
                     <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />

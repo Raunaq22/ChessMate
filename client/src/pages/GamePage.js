@@ -175,7 +175,14 @@ const GamePage = () => {
   return (
     <Container maxW="100%" px={4} py={4}>
       {/* Confetti animation */}
-      {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
+      {showConfetti && <Confetti 
+        width={windowWidth} 
+        height={windowHeight} 
+        recycle={false} 
+        numberOfPieces={200}
+        gravity={0.3}
+        tweenDuration={3000}
+      />}
 
       {/* Game status banner */}
       {gameStatus && (
@@ -321,9 +328,11 @@ const GamePage = () => {
                 ref={boardRef}
                 allowDrag={({ piece }) => {
                   // Only allow dragging player's pieces during the game
+                  // and only if both players have joined
                   return !gameEnded && 
                          ((piece[0] === 'w' && playerColor === 'white') || 
-                          (piece[0] === 'b' && playerColor === 'black'));
+                          (piece[0] === 'b' && playerColor === 'black')) &&
+                         playerIds && playerIds.white && playerIds.black; // Only allow moves if both players have joined
                 }}
               />
             </Box>

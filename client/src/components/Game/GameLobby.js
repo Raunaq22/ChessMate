@@ -3,6 +3,36 @@ import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import gameService from '../../services/gameService';
 import CreateGameModal from './CreateGameModal';
 import io from 'socket.io-client';
+import {
+  Box,
+  Container,
+  Heading,
+  Button,
+  Flex,
+  Text,
+  Grid,
+  VStack,
+  HStack,
+  Badge,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Divider,
+  useColorModeValue,
+  Spinner,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Tag,
+  Avatar,
+  Icon,
+  Tooltip,
+  useDisclosure,
+  useToast
+} from '@chakra-ui/react';
+import { FaPlus, FaClock, FaUser, FaIdCard, FaCalendarAlt, FaUserFriends } from 'react-icons/fa';
 
 const GameLobby = () => {
   const [availableGames, setAvailableGames] = useState([]);
@@ -13,8 +43,10 @@ const GameLobby = () => {
   const [debugInfo, setDebugInfo] = useState(null);
   const [createdGameId, setCreatedGameId] = useState(null);
   const [socket, setSocket] = useState(null);
-  const [gameJoined, setGameJoined] = useState(false); // Add this line to track if game was joined
+  const [gameJoined, setGameJoined] = useState(false);
   const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   // Helper function to check if a game is expired
   const isGameExpired = (game) => {
@@ -42,10 +74,18 @@ const GameLobby = () => {
     } catch (error) {
       console.error('Failed to fetch games:', error);
       setDebugInfo(`Fetch error: ${error.message || JSON.stringify(error)}`);
+      
+      toast({
+        title: 'Error fetching games',
+        description: error.message || 'Please try again later',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   // Initialize socket connection for real-time updates
   useEffect(() => {
@@ -68,6 +108,15 @@ const GameLobby = () => {
         // Add the new game to the list
         return [gameData, ...prevGames];
       });
+      
+      toast({
+        title: 'New game available',
+        description: 'A new game has been created in the lobby',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
     });
     
     setSocket(newSocket);
@@ -77,7 +126,7 @@ const GameLobby = () => {
       console.log('Disconnecting from lobby socket');
       newSocket.disconnect();
     };
-  }, []);
+  }, [toast]);
 
   // Fetch games initially and then every 10 seconds as a fallback
   useEffect(() => {
@@ -105,7 +154,7 @@ const handleCreateGame = async (timeControl) => {
       initialTime: timeControl.time !== undefined ? Number(timeControl.time) : 
                   timeControl.time === null ? null : 600,
       increment: Number(timeControl.increment || 0),
-      label: timeControl.label // Add this line to include the label
+      label: timeControl.label
     };
     
     console.log('Creating game with validated params:', payload);
@@ -127,16 +176,40 @@ const handleCreateGame = async (timeControl) => {
       // Mark the game as joined to prevent cleanup
       setGameJoined(true);
       
+      toast({
+        title: 'Game created',
+        description: 'Your game has been created. Redirecting...',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
       // Add a small delay to ensure the game is properly saved in the database
       setTimeout(() => {
         navigate(`/game/${response.game.game_id}`);
       }, 300);
     } else {
       setDebugInfo('Game created but no game_id returned');
+      
+      toast({
+        title: 'Something went wrong',
+        description: 'Game was created but no ID was returned',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
     }
   } catch (error) {
     console.error('Failed to create game:', error);
     setDebugInfo(`Create error: ${error.message || JSON.stringify(error)}`);
+    
+    toast({
+      title: 'Failed to create game',
+      description: error.message || 'Please try again',
+      status: 'error',
+      duration: 5000,
+      isClosable: true,
+    });
   }
 };
 
@@ -153,6 +226,15 @@ const handleCreateGame = async (timeControl) => {
           setJoinError('This game has already ended');
           setDebugInfo('Cannot join completed game');
           setJoiningGameId(null);
+          
+          toast({
+            title: 'Game has ended',
+            description: 'This game has already been completed. Redirecting to replay...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+          
           // Redirect to replay if the game is completed
           navigate(`/game-replay/${gameId}`);
           return;
@@ -167,6 +249,15 @@ const handleCreateGame = async (timeControl) => {
         setJoinError('Game not found in available games');
         setDebugInfo('Game not found in available games list');
         setJoiningGameId(null);
+        
+        toast({
+          title: 'Game not found',
+          description: 'This game may have been removed or expired',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        
         return;
       }
       
@@ -174,6 +265,15 @@ const handleCreateGame = async (timeControl) => {
         setJoinError('Game is expired');
         setDebugInfo('Game is expired');
         setJoiningGameId(null);
+        
+        toast({
+          title: 'Game expired',
+          description: 'This game has expired and is no longer available',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+        
         return;
       }
       
@@ -198,6 +298,14 @@ const handleCreateGame = async (timeControl) => {
           setGameJoined(true);
         }
         
+        toast({
+          title: 'Game joined',
+          description: 'Successfully joined the game. Redirecting...',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+        
         // Add a small delay to allow server state to update
         setTimeout(() => {
           navigate(`/game/${response.game.game_id}`);
@@ -208,12 +316,29 @@ const handleCreateGame = async (timeControl) => {
                            'Game is not ready to play';
         setJoinError(errorMessage);
         setDebugInfo(`Join failed: Game state invalid - ${JSON.stringify(response)}`);
+        
+        toast({
+          title: 'Unable to join game',
+          description: errorMessage,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        
         await fetchGames(); // Refresh game list
       }
     } catch (error) {
       console.error('Failed to join game:', error);
       setJoinError(`Error joining game: ${error.message || 'Unknown error'}`);
       setDebugInfo(`Join exception: ${error.stack || error.message || JSON.stringify(error)}`);
+      
+      toast({
+        title: 'Error joining game',
+        description: error.message || 'An unexpected error occurred',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setJoiningGameId(null);
     }
@@ -236,6 +361,20 @@ const handleCreateGame = async (timeControl) => {
     }
     const idString = String(game.game_id);
     return idString.length > 8 ? `${idString.substring(0, 8)}...` : idString;
+  };
+  
+  const formatCreationTime = (timestamp) => {
+    const date = new Date(timestamp || Date.now());
+    const now = new Date();
+    
+    // If it's today, just show the time
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // Otherwise show the date and time
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
+           ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   useEffect(() => {
@@ -265,101 +404,208 @@ const handleCreateGame = async (timeControl) => {
     }, [createdGameId, gameJoined])
   );
 
-  if (loading && availableGames.length === 0) {
-    return <div className="text-center py-8">Loading games...</div>;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Chess Lobby</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    <Container maxW="7xl" py={8}>
+      {/* Header Section */}
+      <Flex direction={{ base: "column", md: "row" }} justify="space-between" align="center" mb={8}>
+        <Heading as="h1" size="xl" color="chess-dark" mb={{ base: 4, md: 0 }}>
+          Chess Lobby
+        </Heading>
+        
+        <Button
+          leftIcon={<Icon as={FaPlus} />}
+          onClick={onOpen}
+          bg="primary"
+          color="white"
+          _hover={{ bg: "chess-hover" }}
           disabled={joiningGameId !== null}
+          size="lg"
+          px={6}
+          borderRadius="md"
         >
           Create Game
-        </button>
-      </div>
+        </Button>
+      </Flex>
       
-      {/* Add link to play with friend option */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-        <p className="text-sm mb-2">
-          Want to play with a friend? Use our friend code system!
-        </p>
-        <button
-          onClick={() => navigate('/play-friend')}
-          className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded text-sm"
-        >
-          Play with a Friend
-        </button>
-      </div>
-
-      {joinError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <strong>Error: </strong>{joinError}
-        </div>
-      )}
-      
-      {debugInfo && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4 font-mono text-sm overflow-auto">
-          <strong>Debug: </strong>{debugInfo}
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {availableGames.map(game => (
-          <div 
-            key={game.game_id}
-            className="p-4 border rounded-lg shadow-md hover:shadow-lg transition-shadow"
+      {/* Play with friend card */}
+      <Card bg="chess-light" mb={8} variant="outline" borderRadius="lg" overflow="hidden">
+        <CardBody p={5}>
+          <Flex 
+            direction={{ base: "column", md: "row" }} 
+            align={{ base: "center", md: "center" }} 
+            justify="space-between"
           >
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold">
-                Time Control: {formatTimeControl(game)}
-              </span>
-              <span className="text-sm text-gray-500">
-                Created: {new Date(game.createdAt || game.created_at).toLocaleTimeString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm">
-                Host: {game.player1?.username || 'Unknown'}
-              </span>
-              <span className="text-sm text-gray-500">
-                ID: {formatGameId(game)}
-              </span>
-            </div>
-            <button
-              onClick={() => handleJoinGame(game.game_id)}
-              disabled={joiningGameId !== null}
-              className={`w-full mt-2 py-2 px-4 rounded ${
-                joiningGameId !== null
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
+            <HStack spacing={3} mb={{ base: 4, md: 0 }}>
+              <Icon as={FaUserFriends} boxSize={6} color="primary" />
+              <Box>
+                <Heading size="md" color="chess-dark" mb={1}>Play with a Friend</Heading>
+                <Text color="chess-dark">Challenge a specific person using our friend code system</Text>
+              </Box>
+            </HStack>
+            
+            <Button
+              onClick={() => navigate('/play-friend')}
+              bg="primary"
+              color="white"
+              _hover={{ bg: "chess-hover" }}
+              minW="150px"
+              size="lg"
             >
-              {joiningGameId === game.game_id ? 'Joining...' : 'Join Game'}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {availableGames.length === 0 && !loading && (
-        <div className="text-center py-8 text-gray-500">
-          No games available. Create one to start playing!
-        </div>
+              Friend Match
+            </Button>
+          </Flex>
+        </CardBody>
+      </Card>
+      
+      {/* Error messages */}
+      {joinError && (
+        <Alert status="error" mb={5} borderRadius="md">
+          <AlertIcon />
+          <AlertTitle mr={2}>Error:</AlertTitle>
+          <AlertDescription>{joinError}</AlertDescription>
+        </Alert>
       )}
-
-      {showCreateModal && (
+      
+      {debugInfo && process.env.NODE_ENV === 'development' && (
+        <Alert status="warning" mb={5} borderRadius="md" variant="left-accent">
+          <AlertIcon />
+          <Box>
+            <AlertTitle>Debug Info:</AlertTitle>
+            <AlertDescription>
+              <Text fontFamily="mono" fontSize="sm" overflowX="auto">
+                {debugInfo}
+              </Text>
+            </AlertDescription>
+          </Box>
+        </Alert>
+      )}
+      
+      {/* Games Grid */}
+      {loading && availableGames.length === 0 ? (
+        <Flex direction="column" align="center" justify="center" my={12}>
+          <Spinner size="xl" thickness="4px" speed="0.65s" color="primary" mb={4} />
+          <Text color="chess-dark" fontSize="lg">Loading games...</Text>
+        </Flex>
+      ) : (
+        <>
+          <Heading as="h2" size="md" color="chess-dark" mb={4}>Available Games</Heading>
+          
+          {availableGames.length > 0 ? (
+            <Grid 
+              templateColumns={{ 
+                base: "1fr", 
+                md: "repeat(2, 1fr)", 
+                lg: "repeat(3, 1fr)" 
+              }}
+              gap={6}
+            >
+              {availableGames.map(game => (
+                <Card 
+                  key={game.game_id} 
+                  borderRadius="lg" 
+                  overflow="hidden" 
+                  boxShadow="md"
+                  _hover={{ boxShadow: "lg", transform: "translateY(-2px)" }}
+                  transition="all 0.2s"
+                  borderWidth="1px"
+                  borderColor="gray.200"
+                >
+                  <CardHeader bg="chess-hover" py={3} px={4}>
+                    <Flex justify="space-between" align="center">
+                      <HStack>
+                        <Icon as={FaClock} color="white" />
+                        <Text fontWeight="bold" color="white">
+                          {formatTimeControl(game)}
+                        </Text>
+                      </HStack>
+                      
+                      <Tooltip label={`Created ${formatCreationTime(game.created_at)}`}>
+                        <Tag size="sm" variant="subtle" colorScheme="gray">
+                          <HStack spacing={1}>
+                            <Icon as={FaCalendarAlt} size="xs" />
+                            <Text fontSize="xs">{formatCreationTime(game.created_at)}</Text>
+                          </HStack>
+                        </Tag>
+                      </Tooltip>
+                    </Flex>
+                  </CardHeader>
+                  
+                  <CardBody py={4}>
+                    <VStack align="stretch" spacing={3}>
+                      <Flex justify="space-between" align="center">
+                        <HStack>
+                          <Icon as={FaUser} color="gray.500" />
+                          <Text fontWeight="medium">
+                            Host: {game.player1?.username || 'Unknown'}
+                          </Text>
+                        </HStack>
+                        
+                        <Tooltip label="Game ID">
+                          <HStack spacing={1}>
+                            <Icon as={FaIdCard} size="sm" color="gray.500" />
+                            <Text fontSize="sm" color="gray.500">
+                              {formatGameId(game)}
+                            </Text>
+                          </HStack>
+                        </Tooltip>
+                      </Flex>
+                    </VStack>
+                  </CardBody>
+                  
+                  <CardFooter pt={0} pb={4} px={4}>
+                    <Button
+                      onClick={() => handleJoinGame(game.game_id)}
+                      isLoading={joiningGameId === game.game_id}
+                      loadingText="Joining..."
+                      isDisabled={joiningGameId !== null}
+                      w="100%"
+                      colorScheme="green"
+                      variant="solid"
+                      size="lg"
+                    >
+                      Join Game
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </Grid>
+          ) : (
+            <Box 
+              textAlign="center" 
+              py={12} 
+              bg="chess-light" 
+              borderRadius="lg"
+              borderWidth="1px"
+              borderColor="gray.200"
+              borderStyle="dashed"
+            >
+              <Heading size="md" color="chess-dark" mb={2}>No games available</Heading>
+              <Text color="chess-dark" mb={6}>Create a game to start playing!</Text>
+              <Button
+                onClick={onOpen}
+                bg="primary"
+                color="white"
+                _hover={{ bg: "chess-hover" }}
+                size="lg"
+              >
+                Create New Game
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
+      
+      {/* Create Game Modal */}
+      {isOpen && (
         <CreateGameModal
-          onClose={() => setShowCreateModal(false)}
+          onClose={onClose}
           onCreateGame={(timeControl) => {
             handleCreateGame(timeControl);
-            setShowCreateModal(false);
+            onClose();
           }}
         />
       )}
-    </div>
+    </Container>
   );
 };
 

@@ -10,6 +10,9 @@ import {
   Container,
   Icon,
   useBreakpointValue,
+  Text,
+  Heading,
+  HStack,
 } from '@chakra-ui/react';
 import { FaChessKnight, FaUserFriends, FaRobot, FaTrophy } from 'react-icons/fa';
 import useWindowSize from '../hooks/useWindowSize';
@@ -25,74 +28,54 @@ const Home = () => {
   const { isAuthenticated, currentUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const containerRef = useRef(null);
-  const { width: windowWidth, height: windowHeight } = useWindowSize();
-  const [boardSize, setBoardSize] = useState(560);
+  const { width, height } = useWindowSize();
+  const [boardSize, setBoardSize] = useState(540);
   
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  
-  // Responsive board size that updates on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const newSize = Math.min(containerWidth * 0.95, windowHeight * 0.8);
-        setBoardSize(newSize);
-      }
-    };
-    
-    handleResize(); // Initial size
-    
-    // Add event listener for window resize
-    window.addEventListener('resize', handleResize);
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, [windowWidth, windowHeight]);
-  
-  const checkAuth = (path) => {
+  // Handle authentication
+  const goToAuthPage = (path) => {
     if (!isAuthenticated) {
       navigate('/login');
-      return;
+    } else {
+      navigate(path);
     }
-    navigate(path);
   };
 
-  // Get profile image or first letter for avatar
-  const getAvatarInfo = () => {
-    if (!currentUser) return { name: 'User' };
-    
-    return {
-      name: currentUser.username || 'User',
-      src: formatImageUrl(currentUser.profile_image_url)
-    };
-  };
+  // Button sizing based on screen size
+  const buttonSize = useBreakpointValue({ base: 'lg', md: 'lg' });
+  const buttonSpacing = useBreakpointValue({ base: 6, md: 6 });
+  
+  // Responsive board size calculation
+  useEffect(() => {
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.offsetWidth;
+      // Calculate board size based on container width
+      const newSize = Math.min(containerWidth * 0.9, height * 0.7);
+      setBoardSize(newSize);
+    }
+  }, [width, height, containerRef]);
 
   return (
-    <Container maxW="100%" p={0}>
+    <Container maxW="container.xl" p={0}>
       <Flex 
         direction={{ base: "column", md: "row" }} 
-        gap={{ base: 8, md: 4 }}
+        gap={{ base: 8, md: 12 }}
         justify="space-between" 
         align="center"
-        pt={{ base: 6, md: 8 }}
+        py={{ base: 8, md: 12 }}
         px={{ base: 4, md: 8 }}
       >
-        {/* Chess board on left - responsive and centered */}
+        {/* Chess board on left */}
         <Box 
-          w={{ base: "100%", md: "62%" }} 
+          w={{ base: "100%", md: "55%" }} 
           mx="auto"
-          pl={{ base: 0, md: 2 }}
-          pr={{ base: 0, md: 4 }}
-          display="flex"
-          justifyContent={{ base: "center", md: "flex-start" }}
+          py={{ base: 4, md: 0 }}
         >
           <Box
             ref={containerRef}
             bg="chess-light" 
-            p={{ base: 2, md: 4 }}
+            p={{ base: 4, md: 6 }}
             rounded="xl" 
             shadow="xl"
-            w="100%"
-            maxW="700px"
           >
             <ThemedChessboard
               id="home-board"
@@ -106,72 +89,93 @@ const Home = () => {
         </Box>
         
         {/* Navigation buttons on right */}
-        <VStack 
-          spacing={{ base: 4, md: 6 }} 
-          align="stretch" 
-          w={{ base: "100%", md: "35%" }}
-          pb={{ base: 6, md: 0 }}
+        <Box 
+          w={{ base: "100%", md: "40%" }}
+          pl={{ base: 0, md: 8 }}
         >
-          <Button
-            onClick={() => checkAuth('/lobby')}
-            bg="primary"
-            color="white"
-            size="lg"
-            height={{ base: "60px", md: "70px" }}
-            leftIcon={<Icon as={FaTrophy} boxSize={{ base: 5, md: 6 }} />}
-            _hover={{ 
-              bg: "chess-hover",
-              transform: "translateY(-2px)",
-              shadow: "lg"
-            }}
-            transition="all 0.2s"
-            fontSize={{ base: "lg", md: "xl" }}
-            borderRadius="lg"
-            shadow="md"
+          <VStack
+            spacing={buttonSpacing}
+            align="stretch"
+            w={{ base: "100%", md: "100%" }}
           >
-            Play Lobby
-          </Button>
-          
-          <Button
-            onClick={() => checkAuth('/play-friend')}
-            bg="chess-hover"
-            color="white"
-            size="lg"
-            height={{ base: "60px", md: "70px" }}
-            leftIcon={<Icon as={FaUserFriends} boxSize={{ base: 5, md: 6 }} />}
-            _hover={{ 
-              bg: "primary",
-              transform: "translateY(-2px)",
-              shadow: "lg"
-            }}
-            transition="all 0.2s"
-            fontSize={{ base: "lg", md: "xl" }}
-            borderRadius="lg"
-            shadow="md"
-          >
-            Play a Friend
-          </Button>
-          
-          <Button
-            onClick={() => checkAuth('/play-computer')}
-            bg="white"
-            color="chess-dark"
-            size="lg"
-            height={{ base: "60px", md: "70px" }}
-            leftIcon={<Icon as={FaRobot} boxSize={{ base: 5, md: 6 }} />}
-            _hover={{ 
-              bg: "gray.100",
-              transform: "translateY(-2px)",
-              shadow: "lg"
-            }}
-            transition="all 0.2s"
-            fontSize={{ base: "lg", md: "xl" }}
-            borderRadius="lg"
-            shadow="md"
-          >
-            Play Computer
-          </Button>
-        </VStack>
+            <Heading 
+              as="h1" 
+              size={{ base: "2xl", md: "2xl" }} 
+              mb={4}
+              textAlign={{ base: "center", md: "left" }}
+              color="chess-dark"
+            >
+              ChessMate
+            </Heading>
+            
+            <Text 
+              fontSize={{ base: "lg", md: "xl" }}
+              mb={4}
+              textAlign={{ base: "center", md: "left" }}
+              color="chess-dark"
+            >
+              Choose your game mode:
+            </Text>
+            
+            <Button
+              leftIcon={<Icon as={FaChessKnight} boxSize={6} />}
+              onClick={() => goToAuthPage('/lobby')}
+              size={buttonSize}
+              height="70px"
+              bg="primary"
+              color="white"
+              _hover={{ bg: "chess-hover" }}
+              mb={3}
+              borderRadius="md"
+            >
+              Play Lobby
+            </Button>
+            
+            <Button
+              leftIcon={<Icon as={FaUserFriends} boxSize={6} />}
+              onClick={() => goToAuthPage('/play-friend')}
+              size={buttonSize}
+              height="70px"
+              bg="primary"
+              color="white"
+              _hover={{ bg: "chess-hover" }}
+              mb={3}
+              borderRadius="md"
+            >
+              Play a Friend
+            </Button>
+            
+            <Button
+              leftIcon={<Icon as={FaRobot} boxSize={6} />}
+              onClick={() => goToAuthPage('/play-computer')}
+              size={buttonSize}
+              height="70px"
+              bg="primary"
+              color="white"
+              _hover={{ bg: "chess-hover" }}
+              mb={3}
+              borderRadius="md"
+            >
+              Play Computer
+            </Button>
+            
+            {isAuthenticated && (
+              <Button
+                leftIcon={<Icon as={FaTrophy} boxSize={6} />}
+                onClick={() => navigate('/profile')}
+                size={buttonSize}
+                height="70px"
+                variant="outline"
+                borderColor="primary"
+                color="primary"
+                _hover={{ bg: "gray.100" }}
+                borderRadius="md"
+              >
+                My Profile
+              </Button>
+            )}
+          </VStack>
+        </Box>
       </Flex>
     </Container>
   );

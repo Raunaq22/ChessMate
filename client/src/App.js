@@ -51,7 +51,7 @@ const ProfileAvatar = () => {
           size="md"
           name={name}
           src={src}
-          bg="chess-dark"
+          bg="chess-light"
           color="white"
           cursor="pointer"
           onClick={() => window.location.href = '/profile'}

@@ -2,20 +2,45 @@ import React, { useState, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import gameService from '../services/gameService';
+import {
+  Box,
+  Button,
+  Container,
+  Divider,
+  Flex,
+  FormControl,
+  Heading,
+  Icon,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Text,
+  VStack,
+  HStack,
+  useToast,
+  useDisclosure,
+  Alert,
+  AlertIcon,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  useClipboard
+} from '@chakra-ui/react';
+import { FaUserFriends, FaClipboard, FaClipboardCheck, FaArrowLeft, FaPlus } from 'react-icons/fa';
 import CreateGameModal from '../components/Game/CreateGameModal';
 
 const PlayWithFriendPage = () => {
   const { currentUser } = useContext(AuthContext);
   const [joinCode, setJoinCode] = useState('');
   const [gameCode, setGameCode] = useState('');
-  // Add new state to track the actual game ID separately from the display code
   const [createdGameId, setCreatedGameId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
-  const gameCodeRef = useRef(null);
   const navigate = useNavigate();
+  const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { hasCopied, onCopy } = useClipboard(gameCode);
 
   const handleCreateGame = async (timeControl) => {
     try {
@@ -43,11 +68,33 @@ const PlayWithFriendPage = () => {
         // Store both values in state
         setCreatedGameId(gameId);
         setGameCode(shareCode);
+        
+        toast({
+          title: "Game created successfully",
+          description: "Share the code with your friend to start playing",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
       } else {
         setError('Failed to create game');
+        toast({
+          title: "Error",
+          description: "Failed to create game",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       setError(`Error: ${error.message}`);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create game",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -56,6 +103,13 @@ const PlayWithFriendPage = () => {
   const handleJoinGame = async () => {
     if (!joinCode) {
       setError('Please enter a game code');
+      toast({
+        title: "Missing code",
+        description: "Please enter a game code",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
 
@@ -68,23 +122,37 @@ const PlayWithFriendPage = () => {
       
       if (response?.game?.game_id) {
         console.log(`Successfully joined game with ID: ${response.game.game_id}`);
-        navigate(`/game/${response.game.game_id}`);
+        toast({
+          title: "Success",
+          description: "Joined game successfully. Redirecting...",
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+        setTimeout(() => {
+          navigate(`/game/${response.game.game_id}`);
+        }, 500);
       } else {
         setError('Failed to join game');
+        toast({
+          title: "Error",
+          description: "Failed to join game",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       setError(`Error: ${error.message || 'Failed to join game'}`);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join game",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const copyCodeToClipboard = () => {
-    if (gameCodeRef.current) {
-      gameCodeRef.current.select();
-      document.execCommand('copy');
-      setShowCopiedMessage(true);
-      setTimeout(() => setShowCopiedMessage(false), 2000);
     }
   };
 
@@ -92,134 +160,212 @@ const PlayWithFriendPage = () => {
     // If we have the actual game ID stored, use that directly
     if (createdGameId) {
       try {
+        setLoading(true);
         // Check if the game is still active before joining
         const gameDetails = await gameService.getGameById(createdGameId);
         
         if (gameDetails?.status === 'completed') {
           // Redirect to replay if the game is completed
           console.log(`Game ${createdGameId} is already completed. Redirecting to replay...`);
+          toast({
+            title: "Game completed",
+            description: "This game has already ended. Viewing replay...",
+            status: "info",
+            duration: 3000,
+            isClosable: true,
+          });
           navigate(`/game-replay/${createdGameId}`);
         } else {
           console.log(`Navigating to game with stored game ID: ${createdGameId}`);
+          toast({
+            title: "Entering game",
+            description: "Loading your game...",
+            status: "info",
+            duration: 2000,
+            isClosable: true,
+          });
           navigate(`/game/${createdGameId}`);
         }
       } catch (error) {
         console.error('Error checking game status:', error);
         navigate(`/game/${createdGameId}`);
+      } finally {
+        setLoading(false);
       }
     } else {
       console.error('No game ID available for direct navigation');
       setError('Could not find the game. Please create a new game or join with the code.');
+      toast({
+        title: "Error",
+        description: "Could not find the game. Please create a new game.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-center">Play with a Friend</h1>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-      
-      {gameCode ? (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <h2 className="text-lg font-semibold mb-2">Game Created!</h2>
-          <p className="text-sm mb-3">Share this code with your friend:</p>
-          
-          <div className="flex mb-4">
-            <input
-              ref={gameCodeRef}
-              type="text"
-              value={gameCode}
-              className="flex-grow px-3 py-2 border rounded-l-md bg-gray-50"
-              readOnly
-            />
-            <button 
-              onClick={copyCodeToClipboard}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-md"
-            >
-              Copy
-            </button>
-          </div>
-          
-          {showCopiedMessage && (
-            <p className="text-sm text-green-600 mb-3">Copied to clipboard!</p>
-          )}
-          
-          <div className="flex justify-between">
-            <button
-              onClick={() => {
-                setGameCode('');
-                setCreatedGameId(null);
-              }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100"
-            >
-              Create Another
-            </button>
-            <button
-              onClick={joinCreatedGame}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              Enter Game
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3">Create a Game</h2>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
-              disabled={loading}
-            >
-              {loading ? 'Creating...' : 'Create New Game'}
-            </button>
-          </div>
-          
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3">Join with Code</h2>
-            <div className="flex mb-2">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="Enter game code"
-                className="flex-grow px-3 py-2 border rounded-l-md"
-              />
-              <button
-                onClick={handleJoinGame}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-r-md"
-                disabled={loading || !joinCode}
+    <Container maxW="lg" py={8}>
+      <Card borderRadius="lg" boxShadow="md" bg="chess-light">
+        <CardHeader pb={2}>
+          <Flex align="center" justify="center">
+            <Icon as={FaUserFriends} boxSize={6} color="primary" mr={3} />
+            <Heading size="lg" color="chess-dark">Play with a Friend</Heading>
+          </Flex>
+        </CardHeader>
+        
+        <CardBody pt={3}>
+          <VStack spacing={4} align="stretch">
+            {error && (
+              <Alert status="error" borderRadius="md">
+                <AlertIcon />
+                {error}
+              </Alert>
+            )}
+            
+            {gameCode ? (
+              <Box
+                p={4}
+                borderRadius="md"
+                borderWidth="1px"
+                borderColor="green.200"
+                bg="green.50"
               >
-                {loading ? 'Joining...' : 'Join'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+                <Heading size="sm" mb={2} color="green.700">
+                  Game Created Successfully!
+                </Heading>
+                
+                <Text fontSize="sm" mb={3} color="gray.600">
+                  Share this code with your friend:
+                </Text>
+                
+                <InputGroup size="md" mb={4}>
+                  <Input
+                    value={gameCode}
+                    isReadOnly
+                    bg="white"
+                    borderColor="gray.300"
+                  />
+                  <InputRightElement width="4.5rem">
+                    <Button 
+                      h="1.75rem" 
+                      size="sm" 
+                      onClick={onCopy} 
+                      bg="primary"
+                      color="white"
+                      _hover={{ bg: "chess-hover" }}
+                      mx={1}
+                    >
+                      <Icon as={hasCopied ? FaClipboardCheck : FaClipboard} />
+                    </Button>
+                  </InputRightElement>
+                </InputGroup>
+                
+                {hasCopied && (
+                  <Text fontSize="sm" color="green.500" mb={3}>
+                    Copied to clipboard!
+                  </Text>
+                )}
+                
+                <Flex justify="space-between">
+                  <Button
+                    leftIcon={<Icon as={FaPlus} />}
+                    onClick={() => {
+                      setGameCode('');
+                      setCreatedGameId(null);
+                    }}
+                    variant="outline"
+                    colorScheme="gray"
+                  >
+                    Create Another
+                  </Button>
+                  
+                  <Button
+                    onClick={joinCreatedGame}
+                    isLoading={loading}
+                    loadingText="Entering..."
+                    bg="primary"
+                    color="white"
+                    _hover={{ bg: "chess-hover" }}
+                  >
+                    Enter Game
+                  </Button>
+                </Flex>
+              </Box>
+            ) : (
+              <>
+                <Box>
+                  <Heading size="sm" mb={3} color="chess-dark">Create a Game</Heading>
+                  <Button
+                    onClick={onOpen}
+                    isLoading={loading && !gameCode}
+                    loadingText="Creating..."
+                    leftIcon={<Icon as={FaPlus} />}
+                    w="100%"
+                    bg="primary"
+                    color="white"
+                    _hover={{ bg: "chess-hover" }}
+                    size="lg"
+                  >
+                    Create New Game
+                  </Button>
+                </Box>
+                
+                <Divider my={4} />
+                
+                <Box>
+                  <Heading size="sm" mb={3} color="chess-dark">Join with Code</Heading>
+                  <HStack>
+                    <Input
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      placeholder="Enter game code"
+                      borderColor="gray.300"
+                      _focus={{ borderColor: "primary" }}
+                    />
+                    <Button
+                      onClick={handleJoinGame}
+                      isLoading={loading && joinCode}
+                      loadingText="Joining..."
+                      isDisabled={!joinCode}
+                      bg="primary"
+                      color="white"
+                      _hover={{ bg: "chess-hover" }}
+                      size="md"
+                      px={6}
+                    >
+                      Join
+                    </Button>
+                  </HStack>
+                </Box>
+              </>
+            )}
+          </VStack>
+        </CardBody>
+        
+        <CardFooter pt={0} justifyContent="center">
+          <Button
+            leftIcon={<Icon as={FaArrowLeft} />}
+            onClick={() => navigate('/lobby')}
+            variant="ghost"
+            color="primary"
+          >
+            Back to Game Lobby
+          </Button>
+        </CardFooter>
+      </Card>
       
-      <div className="text-center mt-4">
-        <button
-          onClick={() => navigate('/lobby')}
-          className="text-blue-500 hover:underline"
-        >
-          Back to Game Lobby
-        </button>
-      </div>
-      
-      {showCreateModal && (
+      {isOpen && (
         <CreateGameModal
-          onClose={() => setShowCreateModal(false)}
+          onClose={onClose}
           onCreateGame={(timeControl) => {
             handleCreateGame(timeControl);
-            setShowCreateModal(false);
+            onClose();
           }}
         />
       )}
-    </div>
+    </Container>
   );
 };
 

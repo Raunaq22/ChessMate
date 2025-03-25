@@ -1,6 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import ThemedChessboard from '../Board/ThemedChessboard';
+import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Grid,
+  GridItem,
+  Badge,
+  Divider,
+  Progress,
+  HStack,
+  VStack,
+  useColorModeValue,
+  Tooltip,
+  Spinner
+} from '@chakra-ui/react';
+import { FaChessBoard, FaArrowLeft, FaArrowRight, FaStepBackward, FaStepForward, FaBrain, FaChess } from 'react-icons/fa';
 
 const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   const [game, setGame] = useState(new Chess(initialFen || 'start'));
@@ -16,6 +42,14 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   const [customPosition, setCustomPosition] = useState(null); // Store custom position FEN
   const engineRef = useRef(null);
   const containerRef = useRef(null);
+  
+  // Colors from theme
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const headerBg = useColorModeValue('chess-hover', 'chess-dark');
+  const textColor = useColorModeValue('chess-dark', 'white');
+  const btnBgColor = useColorModeValue('primary', 'primary');
+  const btnHoverColor = useColorModeValue('chess-hover', 'chess-dark');
+  const evaluationBarBg = useColorModeValue('gray.200', 'gray.700');
   
   // Initialize Stockfish
   useEffect(() => {
@@ -236,163 +270,224 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-5/6 flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-bold">
-            Game Analysis
-            {isOffBook && (
-              <span className="ml-2 text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                Exploring variations
-              </span>
-            )}
-          </h2>
-          <button 
-            onClick={onClose} 
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen={true} onClose={onClose} size="6xl" isCentered>
+      <ModalOverlay backdropFilter="blur(3px)" />
+      <ModalContent bg={bgColor} borderRadius="lg" shadow="xl" h="90vh" maxH="900px">
+        <ModalHeader bg={headerBg} color="white" borderTopRadius="lg" display="flex" alignItems="center">
+          <Box mr={2}><FaChess /></Box>
+          <Heading size="lg">Game Analysis</Heading>
+          {isOffBook && (
+            <Badge ml={3} colorScheme="yellow" fontSize="sm">Exploring Variations</Badge>
+          )}
+        </ModalHeader>
+        <ModalCloseButton color="white" />
         
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 flex-grow overflow-hidden">
-          {/* Evaluation bar */}
-          <div className="hidden md:block md:col-span-1">
-            <div className="relative h-full w-8 mx-auto bg-gray-200 rounded overflow-hidden">
-              <div 
-                className="absolute bottom-0 left-0 right-0 bg-black transition-all duration-300"
-                style={{ height: getEvaluationBarHeight() }}
-              ></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-mono font-bold text-gray-800 bg-white bg-opacity-70 px-1 rounded">
-                  {evaluation?.formatted || '0.00'}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Chessboard - with visual indication for off-book */}
-          <div 
-            ref={containerRef}
-            className={`md:col-span-3 flex flex-col items-center justify-center ${isOffBook ? 'bg-yellow-50 p-2 rounded' : ''}`}
-          >
-            <ThemedChessboard
-              position={position}
-              boardWidth={boardSize}
-              customArrows={arrows}
-              areArrowsAllowed={false}
-              showBoardNotation={true}
-              onPieceDrop={onDrop} // Enable making moves
-              customBoardStyle={{
-                opacity: isOffBook ? '0.95' : '1', // Slightly transparent when exploring variations
-              }}
-            />
+        <ModalBody p={4} overflow="hidden">
+          <Grid templateColumns={{ base: "1fr", md: "80px 1fr 300px" }} gap={4} h="100%">
+            {/* Evaluation bar */}
+            <GridItem display={{ base: 'none', md: 'block' }}>
+              <Box position="relative" h="100%" w="40px" mx="auto" bg={evaluationBarBg} borderRadius="md" overflow="hidden">
+                <Box 
+                  position="absolute" 
+                  bottom="0" 
+                  left="0" 
+                  right="0" 
+                  bg="black" 
+                  transition="height 0.3s"
+                  height={getEvaluationBarHeight()}
+                />
+                <Flex position="absolute" inset="0" align="center" justify="center">
+                  <Badge 
+                    fontSize="sm" 
+                    variant="solid" 
+                    colorScheme={evaluation?.score > 0 ? "green" : evaluation?.score < 0 ? "red" : "gray"}
+                    py={1}
+                    px={2}
+                    fontFamily="mono"
+                  >
+                    {evaluation?.formatted || '0.00'}
+                  </Badge>
+                </Flex>
+              </Box>
+            </GridItem>
             
-            {isOffBook && (
-              <button
-                onClick={() => returnToGamePosition(currentMoveIndex)}
-                className="mt-4 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            {/* Chessboard with analysis */}
+            <GridItem ref={containerRef}>
+              <Box 
+                bg={isOffBook ? "yellow.50" : "transparent"} 
+                p={3} 
+                borderRadius="md"
+                borderWidth={isOffBook ? "1px" : "0"}
+                borderColor="yellow.300"
+                h="100%"
+                display="flex"
+                flexDir="column"
+                justifyContent="center"
+                alignItems="center"
               >
-                Return to game position
-              </button>
-            )}
-          </div>
-          
-          {/* Move history */}
-          <div className="md:col-span-1 overflow-y-auto">
-            <div className="bg-gray-50 p-3 rounded-lg shadow-inner h-full">
-              <h3 className="font-semibold mb-2">Move History</h3>
-              <div className="grid grid-cols-3 gap-1 text-sm">
-                {gameHistory.map((move, idx) => {
-                  const moveNumber = Math.floor(idx / 2) + 1;
-                  const isWhiteMove = idx % 2 === 0;
-                  const isCurrentMove = !isOffBook && currentMoveIndex === idx;
-                  
-                  return (
-                    <React.Fragment key={idx}>
-                      {isWhiteMove && <span className="text-gray-500">{moveNumber}.</span>}
-                      <span 
-                        className={`cursor-pointer py-1 px-1 rounded 
-                          ${isCurrentMove ? 'bg-blue-100 font-medium' : 'hover:bg-gray-100'}`}
-                        onClick={() => {
-                          // Always return to game mode when clicking a move
-                          returnToGamePosition(idx);
-                        }}
-                      >
-                        {move.notation}
-                      </span>
-                      {!isWhiteMove && idx === gameHistory.length - 1 && <span></span>}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+                <ThemedChessboard
+                  position={position}
+                  boardWidth={boardSize}
+                  customArrows={arrows}
+                  areArrowsAllowed={false}
+                  showBoardNotation={true}
+                  onPieceDrop={onDrop}
+                  customBoardStyle={{
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    borderRadius: "4px",
+                    opacity: isOffBook ? '0.95' : '1',
+                  }}
+                />
+                
+                {isOffBook && (
+                  <Button
+                    onClick={() => returnToGamePosition(currentMoveIndex)}
+                    mt={4}
+                    colorScheme="blue"
+                    leftIcon={<FaChessBoard />}
+                    size="md"
+                  >
+                    Return to Game Position
+                  </Button>
+                )}
+                
+                {loading && (
+                  <Flex 
+                    position="absolute" 
+                    top="50%" 
+                    left="50%" 
+                    transform="translate(-50%, -50%)" 
+                    bg="blackAlpha.700" 
+                    color="white" 
+                    p={3} 
+                    borderRadius="md"
+                    alignItems="center"
+                  >
+                    <Spinner size="sm" mr={2} />
+                    <Text>Analyzing position...</Text>
+                  </Flex>
+                )}
+              </Box>
+            </GridItem>
+            
+            {/* Move history */}
+            <GridItem>
+              <Box 
+                bg="chess-light" 
+                p={4} 
+                borderRadius="md" 
+                boxShadow="sm" 
+                h="100%" 
+                display="flex"
+                flexDirection="column"
+              >
+                <Heading size="md" mb={3} color="chess-dark">Move History</Heading>
+                <Divider mb={3} />
+                
+                <Box overflowY="auto" flex="1" mb={2} px={1}>
+                  <Grid templateColumns="max-content 1fr 1fr" gap={1} fontSize="sm">
+                    {gameHistory.map((move, idx) => {
+                      const moveNumber = Math.floor(idx / 2) + 1;
+                      const isWhiteMove = idx % 2 === 0;
+                      const isCurrentMove = !isOffBook && currentMoveIndex === idx;
+                      
+                      return (
+                        <React.Fragment key={idx}>
+                          {isWhiteMove && (
+                            <Text color="gray.500" fontWeight="medium">{moveNumber}.</Text>
+                          )}
+                          <Button
+                            variant={isCurrentMove ? "solid" : "ghost"}
+                            size="xs"
+                            bg={isCurrentMove ? "primary" : "transparent"}
+                            color={isCurrentMove ? "white" : "chess-dark"}
+                            _hover={{ bg: isCurrentMove ? "primary" : "gray.100" }}
+                            onClick={() => returnToGamePosition(idx)}
+                            h="auto"
+                            py={1}
+                            fontFamily="mono"
+                            justifyContent="flex-start"
+                          >
+                            {move.notation}
+                          </Button>
+                          {!isWhiteMove && idx === gameHistory.length - 1 && <Box />}
+                        </React.Fragment>
+                      );
+                    })}
+                  </Grid>
+                </Box>
+                
+                {bestMove && (
+                  <Box mt="auto" p={2} bg="blue.50" borderRadius="md">
+                    <Flex alignItems="center" mb={1}>
+                      <Box as={FaBrain} color="blue.500" mr={2} />
+                      <Text fontWeight="medium" color="blue.700">Engine Suggestion</Text>
+                    </Flex>
+                    <Text fontSize="sm" color="gray.700">
+                      Best move: <Badge colorScheme="green">{bestMove}</Badge>
+                      {evaluation && (
+                        <Text as="span" ml={2}>
+                          ({evaluation.formatted})
+                        </Text>
+                      )}
+                    </Text>
+                  </Box>
+                )}
+              </Box>
+            </GridItem>
+          </Grid>
+        </ModalBody>
         
-        <div className="p-4 border-t">
-          <div className="flex justify-center space-x-4">
-            <button 
-              onClick={handleFirstMove} 
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={!isOffBook && currentMoveIndex === -1}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2H5zM15 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2h-1z" />
-              </svg>
-            </button>
-            <button 
-              onClick={handlePreviousMove} 
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={!isOffBook && currentMoveIndex === -1}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <button 
-              onClick={handleNextMove} 
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <button 
-              onClick={handleLastMove} 
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              disabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h1a2 2 0 002-2V5a2 2 0 00-2-2H5zM15 17a2 2 0 002-2V5a2 2 0 00-2-2h-1a2 2 0 00-2 2v10a2 2 0 002 2h1z" />
-              </svg>
-            </button>
-          </div>
+        <ModalFooter bg="gray.100" borderBottomRadius="lg">
+          <HStack spacing={3} justify="center" width="100%">
+            <Tooltip label="First Move">
+              <IconButton
+                icon={<FaStepBackward />}
+                onClick={handleFirstMove}
+                colorScheme="gray"
+                isDisabled={!isOffBook && currentMoveIndex === -1}
+                aria-label="First move"
+              />
+            </Tooltip>
+            <Tooltip label="Previous Move">
+              <IconButton
+                icon={<FaArrowLeft />}
+                onClick={handlePreviousMove}
+                colorScheme="gray" 
+                isDisabled={!isOffBook && currentMoveIndex === -1}
+                aria-label="Previous move"
+              />
+            </Tooltip>
+            <Tooltip label="Next Move">
+              <IconButton
+                icon={<FaArrowRight />}
+                onClick={handleNextMove}
+                colorScheme="gray"
+                isDisabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
+                aria-label="Next move"
+              />
+            </Tooltip>
+            <Tooltip label="Last Move">
+              <IconButton
+                icon={<FaStepForward />}
+                onClick={handleLastMove}
+                colorScheme="gray"
+                isDisabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
+                aria-label="Last move"
+              />
+            </Tooltip>
+          </HStack>
           
-          <div className="mt-4 text-center">
-            {!engineReady && (
-              <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-sm rounded">
+          {!engineReady && (
+            <Box mt={3} textAlign="center" w="100%">
+              <Badge colorScheme="red" p={2}>
                 Stockfish engine failed to load. Please check console for errors.
-              </span>
-            )}
-            {loading && engineReady && (
-              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">
-                Analyzing position...
-              </span>
-            )}
-            {isOffBook && (
-              <div className="mt-2 text-sm text-gray-600">
-                You're exploring a variation. Moves on the board will be analyzed,
-                but aren't part of the original game.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+              </Badge>
+            </Box>
+          )}
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 };
 

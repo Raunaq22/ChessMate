@@ -5,23 +5,15 @@ import axios from 'axios';
 import OAuthButtons from './OAuth/OAuthButtons';
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { register, login } = useContext(AuthContext);
   const navigate = useNavigate();
-  
-  const { username, email, password, confirmPassword } = formData;
-  
-  const handleChange = e => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
   
   const handleSubmit = async e => {
     e.preventDefault();
@@ -48,97 +40,113 @@ const Register = () => {
   };
   
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">Create an Account</h2>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
-          <p>{error}</p>
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
-            Username
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="username"
-            type="text"
-            name="username"
-            value={username}
-            onChange={handleChange}
-            placeholder="Username"
-            required
-            minLength="3"
-          />
+    <div className="flex flex-col justify-center items-center min-h-screen">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold text-white mb-2">Create an account</h2>
+          <p className="text-gray-300">Enter your email below to create your account</p>
         </div>
         
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
-            Email
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="email"
-            type="email"
-            name="email"
-            value={email}
-            onChange={handleChange}
-            placeholder="Email"
-            required
-          />
-        </div>
+        {error && (
+          <div className="p-4 border rounded-md bg-red-100 border-red-300 text-red-700 mb-6">
+            <p>{error}</p>
+          </div>
+        )}
         
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
-            Password
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="password"
-            type="password"
-            name="password"
-            value={password}
-            onChange={handleChange}
-            placeholder="Password"
-            required
-            minLength="6"
-          />
+        <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-200">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700" htmlFor="username">
+                Username
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                required
+                minLength="3"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700" htmlFor="email">
+                Email
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700" htmlFor="password">
+                Password
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength="6"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700" htmlFor="confirmPassword">
+                Confirm Password
+              </label>
+              <input
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-4 py-2 px-4 rounded-md bg-primary hover:bg-chess-hover text-white font-medium transition-colors"
+            >
+              {loading ? 'Creating Account...' : 'Sign Up with Email'}
+            </button>
+          </form>
+          
+          <div className="relative mt-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">OR CONTINUE WITH</span>
+            </div>
+          </div>
+          
+          <div className="mt-6">
+            <OAuthButtons />
+          </div>
+          
+          <div className="mt-6 text-center text-sm">
+            <span className="text-gray-500">Already have an account?</span>{' '}
+            <Link to="/login" className="font-medium text-primary hover:text-chess-hover">
+              Sign in
+            </Link>
+          </div>
         </div>
-        
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="confirmPassword">
-            Confirm Password
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="confirmPassword"
-            type="password"
-            name="confirmPassword"
-            value={confirmPassword}
-            onChange={handleChange}
-            placeholder="Confirm Password"
-            required
-          />
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <button
-            className="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : 'Register'}
-          </button>
-          <Link to="/login" className="text-primary hover:text-blue-700 text-sm">
-            Already have an account? Login
-          </Link>
-        </div>
-      </form>
-      
-      <OAuthButtons />
+      </div>
     </div>
   );
 };

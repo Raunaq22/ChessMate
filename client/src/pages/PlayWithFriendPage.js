@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import gameService from '../services/gameService';
@@ -8,7 +8,6 @@ import {
   Container,
   Divider,
   Flex,
-  FormControl,
   Heading,
   Icon,
   Input,
@@ -31,7 +30,7 @@ import { FaUserFriends, FaClipboard, FaClipboardCheck, FaArrowLeft, FaPlus } fro
 import CreateGameModal from '../components/Game/CreateGameModal';
 
 const PlayWithFriendPage = () => {
-  const { currentUser } = useContext(AuthContext);
+  const { } = useContext(AuthContext);
   const [joinCode, setJoinCode] = useState('');
   const [gameCode, setGameCode] = useState('');
   const [createdGameId, setCreatedGameId] = useState(null);

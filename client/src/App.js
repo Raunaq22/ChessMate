@@ -21,20 +21,17 @@ import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './context/ThemeContext';
 import theme from './config/theme'; // Ensure this path is correct
 
-// Format image URL helper function
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return url;
-};
+// Import formatImageUrl from utils instead of redefining it
+import { formatImageUrl } from './utils/imageUtils';
 
 // Profile Avatar Component - will only be rendered when AuthContext is available
 const ProfileAvatar = () => {
-  const { currentUser, isAuthenticated } = React.useContext(AuthContext);
+  const { isAuthenticated, currentUser } = React.useContext(AuthContext);
   
   if (!isAuthenticated || !currentUser) return null;
   
   const name = currentUser.username || 'User';
+  // Using imported formatImageUrl function
   const src = formatImageUrl(currentUser.profile_image_url);
   
   return (

@@ -2,13 +2,12 @@ import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import UserAvatar, { formatImageUrl } from '../components/common/UserAvatar';
+import { formatImageUrl } from '../utils/imageUtils';
 import {
   Box,
   Container,
   Flex,
   VStack,
-  HStack,
   Heading,
   Text,
   Button,
@@ -48,7 +47,6 @@ const ProfilePage = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'descending' });
 
   const bgCard = useColorModeValue('white', 'gray.800');
-  const bgHeader = useColorModeValue('primary', 'primary');
   const bgHover = useColorModeValue('gray.50', 'gray.700');
   const bgStatCard = useColorModeValue('gray.50', 'gray.700');
 

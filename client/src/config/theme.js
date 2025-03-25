@@ -8,7 +8,7 @@ const theme = extendTheme({
   styles: {
     global: {
       body: {
-        bg: 'gray.50',
+        bg: 'chess-dark',
         color: 'gray.800',
       },
     },
@@ -21,11 +21,11 @@ const theme = extendTheme({
       600: '#4f46e5',
       900: '#312e81',
     },
-    'chess-dark': '#444545',
-    'chess-light': '#FDF0D5',
-    'chess-hover': '#A77E58',
-    'primary': '#5C9EAD',
-    'secondary': '#8D99AE'
+    'chess-dark': '#706C61',
+    'chess-light': '#899E8B',
+    'chess-hover': '#99C5B5',
+    'primary': '#76ABAE',
+    'secondary': '#EEEEEE'
   },
   components: {
     Button: {

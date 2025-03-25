@@ -34,8 +34,8 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   // Use Chakra UI color mode values
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const bgColor = useColorModeValue('chess-light', 'gray.800');
+  const borderColor = useColorModeValue('chess-light', 'gray.700');
   const activeBg = useColorModeValue('blue.500', 'blue.400');
   const hoverBg = useColorModeValue('gray.100', 'gray.700');
   

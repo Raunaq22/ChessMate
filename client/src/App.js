@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ChakraProvider, CSSReset } from '@chakra-ui/react';
+import { ChakraProvider, CSSReset, Box } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import Sidebar from './components/common/Sidebar';
 import Home from './pages/Home';
@@ -29,10 +29,10 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <Router>
-            <div className="flex min-h-screen bg-gray-100">
+            <Box display="flex" minH="100vh">
               <Sidebar />
-              <div className="flex-1 flex flex-col">
-                <main className="flex-grow p-4 md:p-8">
+              <Box flex="1" display="flex" flexDir="column">
+                <Box as="main" flexGrow="1" p={{ base: 4, md: 8 }}>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/oauth-callback" element={<OAuthCallback />} />
@@ -52,9 +52,9 @@ function App() {
                       <Route path="privacy" element={<PrivacySettings />} />
                     </Route>
                   </Routes>
-                </main>
-              </div>
-            </div>
+                </Box>
+              </Box>
+            </Box>
           </Router>
         </ThemeProvider>
       </AuthProvider>

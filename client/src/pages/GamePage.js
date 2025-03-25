@@ -140,21 +140,21 @@ const GamePage = () => {
         p={3}
         borderRadius="lg"
         cursor="pointer"
-        bg="chess-light"
+        bg="chess-hover"
         _hover={{ opacity: 0.9 }}
         onClick={() => playerId && navigate(`/profile/${playerId}`)}
       >
         <Avatar 
           size="md" 
           name={username} 
-          bg="primary" 
+          bg="chess-dark" 
           color="white" 
           mr={3}
         />
         <Box>
           <Text fontWeight="medium">{username}</Text>
           <Badge 
-            colorScheme={color === 'white' ? 'yellow' : 'gray'}
+            colorScheme={color === 'white'}
           >
             {color.charAt(0).toUpperCase() + color.slice(1)}
           </Badge>
@@ -279,7 +279,7 @@ const GamePage = () => {
                 <PlayerProfile color={playerColor === 'white' ? 'black' : 'white'} />
               </Box>
               <Flex 
-                bg="chess-dark" 
+                bg="chess-light" 
                 color="white" 
                 p={3} 
                 rounded="md" 
@@ -334,7 +334,7 @@ const GamePage = () => {
                 <PlayerProfile color={playerColor} />
               </Box>
               <Flex 
-                bg="chess-dark" 
+                bg="chess-light" 
                 color="white" 
                 p={3} 
                 rounded="md" 
@@ -411,7 +411,7 @@ const GamePage = () => {
         <Box w={{ base: "100%", md: "40%" }}>
           <VStack spacing={6} align="stretch" h="100%">
             {/* Game history */}
-            <Box bg="secondary" rounded="lg" shadow="md" p={4} flex="1">
+            <Box bg="chess-hover" rounded="lg" shadow="md" p={4} flex="1">
               <Flex align="center" mb={4}>
                 <FaHistory style={{ marginRight: '8px' }} />
                 <Heading as="h2" size="lg" color="white">Game History</Heading>
@@ -460,7 +460,7 @@ const GamePage = () => {
             </Box>
             
             {/* Chat */}
-            <Box bg="secondary" rounded="lg" shadow="md" p={4} flex="1">
+            <Box bg="chess-hover" rounded="lg" shadow="md" p={4} flex="1">
               <Flex align="center" mb={4}>
                 <FaComment style={{ marginRight: '8px' }} />
                 <Heading as="h2" size="lg" color="white">Chat</Heading>

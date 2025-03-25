@@ -33,7 +33,7 @@ const ChatWindow = ({ messages = [], currentUser }) => {
     >
       {!messages || messages.length === 0 ? (
         <Flex h="full" align="center" justify="center">
-          <Text color="gray.500">No messages yet. Start chatting!</Text>
+          <Text color="white.500">No messages yet. Start chatting!</Text>
         </Flex>
       ) : (
         <VStack spacing={3} align="stretch">

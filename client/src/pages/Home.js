@@ -5,35 +5,48 @@ import ThemedChessboard from '../components/Board/ThemedChessboard';
 import {
   Box,
   Flex,
-  Heading,
   VStack,
   Button,
-  Text,
-  useBreakpointValue,
   Container,
   Icon,
-  Center
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { FaChessKnight, FaUserFriends, FaRobot, FaTrophy } from 'react-icons/fa';
 import useWindowSize from '../hooks/useWindowSize';
+
+// Format image URL helper function
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return url;
+};
 
 const Home = () => {
   const { isAuthenticated, currentUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
-  const [boardSize, setBoardSize] = useState(480);
+  const [boardSize, setBoardSize] = useState(560);
   
   const isMobile = useBreakpointValue({ base: true, md: false });
   
-  // Responsive board size
+  // Responsive board size that updates on window resize
   useEffect(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      const newSize = Math.min(containerWidth, windowHeight * 0.7);
-      setBoardSize(newSize);
-    }
-  }, [windowWidth, windowHeight, containerRef]);
+    const handleResize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const newSize = Math.min(containerWidth * 0.95, windowHeight * 0.8);
+        setBoardSize(newSize);
+      }
+    };
+    
+    handleResize(); // Initial size
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [windowWidth, windowHeight]);
   
   const checkAuth = (path) => {
     if (!isAuthenticated) {
@@ -43,74 +56,76 @@ const Home = () => {
     navigate(path);
   };
 
+  // Get profile image or first letter for avatar
+  const getAvatarInfo = () => {
+    if (!currentUser) return { name: 'User' };
+    
+    return {
+      name: currentUser.username || 'User',
+      src: formatImageUrl(currentUser.profile_image_url)
+    };
+  };
+
   return (
-    <Container maxW="100%" px={4} py={8}>
-      <Heading 
-        as="h1" 
-        size="2xl" 
-        mb={8} 
-        textAlign="center"
-        color="chess-dark"
-      >
-        Welcome to ChessMate
-        {currentUser && (
-          <Text fontSize="lg" mt={2} fontWeight="normal">
-            {currentUser.username}
-          </Text>
-        )}
-      </Heading>
-      
+    <Container maxW="100%" p={0}>
       <Flex 
         direction={{ base: "column", md: "row" }} 
-        gap={8} 
-        justify="center" 
+        gap={{ base: 8, md: 4 }}
+        justify="space-between" 
         align="center"
+        pt={{ base: 6, md: 8 }}
+        px={{ base: 4, md: 8 }}
       >
-        {/* Chess board on left */}
-        <Center 
-          w={{ base: "100%", md: "55%" }} 
-          p={4}
+        {/* Chess board on left - responsive and centered */}
+        <Box 
+          w={{ base: "100%", md: "62%" }} 
+          mx="auto"
+          pl={{ base: 0, md: 2 }}
+          pr={{ base: 0, md: 4 }}
+          display="flex"
+          justifyContent={{ base: "center", md: "flex-start" }}
         >
           <Box
             ref={containerRef}
             bg="chess-light" 
-            p={4} 
+            p={{ base: 2, md: 4 }}
             rounded="xl" 
             shadow="xl"
             w="100%"
-            maxW="600px"
+            maxW="700px"
           >
             <ThemedChessboard
               id="home-board"
-              position="start"  // Empty board with pieces in starting position
+              position="start"
               boardWidth={boardSize}
               showBoardNotation={true}
               areArrowsAllowed={false}
               boardOrientation="white"
             />
           </Box>
-        </Center>
+        </Box>
         
         {/* Navigation buttons on right */}
         <VStack 
-          spacing={6} 
+          spacing={{ base: 4, md: 6 }} 
           align="stretch" 
           w={{ base: "100%", md: "35%" }}
+          pb={{ base: 6, md: 0 }}
         >
           <Button
             onClick={() => checkAuth('/lobby')}
             bg="primary"
             color="white"
             size="lg"
-            height="70px"
-            leftIcon={<Icon as={FaTrophy} boxSize={6} />}
+            height={{ base: "60px", md: "70px" }}
+            leftIcon={<Icon as={FaTrophy} boxSize={{ base: 5, md: 6 }} />}
             _hover={{ 
               bg: "chess-hover",
               transform: "translateY(-2px)",
               shadow: "lg"
             }}
             transition="all 0.2s"
-            fontSize="xl"
+            fontSize={{ base: "lg", md: "xl" }}
             borderRadius="lg"
             shadow="md"
           >
@@ -122,15 +137,15 @@ const Home = () => {
             bg="chess-hover"
             color="white"
             size="lg"
-            height="70px"
-            leftIcon={<Icon as={FaUserFriends} boxSize={6} />}
+            height={{ base: "60px", md: "70px" }}
+            leftIcon={<Icon as={FaUserFriends} boxSize={{ base: 5, md: 6 }} />}
             _hover={{ 
               bg: "primary",
               transform: "translateY(-2px)",
               shadow: "lg"
             }}
             transition="all 0.2s"
-            fontSize="xl"
+            fontSize={{ base: "lg", md: "xl" }}
             borderRadius="lg"
             shadow="md"
           >
@@ -142,15 +157,15 @@ const Home = () => {
             bg="white"
             color="chess-dark"
             size="lg"
-            height="70px"
-            leftIcon={<Icon as={FaRobot} boxSize={6} />}
+            height={{ base: "60px", md: "70px" }}
+            leftIcon={<Icon as={FaRobot} boxSize={{ base: 5, md: 6 }} />}
             _hover={{ 
               bg: "gray.100",
               transform: "translateY(-2px)",
               shadow: "lg"
             }}
             transition="all 0.2s"
-            fontSize="xl"
+            fontSize={{ base: "lg", md: "xl" }}
             borderRadius="lg"
             shadow="md"
           >

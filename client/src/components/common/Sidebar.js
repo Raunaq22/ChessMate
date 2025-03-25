@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import {
@@ -12,13 +12,14 @@ import {
   IconButton,
   Tooltip,
   Center,
+  Spacer,
   useColorModeValue
 } from '@chakra-ui/react';
 // Import icons individually to avoid dependency issues
 import { GoHome, GoGear, GoPerson, GoSignOut, GoSignIn, 
          GoPersonAdd, GoPeople, GoDeviceDesktop, GoTerminal } from "react-icons/go";
 // Import hamburger menu icon from Heroicons
-import { HiMenu } from "react-icons/hi";
+import { HiMenu, HiMenuAlt2 } from "react-icons/hi";
 
 // Format image URL helper function
 const formatImageUrl = (url) => {
@@ -32,12 +33,14 @@ const Sidebar = () => {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const hoverTimeoutRef = useRef(null);
   
-  // Use Chakra UI color mode values
-  const bgColor = useColorModeValue('chess-light', 'gray.800');
-  const borderColor = useColorModeValue('chess-light', 'gray.700');
-  const activeBg = useColorModeValue('blue.500', 'blue.400');
-  const hoverBg = useColorModeValue('gray.100', 'gray.700');
+  // Use Chakra UI color mode values (using theme colors)
+  const bgColor = 'chess-light';
+  const textColor = 'chess-dark';
+  const activeBg = 'primary';
+  const hoverBg = 'chess-hover';
   
   // Check if the current path matches the link
   const isActive = (path) => {
@@ -57,405 +60,366 @@ const Sidebar = () => {
     setIsMobileOpen(!isMobileOpen);
   };
 
-  // Toggle sidebar collapse
-  const toggleSidebar = () => {
+  // Toggle sidebar collapse using a direct handler
+  const handleToggleSidebar = () => {
+    console.log('Toggle button clicked - current state:', isCollapsed);
     setIsCollapsed(!isCollapsed);
   };
 
-  // Navigation items
-  const NavItems = () => (
-    <VStack spacing={3} align="stretch" width="100%" mt={2}>
-      {isCollapsed ? (
-        // Collapsed version with perfectly centered icons
+  // Determine if sidebar should be expanded (either not collapsed or hovering)
+  const shouldExpand = !isCollapsed || isHovering;
+  
+  // Handle mouse enter - expand the sidebar with delay
+  const handleMouseEnter = () => {
+    if (isCollapsed) {
+      // Clear any existing timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      
+      // Set timeout to prevent accidental hovering
+      hoverTimeoutRef.current = setTimeout(() => {
+        setIsHovering(true);
+      }, 300); // 300ms delay before opening
+    }
+  };
+  
+  // Handle mouse leave - collapse the sidebar with delay
+  const handleMouseLeave = () => {
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    
+    // Set timeout to prevent jitter when mouse briefly leaves
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovering(false);
+    }, 300); // 300ms delay before closing
+  };
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Debug log for collapsed state changes
+  useEffect(() => {
+    console.log('Sidebar width should now be:', isCollapsed ? '60px' : '220px');
+    // Force a layout recalculation to ensure transitions work
+    void document.body.offsetHeight; // Using void operator to indicate intentional side effect
+  }, [isCollapsed]);
+
+  // Main navigation items
+  const MainNavItems = () => (
+    <VStack spacing={3} align="stretch" width="100%" flex="1">
+      <Link to="/">
+        {!shouldExpand ? (
+          <Center 
+            as="button"
+            w="100%" 
+            h="42px"
+            bg={isActive('/') ? activeBg : 'transparent'}
+            color={isActive('/') ? 'white' : textColor}
+            _hover={{ bg: isActive('/') ? activeBg : hoverBg, color: 'white' }}
+            transition="all 0.2s"
+            borderRadius="md"
+          >
+            <Icon as={GoHome} boxSize="1.5rem" />
+          </Center>
+        ) : (
+          <Button 
+            leftIcon={<Icon as={GoHome} boxSize="1.5rem" />} 
+            variant={isActive('/') ? 'solid' : 'ghost'} 
+            bg={isActive('/') ? activeBg : 'transparent'}
+            color={isActive('/') ? 'white' : textColor}
+            _hover={{ bg: hoverBg, color: 'white' }}
+            justifyContent="flex-start"
+            width="100%"
+            px={4}
+            size="lg"
+            borderRadius="md"
+          >
+            Home
+          </Button>
+        )}
+      </Link>
+      
+      {isAuthenticated && (
         <>
-          <Link to="/">
-            <Box
-              position="relative"
-              w="100%"
-              overflow="hidden"
-              borderRadius="md"
-              transition="all 0.2s"
-            >
+          <Link to="/lobby">
+            {!shouldExpand ? (
               <Center 
                 as="button"
                 w="100%" 
                 h="42px"
-                bg={isActive('/') ? activeBg : 'transparent'}
-                color={isActive('/') ? 'white' : 'inherit'}
-                _hover={{ bg: isActive('/') ? 'blue.600' : hoverBg }}
+                bg={isActive('/lobby') ? activeBg : 'transparent'}
+                color={isActive('/lobby') ? 'white' : textColor}
+                _hover={{ bg: isActive('/lobby') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
-              >
-                <Icon as={GoHome} boxSize="1.5rem" />
-              </Center>
-            </Box>
-          </Link>
-          
-          {isAuthenticated ? (
-            <>
-              <Link to="/lobby">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/lobby') ? activeBg : 'transparent'}
-                    color={isActive('/lobby') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/lobby') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoPeople} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Link to="/play-friend">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/play-friend') ? activeBg : 'transparent'}
-                    color={isActive('/play-friend') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/play-friend') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoDeviceDesktop} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Link to="/play-computer">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/play-computer') ? activeBg : 'transparent'}
-                    color={isActive('/play-computer') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/play-computer') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoTerminal} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Link to="/profile">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/profile') ? activeBg : 'transparent'}
-                    color={isActive('/profile') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/profile') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoPerson} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Link to="/settings">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/settings') ? activeBg : 'transparent'}
-                    color={isActive('/settings') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/settings') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoGear} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Box
-                position="relative"
-                w="100%"
-                overflow="hidden"
                 borderRadius="md"
-                transition="all 0.2s"
               >
-                <Center 
-                  as="button"
-                  w="100%" 
-                  h="42px"
-                  color="red.500"
-                  _hover={{ bg: hoverBg, color: 'red.600' }}
-                  transition="all 0.2s"
-                  onClick={logout}
-                >
-                  <Icon as={GoSignOut} boxSize="1.5rem" />
-                </Center>
-              </Box>
-            </>
-          ) : (
-            <>
-              <Link to="/login">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/login') ? activeBg : 'transparent'}
-                    color={isActive('/login') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/login') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoSignIn} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-              
-              <Link to="/register">
-                <Box
-                  position="relative"
-                  w="100%"
-                  overflow="hidden"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  <Center 
-                    as="button"
-                    w="100%" 
-                    h="42px"
-                    bg={isActive('/register') ? activeBg : 'transparent'}
-                    color={isActive('/register') ? 'white' : 'inherit'}
-                    _hover={{ bg: isActive('/register') ? 'blue.600' : hoverBg }}
-                    transition="all 0.2s"
-                  >
-                    <Icon as={GoPersonAdd} boxSize="1.5rem" />
-                  </Center>
-                </Box>
-              </Link>
-            </>
-          )}
-        </>
-      ) : (
-        // Expanded version with text and icons
-        <>
-          <Link to="/">
-            <Button 
-              leftIcon={<Icon as={GoHome} boxSize="1.5rem" />} 
-              variant={isActive('/') ? 'solid' : 'ghost'} 
-              colorScheme={isActive('/') ? 'blue' : 'gray'}
-              justifyContent="flex-start"
-              width="100%"
-              px={4}
-              size="lg"
-              borderRadius="md"
-              transition="all 0.2s"
-            >
-              Home
-            </Button>
-          </Link>
-          
-          {isAuthenticated ? (
-            <>
-              <Link to="/lobby">
-                <Button 
-                  leftIcon={<Icon as={GoPeople} boxSize="1.5rem" />} 
-                  variant={isActive('/lobby') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/lobby') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Game Lobby
-                </Button>
-              </Link>
-              
-              <Link to="/play-friend">
-                <Button 
-                  leftIcon={<Icon as={GoDeviceDesktop} boxSize="1.5rem" />} 
-                  variant={isActive('/play-friend') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/play-friend') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Play a Friend
-                </Button>
-              </Link>
-              
-              <Link to="/play-computer">
-                <Button 
-                  leftIcon={<Icon as={GoTerminal} boxSize="1.5rem" />} 
-                  variant={isActive('/play-computer') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/play-computer') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Play Computer
-                </Button>
-              </Link>
-              
-              <Link to="/profile">
-                <Button 
-                  leftIcon={<Icon as={GoPerson} boxSize="1.5rem" />} 
-                  variant={isActive('/profile') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/profile') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Profile
-                </Button>
-              </Link>
-              
-              <Link to="/settings">
-                <Button 
-                  leftIcon={<Icon as={GoGear} boxSize="1.5rem" />} 
-                  variant={isActive('/settings') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/settings') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Settings
-                </Button>
-              </Link>
-              
+                <Icon as={GoPeople} boxSize="1.5rem" />
+              </Center>
+            ) : (
               <Button 
-                leftIcon={<Icon as={GoSignOut} boxSize="1.5rem" />} 
-                variant="ghost" 
-                colorScheme="red"
+                leftIcon={<Icon as={GoPeople} boxSize="1.5rem" />} 
+                variant={isActive('/lobby') ? 'solid' : 'ghost'} 
+                bg={isActive('/lobby') ? activeBg : 'transparent'}
+                color={isActive('/lobby') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
-                onClick={logout}
                 px={4}
                 size="lg"
                 borderRadius="md"
-                transition="all 0.2s"
               >
-                Logout
+                Game Lobby
               </Button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">
-                <Button 
-                  leftIcon={<Icon as={GoSignIn} boxSize="1.5rem" />} 
-                  variant={isActive('/login') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/login') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Login
-                </Button>
-              </Link>
-              
-              <Link to="/register">
-                <Button 
-                  leftIcon={<Icon as={GoPersonAdd} boxSize="1.5rem" />} 
-                  variant={isActive('/register') ? 'solid' : 'ghost'} 
-                  colorScheme={isActive('/register') ? 'blue' : 'gray'}
-                  justifyContent="flex-start"
-                  width="100%"
-                  px={4}
-                  size="lg"
-                  borderRadius="md"
-                  transition="all 0.2s"
-                >
-                  Register
-                </Button>
-              </Link>
-            </>
-          )}
+            )}
+          </Link>
+          
+          <Link to="/play-friend">
+            {!shouldExpand ? (
+              <Center 
+                as="button"
+                w="100%" 
+                h="42px"
+                bg={isActive('/play-friend') ? activeBg : 'transparent'}
+                color={isActive('/play-friend') ? 'white' : textColor}
+                _hover={{ bg: isActive('/play-friend') ? activeBg : hoverBg, color: 'white' }}
+                transition="all 0.2s"
+                borderRadius="md"
+              >
+                <Icon as={GoDeviceDesktop} boxSize="1.5rem" />
+              </Center>
+            ) : (
+              <Button 
+                leftIcon={<Icon as={GoDeviceDesktop} boxSize="1.5rem" />} 
+                variant={isActive('/play-friend') ? 'solid' : 'ghost'} 
+                bg={isActive('/play-friend') ? activeBg : 'transparent'}
+                color={isActive('/play-friend') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
+                justifyContent="flex-start"
+                width="100%"
+                px={4}
+                size="lg"
+                borderRadius="md"
+              >
+                Play a Friend
+              </Button>
+            )}
+          </Link>
+          
+          <Link to="/play-computer">
+            {!shouldExpand ? (
+              <Center 
+                as="button"
+                w="100%" 
+                h="42px"
+                bg={isActive('/play-computer') ? activeBg : 'transparent'}
+                color={isActive('/play-computer') ? 'white' : textColor}
+                _hover={{ bg: isActive('/play-computer') ? activeBg : hoverBg, color: 'white' }}
+                transition="all 0.2s"
+                borderRadius="md"
+              >
+                <Icon as={GoTerminal} boxSize="1.5rem" />
+              </Center>
+            ) : (
+              <Button 
+                leftIcon={<Icon as={GoTerminal} boxSize="1.5rem" />} 
+                variant={isActive('/play-computer') ? 'solid' : 'ghost'} 
+                bg={isActive('/play-computer') ? activeBg : 'transparent'}
+                color={isActive('/play-computer') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
+                justifyContent="flex-start"
+                width="100%"
+                px={4}
+                size="lg"
+                borderRadius="md"
+              >
+                Play Computer
+              </Button>
+            )}
+          </Link>
+          
+          <Link to="/profile">
+            {!shouldExpand ? (
+              <Center 
+                as="button"
+                w="100%" 
+                h="42px"
+                bg={isActive('/profile') ? activeBg : 'transparent'}
+                color={isActive('/profile') ? 'white' : textColor}
+                _hover={{ bg: isActive('/profile') ? activeBg : hoverBg, color: 'white' }}
+                transition="all 0.2s"
+                borderRadius="md"
+              >
+                <Icon as={GoPerson} boxSize="1.5rem" />
+              </Center>
+            ) : (
+              <Button 
+                leftIcon={<Icon as={GoPerson} boxSize="1.5rem" />} 
+                variant={isActive('/profile') ? 'solid' : 'ghost'} 
+                bg={isActive('/profile') ? activeBg : 'transparent'}
+                color={isActive('/profile') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
+                justifyContent="flex-start"
+                width="100%"
+                px={4}
+                size="lg"
+                borderRadius="md"
+              >
+                Profile
+              </Button>
+            )}
+          </Link>
+        </>
+      )}
+      
+      {!isAuthenticated && (
+        <>
+          <Link to="/login">
+            {!shouldExpand ? (
+              <Center 
+                as="button"
+                w="100%" 
+                h="42px"
+                bg={isActive('/login') ? activeBg : 'transparent'}
+                color={isActive('/login') ? 'white' : textColor}
+                _hover={{ bg: isActive('/login') ? activeBg : hoverBg, color: 'white' }}
+                transition="all 0.2s"
+                borderRadius="md"
+              >
+                <Icon as={GoSignIn} boxSize="1.5rem" />
+              </Center>
+            ) : (
+              <Button 
+                leftIcon={<Icon as={GoSignIn} boxSize="1.5rem" />} 
+                variant={isActive('/login') ? 'solid' : 'ghost'} 
+                bg={isActive('/login') ? activeBg : 'transparent'}
+                color={isActive('/login') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
+                justifyContent="flex-start"
+                width="100%"
+                px={4}
+                size="lg"
+                borderRadius="md"
+              >
+                Login
+              </Button>
+            )}
+          </Link>
+          
+          <Link to="/register">
+            {!shouldExpand ? (
+              <Center 
+                as="button"
+                w="100%" 
+                h="42px"
+                bg={isActive('/register') ? activeBg : 'transparent'}
+                color={isActive('/register') ? 'white' : textColor}
+                _hover={{ bg: isActive('/register') ? activeBg : hoverBg, color: 'white' }}
+                transition="all 0.2s"
+                borderRadius="md"
+              >
+                <Icon as={GoPersonAdd} boxSize="1.5rem" />
+              </Center>
+            ) : (
+              <Button 
+                leftIcon={<Icon as={GoPersonAdd} boxSize="1.5rem" />} 
+                variant={isActive('/register') ? 'solid' : 'ghost'} 
+                bg={isActive('/register') ? activeBg : 'transparent'}
+                color={isActive('/register') ? 'white' : textColor}
+                _hover={{ bg: hoverBg, color: 'white' }}
+                justifyContent="flex-start"
+                width="100%"
+                px={4}
+                size="lg"
+                borderRadius="md"
+              >
+                Register
+              </Button>
+            )}
+          </Link>
         </>
       )}
     </VStack>
   );
 
-  // Sidebar Content Component - reused in both mobile and desktop
-  const SidebarContent = () => (
-    <Flex direction="column" h="100%" p={isCollapsed ? 2 : 5}>
-      <Flex justify={isCollapsed ? "center" : "space-between"} align="center" mb={6}>
-        {!isCollapsed && <Text fontSize="xl" fontWeight="bold">ChessMate</Text>}
-        <Center
-          onClick={toggleSidebar}
-          cursor="pointer"
-          borderRadius="md"
-          p={2}
-          transition="all 0.2s"
-          _hover={{ bg: hoverBg }}
-        >
-          <Icon as={HiMenu} boxSize="1.5rem" />
-        </Center>
-      </Flex>
+  // Bottom icons for settings and logout
+  const BottomIcons = () => (
+    <Flex width="100%" justify={shouldExpand ? "space-between" : "center"} mt={4}>
+      {/* Settings icon - bottom left */}
+      <Link to="/settings">
+        <Tooltip label={!shouldExpand ? "Settings" : ""} placement="right">
+          <Center 
+            as="button"
+            w={10} 
+            h={10}
+            borderRadius="md"
+            bg={isActive('/settings') ? activeBg : 'transparent'}
+            color={isActive('/settings') ? 'white' : textColor}
+            _hover={{ bg: isActive('/settings') ? activeBg : hoverBg, color: 'white' }}
+            transition="all 0.2s"
+          >
+            <Icon as={GoGear} boxSize="1.3rem" />
+          </Center>
+        </Tooltip>
+      </Link>
       
-      {showProfileImage && !isCollapsed && (
-        <Flex direction="column" align="center" my="6">
-          <Avatar size="xl" src={avatarSrc} name={currentUser.username || "User"} />
-          <Text mt="2" fontWeight="medium">
-            {currentUser.username}
-          </Text>
-          <Box h="1px" bg={borderColor} w="100%" my={4} />
-        </Flex>
+      {/* Logout icon - bottom right (only if authenticated and expanded) */}
+      {isAuthenticated && shouldExpand && (
+        <Tooltip label={!shouldExpand ? "Logout" : ""} placement="right">
+          <Center 
+            as="button"
+            w={10} 
+            h={10}
+            borderRadius="md"
+            color="chess-dark"
+            _hover={{ bg: hoverBg, color: 'white' }}
+            transition="all 0.2s"
+            onClick={logout}
+          >
+            <Icon as={GoSignOut} boxSize="1.3rem" />
+          </Center>
+        </Tooltip>
       )}
-      
-      <NavItems />
     </Flex>
   );
+
+  // Simple toggle button with direct DOM manipulation
+  const ToggleButton = () => {
+    return (
+      <button
+        onClick={handleToggleSidebar}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '8px',
+          borderRadius: '4px',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '16px'
+        }}
+        onMouseOver={(e) => e.currentTarget.style.background = '#99C5B5'}
+        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+      >
+        <Icon 
+          as={isCollapsed ? HiMenuAlt2 : HiMenu} 
+          color="chess-dark" 
+          boxSize="1.5rem" 
+          style={{ transition: 'transform 0.3s ease' }}
+        />
+      </button>
+    );
+  };
 
   return (
     <>
@@ -469,11 +433,12 @@ const Sidebar = () => {
         top="4"
         left="4"
         zIndex={999}
-        colorScheme="blue"
+        bg="primary"
+        color="white"
         borderRadius="md"
       />
       
-      {/* Mobile Sidebar (simplified replacement for Drawer) */}
+      {/* Mobile Sidebar */}
       {isMobileOpen && (
         <>
           {/* Backdrop */}
@@ -499,49 +464,66 @@ const Sidebar = () => {
             zIndex={999}
             boxShadow="lg"
           >
-            <Flex justify="space-between" align="center" p={4} borderBottomWidth="1px" borderBottomColor={borderColor}>
-              <Text fontSize="xl" fontWeight="bold">ChessMate</Text>
-              <IconButton size="sm" icon={<Icon boxSize="1.2rem">✕</Icon>} onClick={toggleMobileSidebar} variant="ghost" />
-            </Flex>
             <Box p={4}>
-              {showProfileImage && (
-                <Flex direction="column" align="center" my="6">
-                  <Avatar size="xl" src={avatarSrc} name={currentUser.username || "User"} />
-                  <Text mt="2" fontWeight="medium">
-                    {currentUser.username}
-                  </Text>
-                </Flex>
-              )}
-              <NavItems />
+              <Flex justify="flex-end" mb={4}>
+                <IconButton 
+                  size="sm" 
+                  icon={<Icon boxSize="1.2rem">✕</Icon>} 
+                  onClick={toggleMobileSidebar} 
+                  variant="ghost" 
+                  color={textColor}
+                  _hover={{ bg: hoverBg, color: 'white' }}
+                />
+              </Flex>
+              <MainNavItems />
+              <BottomIcons />
             </Box>
           </Box>
         </>
       )}
       
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - with hover functionality */}
       <Box
         as="nav"
         pos="fixed"
         top="0"
         left="0"
         h="100vh"
-        w={isCollapsed ? "70px" : "250px"}
+        w={shouldExpand ? "220px" : "60px"}
         bg={bgColor}
         borderRight="1px"
-        borderRightColor={borderColor}
+        borderRightColor={bgColor}
         display={{ base: 'none', md: 'block' }}
         zIndex={1}
-        transition="width 0.2s"
-        shadow="md"
+        transition="width 0.3s ease-in-out"
+        overflow="hidden"
+        style={{ width: shouldExpand ? "220px" : "60px" }} // Explicit inline style
+        className={isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        <SidebarContent />
+        <Flex direction="column" h="100%" p={3} justifyContent="space-between">
+          {/* Toggle button at top - with direct DOM implementation */}
+          <Flex justify="center" mb={4}>
+            <ToggleButton />
+          </Flex>
+          
+          {/* Main navigation */}
+          <MainNavItems />
+          
+          {/* Bottom icons */}
+          <BottomIcons />
+        </Flex>
       </Box>
       
-      {/* Content padding for desktop view */}
+      {/* Content padding for desktop view - match the sidebar width */}
       <Box 
         display={{ base: 'none', md: 'block' }} 
-        w={isCollapsed ? "70px" : "250px"}
-        transition="width 0.2s"
+        w={shouldExpand ? "220px" : "60px"}
+        style={{ width: shouldExpand ? "220px" : "60px" }} // Match inline style
+        transition="width 0.3s ease-in-out"
+        flexShrink={0}
+        className={isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
       />
     </>
   );

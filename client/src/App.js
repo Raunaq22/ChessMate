@@ -1,13 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ChakraProvider, CSSReset, Box } from '@chakra-ui/react';
+import { ChakraProvider, CSSReset, Box, Flex, Avatar, Tooltip } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import Sidebar from './components/common/Sidebar';
 import Home from './pages/Home';
 import ProfilePage from './pages/ProfilePage';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, AuthContext } from './context/AuthContext';
 import GamePage from './pages/GamePage';
 import GameLobby from './components/Game/GameLobby';
 import PlayWithFriendPage from './pages/PlayWithFriendPage';
@@ -22,6 +22,50 @@ import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './context/ThemeContext';
 import theme from './config/theme'; // Ensure this path is correct
 
+// Format image URL helper function
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return url;
+};
+
+// Profile Avatar Component - will only be rendered when AuthContext is available
+const ProfileAvatar = () => {
+  const { currentUser, isAuthenticated } = React.useContext(AuthContext);
+  
+  if (!isAuthenticated || !currentUser) return null;
+  
+  const name = currentUser.username || 'User';
+  const src = formatImageUrl(currentUser.profile_image_url);
+  
+  return (
+    <Flex 
+      position="fixed" 
+      top="4" 
+      right="4" 
+      zIndex="10"
+      justify="flex-end"
+    >
+      <Tooltip label="View Profile" placement="bottom">
+        <Avatar
+          size="md"
+          name={name}
+          src={src}
+          bg="chess-dark"
+          color="white"
+          cursor="pointer"
+          onClick={() => window.location.href = '/profile'}
+          _hover={{ 
+            transform: 'scale(1.05)',
+            shadow: "md" 
+          }}
+          transition="all 0.2s"
+        />
+      </Tooltip>
+    </Flex>
+  );
+};
+
 function App() {
   return (
     <ChakraProvider theme={theme}>
@@ -32,6 +76,9 @@ function App() {
             <Box display="flex" minH="100vh">
               <Sidebar />
               <Box flex="1" display="flex" flexDir="column">
+                {/* Global avatar in top-right corner */}
+                <ProfileAvatar />
+                
                 <Box as="main" flexGrow="1" p={{ base: 4, md: 8 }}>
                   <Routes>
                     <Route path="/" element={<Home />} />

@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import Sidebar from './components/common/Sidebar';
-import Footer from './components/common/Footer';
 import Home from './pages/Home';
 import ProfilePage from './pages/ProfilePage';
 import Login from './components/Auth/Login';
@@ -54,7 +53,6 @@ function App() {
                     </Route>
                   </Routes>
                 </main>
-                <Footer />
               </div>
             </div>
           </Router>

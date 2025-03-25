@@ -7,7 +7,9 @@ export const formatImageUrl = (url) => {
   // Special handling for Google images
   if (url.includes('googleusercontent.com')) {
     console.log("UserAvatar: Google profile image detected:", url);
-    return url;
+    // Add a timestamp to prevent caching issues
+    const timestamp = new Date().getTime();
+    return `${url}?t=${timestamp}`;
   }
   
   if (url.startsWith('http')) {
@@ -29,6 +31,8 @@ const sizeClasses = {
 const UserAvatar = ({ user, className = '', size = 'md' }) => {
   const [error, setError] = useState(false);
   const [cachedImage, setCachedImage] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
   
   const imageUrl = !error && user?.profile_image_url 
     ? formatImageUrl(user.profile_image_url)
@@ -36,13 +40,21 @@ const UserAvatar = ({ user, className = '', size = 'md' }) => {
 
   // Use useEffect to cache the image once it's loaded
   useEffect(() => {
-    if (user?.profile_image_url && !cachedImage) {
+    if (user?.profile_image_url && !cachedImage && retryCount < MAX_RETRIES) {
       // Load and cache image when it's not already cached
       const img = new Image();
       img.src = imageUrl;
-      img.onload = () => setCachedImage(imageUrl);
+      img.onload = () => {
+        setCachedImage(imageUrl);
+        setError(false);
+      };
+      img.onerror = () => {
+        console.log("UserAvatar: Image failed to load:", imageUrl);
+        setError(true);
+        setRetryCount(prev => prev + 1);
+      };
     }
-  }, [user?.profile_image_url, imageUrl, cachedImage]);
+  }, [user?.profile_image_url, imageUrl, cachedImage, retryCount]);
 
   return (
     <img
@@ -55,7 +67,7 @@ const UserAvatar = ({ user, className = '', size = 'md' }) => {
         e.target.src = '/assets/default-avatar.png';
         setError(true);
       }}
-      crossOrigin="anonymous" // Try with crossOrigin attribute
+      crossOrigin="anonymous"
     />
   );
 };

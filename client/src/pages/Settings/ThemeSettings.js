@@ -3,25 +3,13 @@ import { useChessTheme } from '../../context/ThemeContext';
 import { Chessboard } from 'react-chessboard';
 import {
   Box,
-  Heading,
   Text,
-  VStack,
-  HStack,
   Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Divider,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
   Grid,
   GridItem,
   Flex,
-  Radio,
-  RadioGroup,
-  Stack,
-  useToast
+  useToast,
+  useMediaQuery
 } from '@chakra-ui/react';
 import { CheckIcon } from '@chakra-ui/icons';
 
@@ -30,123 +18,72 @@ const DEFAULT_THEMES = {
   classic: {
     name: 'Classic',
     lightSquare: '#f0d9b5',
-    darkSquare: '#b58863',
-    pieces: 'classic'
+    darkSquare: '#b58863'
   },
   modern: {
     name: 'Modern',
     lightSquare: '#eeeed2',
-    darkSquare: '#769656',
-    pieces: 'modern'
+    darkSquare: '#769656'
   },
   midnight: {
     name: 'Midnight',
     lightSquare: '#dee3e6',
-    darkSquare: '#8ca2ad',
-    pieces: 'classic'
+    darkSquare: '#8ca2ad'
   },
   blue: {
     name: 'Blue',
     lightSquare: '#cdd7e9',
-    darkSquare: '#5a80b0',
-    pieces: 'classic'
+    darkSquare: '#5a80b0'
   },
   wood: {
     name: 'Wood',
     lightSquare: '#E4D2B4',
-    darkSquare: '#9E6B55',
-    pieces: 'classic'
+    darkSquare: '#9E6B55'
   },
   emerald: {
     name: 'Emerald',
     lightSquare: '#BDDFD0',
-    darkSquare: '#116340',
-    pieces: 'classic'
+    darkSquare: '#116340'
   },
   chessmate: {
     name: 'Chessmate',
     lightSquare: '#FDF0D5',
-    darkSquare: '#A77E58',
-    pieces: 'classic'
+    darkSquare: '#A77E58'
   }
-};
-
-// Mapping between our internal piece names and react-chessboard's pieceTheme values
-const PIECE_STYLE_MAP = {
-  'classic': 'default',
-  'modern': 'cburnett',
-  'fantasy': 'fantasy',
-  '8-bit': 'pixel'
-};
-
-// The piece styles we offer in the UI
-const PIECE_STYLES = [
-  { id: 'default', name: 'Classic' },
-  { id: 'cburnett', name: 'Modern' },
-  { id: 'fantasy', name: 'Fantasy' },
-  { id: 'pixel', name: '8-bit' }
-];
-
-// Convert from react-chessboard style name to our internal name
-const mapPieceThemeToInternal = (pieceTheme) => {
-  switch(pieceTheme) {
-    case 'default': return 'classic';
-    case 'cburnett': return 'modern';
-    case 'pixel': return '8-bit';
-    default: return pieceTheme;
-  }
-};
-
-// Convert from our internal name to react-chessboard style name
-const mapInternalToPieceTheme = (internalStyle) => {
-  return PIECE_STYLE_MAP[internalStyle] || 'default';
 };
 
 const ThemeSettings = () => {
   const { themeKey, updateTheme, currentTheme } = useChessTheme();
   const [selectedTheme, setSelectedTheme] = useState(themeKey || 'classic');
-  const [selectedPieceStyle, setSelectedPieceStyle] = useState('default');
-  const [message, setMessage] = useState({ type: '', text: '' });
   const toast = useToast();
-
-  // Chakra UI theme colors
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const cardHeaderBg = useColorModeValue('blue.50', 'blue.900');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
-  const labelColor = useColorModeValue('gray.700', 'white');
-  const themeCardBg = useColorModeValue('gray.50', 'gray.700');
-  const activeThemeBg = useColorModeValue('blue.50', 'blue.800');
-  const activeThemeBorder = useColorModeValue('blue.500', 'blue.300');
+  const [isMobile] = useMediaQuery("(max-width: 768px)");
+  const [boardSize, setBoardSize] = useState(300);
 
   // Load initial settings from context on mount
   useEffect(() => {
     if (themeKey) {
       setSelectedTheme(themeKey);
-
-      // Set the appropriate piece style based on current theme
-      const theme = DEFAULT_THEMES[themeKey];
-      if (theme && theme.pieces) {
-        const pieceTheme = mapInternalToPieceTheme(theme.pieces);
-        setSelectedPieceStyle(pieceTheme);
-      }
     }
-  }, [themeKey, currentTheme]);
+    
+    // Adjust board size based on screen width
+    const handleResize = () => {
+      if (window.innerWidth < 480) {
+        setBoardSize(240);
+      } else if (window.innerWidth < 768) {
+        setBoardSize(280);
+      } else {
+        setBoardSize(300);
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [themeKey]);
 
   // Handle selecting a theme
   const handleSelectTheme = (key) => {
     setSelectedTheme(key);
-    
-    // Update piece style based on the selected theme
-    const theme = DEFAULT_THEMES[key];
-    if (theme && theme.pieces) {
-      const pieceTheme = mapInternalToPieceTheme(theme.pieces);
-      setSelectedPieceStyle(pieceTheme);
-    }
-  };
-
-  // Handle changing piece style
-  const handlePieceStyleChange = (pieceTheme) => {
-    setSelectedPieceStyle(pieceTheme);
   };
 
   // Apply the theme to save it
@@ -155,16 +92,12 @@ const ThemeSettings = () => {
       // Get the base theme
       const baseTheme = { ...DEFAULT_THEMES[selectedTheme] };
       
-      // Update the piece style with internal name
-      const internalPieceStyle = mapPieceThemeToInternal(selectedPieceStyle);
-      baseTheme.pieces = internalPieceStyle;
-      
-      // Save to localStorage for the context to pick up
+      // Save to localStorage
       localStorage.setItem('chessmate_active_theme', selectedTheme);
       localStorage.setItem('chessmate_theme_settings', JSON.stringify(baseTheme));
       
       // Update the context
-      updateTheme(selectedTheme);
+      updateTheme(selectedTheme, baseTheme);
       
       toast({
         title: 'Theme Applied',
@@ -173,15 +106,6 @@ const ThemeSettings = () => {
         duration: 3000,
         isClosable: true,
       });
-      
-      setMessage({
-        type: 'success',
-        text: 'Theme applied successfully!'
-      });
-      
-      setTimeout(() => {
-        setMessage({ type: '', text: '' });
-      }, 3000);
     } catch (error) {
       console.error("Error applying theme:", error);
       toast({
@@ -210,107 +134,103 @@ const ThemeSettings = () => {
 
   return (
     <Box>
-      <Heading size="lg" mb={6}>Theme Settings</Heading>
+      {/* Page header */}
+      <Box p="20px" fontWeight="bold" fontSize="24px">Theme Settings</Box>
       
-      {message.text && (
-        <Alert status={message.type} mb={4} borderRadius="md">
-          <AlertIcon />
-          {message.text}
-        </Alert>
-      )}
+      {/* Theme selection section */}
+      <Box bg="#EBF8FF" p="20px" mb="20px">
+        <Text fontSize="18px" fontWeight="medium">Choose a Theme</Text>
+      </Box>
       
-      <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
-        {/* Preview section */}
-        <GridItem>
-          <Card bg={bgColor} boxShadow="md" mb={6} variant="outline">
-            <CardHeader bg={cardHeaderBg} py={4}>
-              <Heading size="md">Theme Preview: {getCurrentThemeName()}</Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
-                <Box w="100%" maxW="350px" mx="auto">
+      <Box px="20px" pb="20px">
+        <Grid 
+          templateColumns={{ base: "1fr", md: "1fr 1fr" }} 
+          gap={{ base: 4, md: 6 }} 
+          mb="30px"
+        >
+          {/* Theme selection */}
+          <GridItem order={{ base: 2, md: 1 }}>
+            <Text fontWeight="medium" mb="15px">Board Themes</Text>
+            <Grid 
+              templateColumns={{ 
+                base: "repeat(2, 1fr)", 
+                sm: "repeat(2, 1fr)", 
+                md: "repeat(2, 1fr)" 
+              }} 
+              gap={3}
+            >
+              {Object.keys(DEFAULT_THEMES).map(key => (
+                <Box 
+                  key={key}
+                  bg={selectedTheme === key ? "#899E8B" : "white"}
+                  color={selectedTheme === key ? "white" : "#706C61"}
+                  borderWidth="1px"
+                  borderColor={selectedTheme === key ? "#899E8B" : "gray.200"}
+                  borderRadius="md"
+                  p="10px"
+                  onClick={() => handleSelectTheme(key)}
+                  cursor="pointer"
+                  _hover={{ 
+                    borderColor: selectedTheme === key ? "#899E8B" : "#76ABAE",
+                    bg: selectedTheme === key ? "#899E8B" : "#F7FAFC"
+                  }}
+                >
+                  <Flex align="center">
+                    <Flex mr={3}>
+                      <Box w="15px" h="15px" bg={DEFAULT_THEMES[key].lightSquare} borderWidth="1px" borderColor="gray.300" mr="2px" />
+                      <Box w="15px" h="15px" bg={DEFAULT_THEMES[key].darkSquare} borderWidth="1px" borderColor="gray.300" />
+                    </Flex>
+                    <Text fontWeight="medium" fontSize={{ base: "sm", md: "md" }}>{DEFAULT_THEMES[key].name}</Text>
+                    {selectedTheme === key && (
+                      <CheckIcon ml="auto" color="white" />
+                    )}
+                  </Flex>
+                </Box>
+              ))}
+            </Grid>
+          </GridItem>
+          
+          {/* Preview section */}
+          <GridItem order={{ base: 1, md: 2 }}>
+            <Text fontWeight="medium" mb="15px">Theme Preview: {getCurrentThemeName()}</Text>
+            <Box 
+              borderWidth="1px" 
+              borderColor="gray.200" 
+              borderRadius="md" 
+              p="15px" 
+              bg="white"
+            >
+              <Flex direction="column" align="center">
+                <Box 
+                  w="100%" 
+                  maxW={`${boardSize}px`} 
+                  mx="auto" 
+                  mb="15px"
+                >
                   <Chessboard
                     id="themed-preview-board"
                     position="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-                    boardWidth={350}
+                    boardWidth={boardSize}
                     customDarkSquareStyle={{ backgroundColor: previewTheme.darkSquare }}
                     customLightSquareStyle={{ backgroundColor: previewTheme.lightSquare }}
-                    pieceTheme={selectedPieceStyle}
                     boardOrientation="white"
                   />
                 </Box>
                 <Button 
-                  colorScheme="blue" 
-                  w="full" 
+                  bg="#3182CE" 
+                  color="white"
+                  _hover={{ bg: "#2B6CB0" }}
                   onClick={applyTheme}
-                  mt={4}
+                  width="100%"
+                  height="40px"
                 >
                   Apply This Theme
                 </Button>
-              </VStack>
-            </CardBody>
-          </Card>
-        </GridItem>
-        
-        {/* Theme selection section */}
-        <GridItem>
-          <Card bg={bgColor} boxShadow="md" mb={6} variant="outline">
-            <CardHeader bg={cardHeaderBg} py={4}>
-              <Heading size="md">Choose a Theme</Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
-                <Text fontWeight="medium" mb={1}>Board Themes</Text>
-                <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3}>
-                  {Object.keys(DEFAULT_THEMES).map(key => (
-                    <Card 
-                      key={key}
-                      bg={selectedTheme === key ? activeThemeBg : themeCardBg}
-                      borderWidth={1}
-                      borderColor={selectedTheme === key ? activeThemeBorder : 'gray.200'}
-                      onClick={() => handleSelectTheme(key)}
-                      cursor="pointer"
-                      overflow="hidden"
-                      _hover={{ borderColor: 'blue.300' }}
-                    >
-                      <CardBody p={3}>
-                        <HStack>
-                          <Flex gap={1}>
-                            <Box w="15px" h="15px" bg={DEFAULT_THEMES[key].lightSquare} borderWidth={1} borderColor="gray.300" />
-                            <Box w="15px" h="15px" bg={DEFAULT_THEMES[key].darkSquare} borderWidth={1} borderColor="gray.300" />
-                          </Flex>
-                          <Text fontWeight="medium">{DEFAULT_THEMES[key].name}</Text>
-                          {selectedTheme === key && (
-                            <CheckIcon ml="auto" color="blue.500" />
-                          )}
-                        </HStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </Grid>
-                
-                <Divider my={3} />
-                
-                {/* Piece style selector */}
-                <Text fontWeight="medium" mb={1}>Piece Style</Text>
-                <RadioGroup 
-                  value={selectedPieceStyle} 
-                  onChange={handlePieceStyleChange}
-                  mb={4}
-                >
-                  <Stack direction="row" wrap="wrap" spacing={4}>
-                    {PIECE_STYLES.map(style => (
-                      <Radio key={style.id} value={style.id} colorScheme="blue">
-                        {style.name}
-                      </Radio>
-                    ))}
-                  </Stack>
-                </RadioGroup>
-              </VStack>
-            </CardBody>
-          </Card>
-        </GridItem>
-      </Grid>
+              </Flex>
+            </Box>
+          </GridItem>
+        </Grid>
+      </Box>
     </Box>
   );
 };

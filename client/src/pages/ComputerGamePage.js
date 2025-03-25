@@ -438,7 +438,7 @@ const ComputerGamePage = () => {
         resultMessage = "Draw by insufficient material";
       } else if (currentGame.isThreefoldRepetition()) {
         resultMessage = "Draw by threefold repetition";
-      } else {
+          } else {
         resultMessage = "Draw";
       }
       
@@ -561,8 +561,8 @@ const ComputerGamePage = () => {
     const isPlayer = color === playerColor;
     const displayName = isPlayer ? 'You' : 'Computer';
     const isWhite = color === 'white';
-    
-    return (
+
+  return (
       <Flex
         alignItems="center"
         p={3}
@@ -595,29 +595,29 @@ const ComputerGamePage = () => {
 
   // Memoize the board to avoid unnecessary re-renders
   const chessBoard = useMemo(() => (
-    <ThemedChessboard
-      id="computer-game"
-      position={position}
-      onPieceDrop={onDrop}
-      onPieceDragBegin={onPieceDragBegin}
-      boardOrientation={playerColor}
-      boardWidth={boardSize}
+              <ThemedChessboard
+                id="computer-game"
+                position={position}
+                onPieceDrop={onDrop}
+                onPieceDragBegin={onPieceDragBegin}
+                boardOrientation={playerColor}
+                boardWidth={boardSize}
       customSquareStyles={Array.isArray(possibleMoves.current) ? 
-        possibleMoves.current.reduce((obj, square) => {
-          obj[square] = {
-            background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
-            borderRadius: '50%'
-          };
-          return obj;
+                  possibleMoves.current.reduce((obj, square) => {
+                    obj[square] = {
+                      background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+                      borderRadius: '50%'
+                    };
+                    return obj;
         }, {}) : {}}
-      areArrowsAllowed={true}
-      showBoardNotation={true}
-      allowDrag={({ piece }) => {
+                areArrowsAllowed={true}
+                showBoardNotation={true}
+                allowDrag={({ piece }) => {
         if (gameOver || loading) return false;
-        return (piece[0] === 'w' && playerColor === 'white') || 
-              (piece[0] === 'b' && playerColor === 'black');
-      }}
-    />
+                  return (piece[0] === 'w' && playerColor === 'white') || 
+                         (piece[0] === 'b' && playerColor === 'black');
+                }}
+              />
   ), [position, boardSize, playerColor, gameOver, loading, onDrop, onPieceDragBegin]);
 
   // Main layout render
@@ -703,7 +703,7 @@ const ComputerGamePage = () => {
                 <PlayerProfile color={playerColor} />
               </Box>
 
-              {/* Game controls */}
+            {/* Game controls */}
                 <Flex 
                   justify="center" 
                   align="center" 
@@ -872,7 +872,7 @@ const ComputerGamePage = () => {
                       <Grid templateColumns="1fr 1fr" gap={1}>
                         {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, pairIndex) => {
                           const moveIdx = pairIndex * 2;
-                          return (
+                      return (
                             <React.Fragment key={`move-pair-${pairIndex}`}>
                               <Box p={1} bg={pairIndex % 2 === 0 ? "gray.100" : "transparent"}>
                                 {formatMove(moveHistory[moveIdx], moveIdx)}
@@ -880,9 +880,9 @@ const ComputerGamePage = () => {
                               <Box p={1} bg={pairIndex % 2 === 0 ? "gray.100" : "transparent"}>
                                 {formatMove(moveHistory[moveIdx + 1], moveIdx + 1)}
                               </Box>
-                            </React.Fragment>
-                          );
-                        })}
+                        </React.Fragment>
+                      );
+                    })}
                       </Grid>
                     </Box>
                   ) : (

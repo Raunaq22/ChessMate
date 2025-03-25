@@ -5,46 +5,39 @@ const DEFAULT_THEMES = {
   classic: {
     name: 'Classic',
     lightSquare: '#f0d9b5',
-    darkSquare: '#b58863',
-    pieces: 'classic'
+    darkSquare: '#b58863'
   },
   modern: {
     name: 'Modern',
     lightSquare: '#eeeed2',
-    darkSquare: '#769656',
-    pieces: 'modern'
+    darkSquare: '#769656'
   },
   midnight: {
     name: 'Midnight',
     lightSquare: '#dee3e6',
-    darkSquare: '#8ca2ad',
-    pieces: 'classic'
+    darkSquare: '#8ca2ad'
   },
   // Add our custom theme
   chessmate: {
     name: 'Chessmate',
     lightSquare: '#FDF0D5', // chess-light
-    darkSquare: '#A77E58', // chess-hover
-    pieces: 'classic'
+    darkSquare: '#A77E58' // chess-hover
   },
   // Add the new themes
   blue: {
     name: 'Blue',
     lightSquare: '#cdd7e9',
-    darkSquare: '#5a80b0',
-    pieces: 'classic'
+    darkSquare: '#5a80b0'
   },
   wood: {
     name: 'Wood',
     lightSquare: '#E4D2B4',
-    darkSquare: '#9E6B55',
-    pieces: 'classic'
+    darkSquare: '#9E6B55'
   },
   emerald: {
     name: 'Emerald',
     lightSquare: '#BDDFD0',
-    darkSquare: '#116340',
-    pieces: 'classic'
+    darkSquare: '#116340'
   }
 };
 
@@ -126,12 +119,18 @@ export const ThemeProvider = ({ children }) => {
   }, []);
 
   // Update the theme settings
-  const updateTheme = (newThemeKey) => {
+  const updateTheme = (newThemeKey, customTheme) => {
     try {
       setThemeKey(newThemeKey);
       
       // Save the active theme key to localStorage
       localStorage.setItem('chessmate_active_theme', newThemeKey);
+      
+      // If a custom theme is provided, use it directly
+      if (customTheme && typeof customTheme === 'object') {
+        setCurrentTheme(customTheme);
+        return; // Exit early since we've applied the custom theme
+      }
       
       // First check if we have theme settings saved
       const themeSettings = localStorage.getItem('chessmate_theme_settings');

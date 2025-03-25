@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { Box, Flex, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
+import { FaUser, FaPalette } from 'react-icons/fa';
+import ProfileSettings from './Settings/ProfileSettings';
+import ThemeSettings from './Settings/ThemeSettings';
 
 const SettingsPage = () => {
   const { isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [tabIndex, setTabIndex] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -17,61 +21,76 @@ const SettingsPage = () => {
     // Set active tab based on URL
     const path = location.pathname;
     if (path.includes('/settings/theme')) {
-      setActiveTab('theme');
+      setTabIndex(1);
     } else {
-      setActiveTab('profile');
+      setTabIndex(0);
     }
   }, [isAuthenticated, navigate, location]);
 
-  const tabs = [
-    { id: 'profile', name: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', path: '/settings/profile' },
-    { id: 'theme', name: 'Theme', icon: 'M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z', path: '/settings/theme' },
-  ];
+  const handleTabChange = (index) => {
+    setTabIndex(index);
+    navigate(index === 0 ? '/settings/profile' : '/settings/theme');
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
-      
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar Navigation */}
-        <div className="w-full md:w-64 bg-white rounded-lg shadow-md p-4">
-          <nav>
-            <ul className="space-y-2">
-              {tabs.map(tab => (
-                <li key={tab.id}>
-                  <Link 
-                    to={tab.path}
-                    className={`flex items-center px-4 py-3 rounded-md transition-colors ${
-                      activeTab === tab.id 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5 mr-3" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
-                    </svg>
-                    {tab.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-        
-        {/* Content Area */}
-        <div className="flex-1">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <Outlet />
-          </div>
-        </div>
-      </div>
-    </div>
+    <Box bg="#706C61" minH="100vh" py={6}>
+      <Box 
+        maxW="1200px" 
+        mx="auto"
+        bg="white"
+        borderRadius="md"
+        overflow="hidden"
+        boxShadow="sm"
+      >
+        <Tabs 
+          index={tabIndex} 
+          onChange={handleTabChange}
+          colorScheme="blue"
+          variant="enclosed"
+        >
+          <TabList 
+            bg="#76ABAE" 
+            p="10px" 
+            borderBottomWidth="2px"
+            borderBottomColor="#899E8B"
+          >
+            <Tab 
+              color="white"
+              fontWeight="medium"
+              _selected={{ bg: 'white', color: '#706C61', borderBottomColor: 'white' }}
+              px={6}
+              py={3}
+              display="flex"
+              alignItems="center"
+            >
+              <FaUser style={{ marginRight: '8px' }} />
+              Profile Settings
+            </Tab>
+            <Tab 
+              color="white"
+              fontWeight="medium"
+              _selected={{ bg: 'white', color: '#706C61', borderBottomColor: 'white' }}
+              px={6}
+              py={3}
+              display="flex"
+              alignItems="center"
+            >
+              <FaPalette style={{ marginRight: '8px' }} />
+              Theme Settings
+            </Tab>
+          </TabList>
+
+          <TabPanels>
+            <TabPanel p={0}>
+              <ProfileSettings />
+            </TabPanel>
+            <TabPanel p={0}>
+              <ThemeSettings />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </Box>
+    </Box>
   );
 };
 

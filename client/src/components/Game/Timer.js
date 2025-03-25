@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Box, Text, Flex } from '@chakra-ui/react';
 
 const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
   // State for display time
@@ -166,12 +167,44 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
   }, [isRunning, gameEnded, onTimeUp, onTimeChange]);
 
   return (
-    <div className={`px-4 py-2 rounded-lg ${displayTime < 30 ? 'bg-red-100' : 'bg-gray-100'}`}>
-      <div className={`text-2xl font-mono font-bold ${displayTime < 30 ? 'text-red-600' : 'text-gray-800'}`}>
+    <Flex align="center" justify="center">
+      <Text 
+        fontSize="2xl" 
+        fontFamily="mono" 
+        fontWeight="bold" 
+        color="white"
+        px={2}
+        py={1}
+        textShadow="0px 0px 2px rgba(0,0,0,0.3)"
+        position="relative"
+      >
         {formatTime(displayTime)}
-        {isRunning && <span className="animate-pulse ml-1">•</span>}
-      </div>
-    </div>
+        {isRunning && (
+          <Box 
+            as="span" 
+            ml={1} 
+            display="inline-block"
+            animation="pulse 1.5s infinite" 
+            color={displayTime < 30 ? "red.300" : "white"}
+          >
+            •
+          </Box>
+        )}
+        {displayTime < 30 && (
+          <Box 
+            position="absolute"
+            left="0"
+            top="0"
+            right="0"
+            bottom="0"
+            borderRadius="md"
+            bg="red.500"
+            opacity="0.3"
+            zIndex="-1"
+          />
+        )}
+      </Text>
+    </Flex>
   );
 };
 

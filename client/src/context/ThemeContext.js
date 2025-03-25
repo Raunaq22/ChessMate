@@ -20,21 +20,28 @@ const DEFAULT_THEMES = {
     darkSquare: '#8ca2ad',
     pieces: 'classic'
   },
+  // Add our custom theme
+  chessmate: {
+    name: 'Chessmate',
+    lightSquare: '#FDF0D5', // chess-light
+    darkSquare: '#A77E58', // chess-hover
+    pieces: 'classic'
+  }
 };
 
 // Create the context
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEMES.classic);
-  const [themeKey, setThemeKey] = useState('classic');
+  const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEMES.chessmate);
+  const [themeKey, setThemeKey] = useState('chessmate');
 
   // Load theme from localStorage on initial render
   useEffect(() => {
     const loadTheme = () => {
       try {
         // Get active theme key
-        const activeThemeKey = localStorage.getItem('chessmate_active_theme') || 'classic';
+        const activeThemeKey = localStorage.getItem('chessmate_active_theme') || 'chessmate';
         setThemeKey(activeThemeKey);
         
         // Get theme data based on key
@@ -44,7 +51,7 @@ export const ThemeProvider = ({ children }) => {
           if (customThemeData) {
             setCurrentTheme(JSON.parse(customThemeData));
           } else {
-            setCurrentTheme(DEFAULT_THEMES.classic);
+            setCurrentTheme(DEFAULT_THEMES.chessmate);
           }
         } else if (DEFAULT_THEMES[activeThemeKey]) {
           // Handle default theme
@@ -57,13 +64,13 @@ export const ThemeProvider = ({ children }) => {
             if (themes[activeThemeKey]) {
               setCurrentTheme(themes[activeThemeKey]);
             } else {
-              setCurrentTheme(DEFAULT_THEMES.classic);
+              setCurrentTheme(DEFAULT_THEMES.chessmate);
             }
           }
         }
       } catch (error) {
         console.error('Error loading theme:', error);
-        setCurrentTheme(DEFAULT_THEMES.classic);
+        setCurrentTheme(DEFAULT_THEMES.chessmate);
       }
     };
 

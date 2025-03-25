@@ -21,6 +21,11 @@ const theme = extendTheme({
       600: '#4f46e5',
       900: '#312e81',
     },
+    'chess-dark': '#444545',
+    'chess-light': '#FDF0D5',
+    'chess-hover': '#A77E58',
+    'primary': '#5C9EAD',
+    'secondary': '#8D99AE'
   },
   components: {
     Button: {
@@ -29,10 +34,17 @@ const theme = extendTheme({
       },
       variants: {
         primary: {
-          bg: 'brand.500',
+          bg: 'primary',
           color: 'white',
           _hover: {
-            bg: 'brand.600',
+            bg: 'blue.600',
+          },
+        },
+        secondary: {
+          bg: 'secondary',
+          color: 'white',
+          _hover: {
+            bg: 'blue.400',
           },
         },
       },

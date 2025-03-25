@@ -8,11 +8,12 @@ module.exports = {
     extend: {
       colors: {
         // Define your custom colors here
-        'chess-dark': '#769656',
-        'chess-light': '#eeeed2',
-        'chess-hover': '#baca44',
-        'primary': '#1e40af',
-        'secondary': '#1e293b',
+
+        'chess-dark': "#444545",
+        'chess-light': "#FDF0D5", 
+        'chess-hover': "#A77E58",
+        'primary': "#5C9EAD",
+        'secondary': "#8D99AE"
       },
     },
   },

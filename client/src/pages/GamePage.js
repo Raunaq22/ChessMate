@@ -8,7 +8,26 @@ import ChatWindow from '../components/Chat/ChatWindow';
 import ChatInput from '../components/Chat/ChatInput';
 import GameAnalysis from '../components/Game/GameAnalysis';
 import ThemedChessboard from '../components/Board/ThemedChessboard';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import {
+  Box,
+  Flex,
+  Grid,
+  GridItem,
+  Text,
+  Button,
+  Avatar,
+  Badge,
+  VStack,
+  HStack,
+  Heading,
+  useColorModeValue,
+  Divider,
+  IconButton,
+  useToast,
+  Container
+} from '@chakra-ui/react';
+import { FaHistory, FaComment, FaClock, FaUser } from 'react-icons/fa';
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -16,7 +35,8 @@ const GamePage = () => {
   const containerRef = useRef(null);
   const boardRef = useRef(null);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
-  const [boardSize, setBoardSize] = useState(480);
+  const [boardSize, setBoardSize] = useState(600);
+  const toast = useToast();
 
   // Use the chess logic hook to get game state and functions
   const {
@@ -74,12 +94,28 @@ const GamePage = () => {
   useEffect(() => {
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
-      const newSize = Math.min(containerWidth - 32, 640); // Max size with padding
+      // Calculate board size based on container width
+      const newSize = Math.min(containerWidth, windowHeight * 0.8);
       setBoardSize(newSize);
     }
-  }, [windowWidth, containerRef]);
+  }, [windowWidth, windowHeight, containerRef]);
 
-  // PlayerProfile component
+  // Show notification as toast
+  useEffect(() => {
+    if (notification) {
+      toast({
+        title: notification.type.charAt(0).toUpperCase() + notification.type.slice(1),
+        description: notification.message,
+        status: notification.type === 'success' ? 'success' : 
+                notification.type === 'info' ? 'info' : 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
+    }
+  }, [notification, toast]);
+
+  // PlayerProfile component with Chakra UI
   const PlayerProfile = ({ color }) => {
     const isWhite = color === 'white';
     const profile = isWhite ? playerProfiles.white : playerProfiles.black;
@@ -99,38 +135,45 @@ const GamePage = () => {
     }
     
     return (
-      <div 
-        className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+      <Flex 
+        alignItems="center" 
+        p={3}
+        borderRadius="lg"
+        cursor="pointer"
+        bg="chess-light"
+        _hover={{ opacity: 0.9 }}
         onClick={() => playerId && navigate(`/profile/${playerId}`)}
       >
-        <div 
-          className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold"
-        >
-          {username[0]?.toUpperCase() || '?'}
-        </div>
-        <div>
-          <div className="font-medium">{username}</div>
-          <div className="text-sm">
-            <span className={color === 'white' ? 'text-yellow-600' : 'text-gray-700'}>
-              {color.charAt(0).toUpperCase() + color.slice(1)}
-            </span>
-          </div>
-        </div>
-      </div>
+        <Avatar 
+          size="md" 
+          name={username} 
+          bg="primary" 
+          color="white" 
+          mr={3}
+        />
+        <Box>
+          <Text fontWeight="medium">{username}</Text>
+          <Badge 
+            colorScheme={color === 'white' ? 'yellow' : 'gray'}
+          >
+            {color.charAt(0).toUpperCase() + color.slice(1)}
+          </Badge>
+        </Box>
+      </Flex>
     );
   };
 
   // Loading state
   if (initialLoading) {
     return (
-      <div className="flex justify-center items-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
+      <Flex justify="center" align="center" h="96">
+        <Box className="animate-spin" h="12" w="12" border="4px" borderColor="primary" borderTopColor="transparent" rounded="full" />
+      </Flex>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <Container maxW="100%" px={4} py={4}>
       {/* Confetti animation */}
       {showConfetti && <Confetti width={windowWidth} height={windowHeight} recycle={false} numberOfPieces={500} />}
 
@@ -139,221 +182,301 @@ const GamePage = () => {
         <motion.div
           initial={{ y: -100 }}
           animate={{ y: 0 }}
-          className={`w-full mb-4 p-4 rounded-lg shadow-xl text-center ${
-            gameStatus.includes('wins') ? 
-              (((gameStatus.includes('White wins') && playerColor === 'white') || 
-               (gameStatus.includes('Black wins') && playerColor === 'black')) ? 
-                 'bg-green-500 text-white' : 'bg-red-500 text-white') : 
-              gameStatus.includes('draw') ? 
-                'bg-blue-500 text-white' : 
-                'bg-yellow-100 border border-yellow-400 text-yellow-800'
-          }`}
+          style={{ width: '100%', marginBottom: '1rem' }}
         >
-          <h2 className="text-xl font-bold">{gameStatus}</h2>
-          {(gameStatus.includes('wins') || gameStatus.includes('draw')) && (
-            <div className="mt-3 space-x-3">
-              <button
-                onClick={() => navigate('/lobby')}
-                className="bg-white text-gray-800 px-4 py-2 rounded-full hover:bg-gray-100"
-              >
-                Back to Lobby
-              </button>
-              <button
-                onClick={handleStartAnalysis}
-                className="bg-blue-700 text-white px-4 py-2 rounded-full hover:bg-blue-800"
-              >
-                Analyse Game
-              </button>
-            </div>
-          )}
+          <Box
+            p={4}
+            rounded="lg"
+            shadow="xl"
+            textAlign="center"
+            bg={
+              gameStatus.includes('wins') ? 
+                (((gameStatus.includes('White wins') && playerColor === 'white') || 
+                 (gameStatus.includes('Black wins') && playerColor === 'black')) ? 
+                   'green.500' : 'red.500') : 
+                gameStatus.includes('draw') ? 
+                  'blue.500' : 
+                  'yellow.100'
+            }
+            color={
+              gameStatus.includes('draw') || gameStatus.includes('wins') ? 
+                'white' : 'yellow.800'
+            }
+          >
+            <Heading as="h2" size="lg">{gameStatus}</Heading>
+            {(gameStatus.includes('wins') || gameStatus.includes('draw')) && (
+              <HStack mt={3} spacing={3} justify="center">
+                <Button
+                  onClick={() => navigate('/lobby')}
+                  bg="white"
+                  color="gray.800"
+                  px={4}
+                  py={2}
+                  rounded="full"
+                  _hover={{ bg: 'gray.100' }}
+                >
+                  Back to Lobby
+                </Button>
+                <Button
+                  onClick={handleStartAnalysis}
+                  bg="blue.700"
+                  color="white"
+                  px={4}
+                  py={2}
+                  rounded="full"
+                  _hover={{ bg: 'blue.800' }}
+                >
+                  Analyse Game
+                </Button>
+              </HStack>
+            )}
+          </Box>
         </motion.div>
       )}
 
       {/* Disconnection warning - only show if game has not ended */}
       {disconnected && !gameEnded && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <Box mb={4} p={3} rounded="md" bg="red.100" color="red.700" border="1px" borderColor="red.300">
           Opponent disconnected. Returning to lobby...
-        </div>
+        </Box>
       )}
 
       {/* Resign confirmation dialog */}
       {showResignConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-            <h3 className="text-xl font-bold mb-4 text-red-600">Confirm Resignation</h3>
-            <p className="mb-6">Are you sure you want to resign this game?</p>
-            <div className="flex justify-end space-x-4">
-              <button 
+        <Flex position="fixed" inset="0" bg="blackAlpha.500" align="center" justify="center" zIndex="50">
+          <Box bg="white" p={6} rounded="lg" shadow="xl" maxW="sm" w="full" mx={4}>
+            <Heading as="h3" size="md" mb={4} color="red.600">Confirm Resignation</Heading>
+            <Text mb={6}>Are you sure you want to resign this game?</Text>
+            <Flex justify="flex-end" gap={4}>
+              <Button 
                 onClick={cancelResign}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                bg="gray.200"
+                _hover={{ bg: 'gray.300' }}
               >
                 Cancel
-              </button>
-              <button 
+              </Button>
+              <Button 
                 onClick={confirmResign}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                bg="red.600"
+                color="white"
+                _hover={{ bg: 'red.700' }}
               >
                 Resign
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </Flex>
+          </Box>
+        </Flex>
       )}
 
-      {/* Notification toast */}
-      {notification && (
-        <div className={`fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-40 ${
-          notification.type === 'info' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-          notification.type === 'success' ? 'bg-green-100 text-green-800 border-green-300' :
-          'bg-red-100 text-red-800 border-red-300'
-        } border`}>
-          {notification.message}
-        </div>
-      )}
+      {/* Main game layout */}
+      <Flex direction={{ base: "column", md: "row" }} gap={4}>
+        {/* Left side - Chessboard and player info (60% width) */}
+        <Box w={{ base: "100%", md: "60%" }} ref={containerRef}>
+          <VStack spacing={4} align="stretch">
+            {/* Top player (opponent) */}
+            <Flex justify="space-between" align="center">
+              <Box flex="1" mr={2}>
+                <PlayerProfile color={playerColor === 'white' ? 'black' : 'white'} />
+              </Box>
+              <Flex 
+                bg="chess-dark" 
+                color="white" 
+                p={3} 
+                rounded="md" 
+                align="center" 
+                shadow="md"
+                minW="120px"
+              >
+                <FaClock size={18} style={{ marginRight: '8px' }} />
+                <Timer
+                  initialTime={playerColor === 'white' ? blackTime : whiteTime}
+                  increment={timeIncrement}
+                  isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameEnded}
+                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
+                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
+                  gameEnded={gameEnded}
+                />
+              </Flex>
+            </Flex>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 flex flex-col items-center" ref={containerRef}>
-          {/* Top player (opponent) */}
-          <div className="mb-4 w-full flex justify-between items-center bg-white p-4 rounded-lg shadow">
-            <PlayerProfile color={playerColor === 'white' ? 'black' : 'white'} />
-            <Timer
-              initialTime={playerColor === 'white' ? blackTime : whiteTime}
-              increment={timeIncrement}
-              isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameEnded}
-              onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
-              onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
-              gameEnded={gameEnded}
-            />
-          </div>
+            {/* Chessboard */}
+            <Box w="100%" mx="auto">
+              <ThemedChessboard
+                id="responsive-board"
+                position={position}
+                onPieceDrop={onDrop}
+                onPieceDragBegin={onPieceDragStart}
+                boardOrientation={playerColor}
+                boardWidth={boardSize}
+                customSquareStyles={possibleMoves.reduce((obj, square) => {
+                  obj[square] = {
+                    background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+                    borderRadius: '50%'
+                  };
+                  return obj;
+                }, {})}
+                areArrowsAllowed={true}
+                showBoardNotation={true}
+                customPieces={customPieces}
+                ref={boardRef}
+                allowDrag={({ piece }) => {
+                  // Only allow dragging player's pieces during the game
+                  return !gameEnded && 
+                         ((piece[0] === 'w' && playerColor === 'white') || 
+                          (piece[0] === 'b' && playerColor === 'black'));
+                }}
+              />
+            </Box>
 
-          {/* Chessboard */}
-          <div className="w-full max-w-2xl mx-auto lg:mx-0 mb-4">
-            <ThemedChessboard
-              id="responsive-board"
-              position={position}
-              onPieceDrop={onDrop}
-              onPieceDragBegin={onPieceDragStart}
-              boardOrientation={playerColor}
-              boardWidth={boardSize}
-              customSquareStyles={possibleMoves.reduce((obj, square) => {
-                obj[square] = {
-                  background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
-                  borderRadius: '50%'
-                };
-                return obj;
-              }, {})}
-              areArrowsAllowed={true}
-              showBoardNotation={true}
-              customPieces={customPieces}
-              ref={boardRef}
-              allowDrag={({ piece }) => {
-                // Only allow dragging player's pieces during the game
-                return !gameEnded && 
-                       ((piece[0] === 'w' && playerColor === 'white') || 
-                        (piece[0] === 'b' && playerColor === 'black'));
-              }}
-            />
-          </div>
+            {/* Bottom player (user) */}
+            <Flex justify="space-between" align="center">
+              <Box flex="1" mr={2}>
+                <PlayerProfile color={playerColor} />
+              </Box>
+              <Flex 
+                bg="chess-dark" 
+                color="white" 
+                p={3} 
+                rounded="md" 
+                align="center"
+                shadow="md"
+                minW="120px"
+              >
+                <FaClock size={18} style={{ marginRight: '8px' }} />
+                <Timer
+                  initialTime={playerColor === 'white' ? whiteTime : blackTime}
+                  increment={timeIncrement}
+                  isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameEnded}
+                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
+                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
+                  gameEnded={gameEnded}
+                />
+              </Flex>
+            </Flex>
 
-          {/* Bottom player (user) */}
-          <div className="mt-2 mb-4 w-full flex justify-between items-center bg-white p-4 rounded-lg shadow">
-            <PlayerProfile color={playerColor} />
-            <Timer
-              initialTime={playerColor === 'white' ? whiteTime : blackTime}
-              increment={timeIncrement}
-              isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameEnded}
-              onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
-              onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
-              gameEnded={gameEnded}
-            />
-          </div>
+            {/* Game controls */}
+            <HStack spacing={4} justify="center" my={4}>
+              <Button
+                onClick={handleResign}
+                bg="red.500"
+                color="white"
+                _hover={{ bg: "red.600" }}
+                size="lg"
+                w="full"
+                isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+              >
+                Resign
+              </Button>
+              <Button
+                onClick={handleOfferDraw}
+                bg="primary"
+                color="white"
+                _hover={{ bg: "blue.600" }}
+                size="lg"
+                w="full"
+                isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+              >
+                {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
+              </Button>
+            </HStack>
 
-          {/* Game controls */}
-          <div className="w-full flex justify-center space-x-4 mb-4">
-            <button
-              onClick={handleResign}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-              disabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
-            >
-              Resign
-            </button>
-            <button
-              onClick={handleOfferDraw}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-              disabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
-            >
-              {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
-            </button>
-          </div>
+            {/* Draw offer dialog */}
+            {drawOfferReceived && (
+              <Box p={4} bg="green.100" color="green.800" rounded="md" border="1px" borderColor="green.300">
+                <Text mb={2}>Your opponent offers a draw</Text>
+                <Flex gap={4}>
+                  <Button 
+                    onClick={handleAcceptDraw}
+                    bg="primary"
+                    color="white"
+                    _hover={{ bg: "blue.600" }}
+                  >
+                    Accept
+                  </Button>
+                  <Button 
+                    onClick={handleDeclineDraw}
+                    bg="red.500"
+                    color="white"
+                    _hover={{ bg: "red.600" }}
+                  >
+                    Decline
+                  </Button>
+                </Flex>
+              </Box>
+            )}
+          </VStack>
+        </Box>
 
-          {/* Draw offer dialog */}
-          {drawOfferReceived && (
-            <div className="w-full bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
-              <p className="mb-2">Your opponent offers a draw</p>
-              <div className="flex space-x-4">
-                <button 
-                  onClick={handleAcceptDraw}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-                >
-                  Accept
-                </button>
-                <button 
-                  onClick={handleDeclineDraw}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded"
-                >
-                  Decline
-                </button>
-              </div>
-            </div>
-          )}
-         
-        </div>
-
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6 transition-all hover:shadow-lg">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <svg xmlns="http://www.w3.org/20000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Game History
-            </h2>
-            <div className="h-64 md:h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {moveHistory && moveHistory.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2 text-sm md:text-base">
-                  {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
-                    const moveIdx = idx * 2;
-                    const whiteMove = moveHistory[moveIdx];
-                    const blackMove = moveHistory[moveIdx + 1];
-                    return (
-                      <React.Fragment key={idx}>
-                        <span className="text-gray-500 font-medium">{idx + 1}.</span>
-                        <span className="font-mono">{whiteMove?.notation || ''}</span>
-                        <span className="font-mono text-gray-800">{blackMove?.notation || ''}</span>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  <p>No moves yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-xl font-bold mb-4">Chat</h2>
-            <ChatWindow
-              messages={chatMessages}
-              currentUser={currentUser}
-            />
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              disabled={false}
-            />
-          </div>
-        </div>
-      </div>
+        {/* Right side - Game history and chat (40% width) */}
+        <Box w={{ base: "100%", md: "40%" }}>
+          <VStack spacing={6} align="stretch" h="100%">
+            {/* Game history */}
+            <Box bg="secondary" rounded="lg" shadow="md" p={4} flex="1">
+              <Flex align="center" mb={4}>
+                <FaHistory style={{ marginRight: '8px' }} />
+                <Heading as="h2" size="lg" color="white">Game History</Heading>
+              </Flex>
+              <Box 
+                h="300px" 
+                overflowY="auto" 
+                bg="white"
+                p={3}
+                rounded="md"
+                css={{
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    width: '10px',
+                    background: 'rgba(0,0,0,0.05)',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: 'rgba(0,0,0,0.2)',
+                    borderRadius: '24px',
+                  },
+                }}
+              >
+                {moveHistory && moveHistory.length > 0 ? (
+                  <Grid templateColumns="auto 1fr 1fr" gap={2} fontSize={{ base: "sm", md: "md" }}>
+                    {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
+                      const moveIdx = idx * 2;
+                      const whiteMove = moveHistory[moveIdx];
+                      const blackMove = moveHistory[moveIdx + 1];
+                      return (
+                        <React.Fragment key={idx}>
+                          <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
+                          <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
+                          <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
+                        </React.Fragment>
+                      );
+                    })}
+                  </Grid>
+                ) : (
+                  <Flex align="center" justify="center" h="full" color="gray.500">
+                    <Text>No moves yet</Text>
+                  </Flex>
+                )}
+              </Box>
+            </Box>
+            
+            {/* Chat */}
+            <Box bg="secondary" rounded="lg" shadow="md" p={4} flex="1">
+              <Flex align="center" mb={4}>
+                <FaComment style={{ marginRight: '8px' }} />
+                <Heading as="h2" size="lg" color="white">Chat</Heading>
+              </Flex>
+              <ChatWindow
+                messages={chatMessages}
+                currentUser={currentUser}
+              />
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                disabled={false}
+              />
+            </Box>
+          </VStack>
+        </Box>
+      </Flex>
 
       {/* Game analysis modal */}
       {showAnalysis && (
@@ -366,16 +489,37 @@ const GamePage = () => {
 
       {/* Reconnection countdown banner */}
       {waitingForReconnection && reconnectionCountdown > 0 && (
-        <div className="w-full mb-4 p-4 rounded-lg bg-yellow-100 border border-yellow-400 text-yellow-800 text-center">
-          <div className="flex items-center justify-center">
-            <div className="mr-3 animate-spin h-5 w-5 border-t-2 border-yellow-500 rounded-full"></div>
-            <h2 className="text-xl font-bold">
+        <Box 
+          position="fixed" 
+          top="4" 
+          left="50%" 
+          transform="translateX(-50%)" 
+          p={4} 
+          rounded="lg" 
+          bg="green.100" 
+          border="1px" 
+          borderColor="green.400" 
+          color="green.800" 
+          textAlign="center"
+          zIndex="banner"
+        >
+          <Flex align="center" justify="center">
+            <Box 
+              mr={3} 
+              className="animate-spin" 
+              h={5} 
+              w={5} 
+              borderTop="2px" 
+              borderColor="green.500" 
+              rounded="full"
+            />
+            <Heading as="h2" size="md">
               Waiting for opponent to reconnect ({reconnectionCountdown}s)
-            </h2>
-          </div>
-        </div>
+            </Heading>
+          </Flex>
+        </Box>
       )}
-    </div>
+    </Container>
   );
 };
 

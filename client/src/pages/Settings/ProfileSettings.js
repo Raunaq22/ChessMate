@@ -1,6 +1,33 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
+import {
+  Box,
+  Heading,
+  Text,
+  VStack,
+  HStack,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Divider,
+  useColorModeValue,
+  Alert,
+  AlertIcon,
+  Spinner,
+  FormControl,
+  FormLabel,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Avatar,
+  Center,
+  useToast,
+  IconButton,
+  FormHelperText
+} from '@chakra-ui/react';
+import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 
 // Helper function to format image URLs - simplified
 const formatImageUrl = (url) => {
@@ -26,6 +53,15 @@ const ProfileSettings = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
+  const toast = useToast();
+
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const cardHeaderBg = useColorModeValue('blue.50', 'blue.900');
+  const textColor = useColorModeValue('gray.700', 'gray.200');
+  const labelColor = useColorModeValue('gray.700', 'white');
+  const inputBg = useColorModeValue('white', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
 
   useEffect(() => {
     if (currentUser) {
@@ -109,6 +145,14 @@ const ProfileSettings = () => {
     try {
       // Validate data
       if (formData.newPassword && formData.newPassword !== formData.confirmNewPassword) {
+        toast({
+          title: 'Password Error',
+          description: 'New passwords do not match',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+        
         setMessage({ type: 'error', text: 'New passwords do not match' });
         setLoading(false);
         return;
@@ -121,6 +165,14 @@ const ProfileSettings = () => {
           profileImageUrl = await uploadImage();
           console.log("New profile image URL:", profileImageUrl);
         } catch (error) {
+          toast({
+            title: 'Image Upload Failed',
+            description: 'Could not upload your profile image.',
+            status: 'error',
+            duration: 4000,
+            isClosable: true,
+          });
+          
           setMessage({ 
             type: 'error', 
             text: 'Failed to upload profile image. Profile update canceled.' 
@@ -156,6 +208,14 @@ const ProfileSettings = () => {
         setImagePreview(formatImageUrl(profileImageUrl));
       }
 
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been successfully updated.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       
       // Clear password fields and selected file
@@ -171,6 +231,15 @@ const ProfileSettings = () => {
       setSelectedFile(null);
     } catch (error) {
       console.error('Error updating profile:', error);
+      
+      toast({
+        title: 'Update Failed',
+        description: error.response?.data?.message || 'Could not update your profile.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      
       setMessage({ 
         type: 'error', 
         text: error.response?.data?.message || 'Failed to update profile. Please try again.' 
@@ -181,159 +250,209 @@ const ProfileSettings = () => {
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
+    <Box>
+      <Heading size="lg" mb={6}>Profile Settings</Heading>
 
       {message.text && (
-        <div className={`p-4 mb-4 rounded-md ${
-          message.type === 'success' ? 'bg-green-100 text-green-800' : 
-          message.type === 'error' ? 'bg-red-100 text-red-800' : 
-          'bg-blue-100 text-blue-800'
-        }`}>
+        <Alert status={message.type} mb={4} borderRadius="md">
+          <AlertIcon />
           {message.text}
-        </div>
+        </Alert>
       )}
 
-      <form onSubmit={handleProfileUpdate} className="space-y-6">
-        {/* Profile Image */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="relative">
-            <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 mb-2">
-              {imagePreview ? (
-                <img 
-                  src={imagePreview} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    console.log("Image failed to load:", e.target.src); 
-                    if (e.target.src !== '/assets/default-avatar.png') {
-                      e.target.src = '/assets/default-avatar.png';
-                    }
-                  }}
+      <Card bg={bgColor} boxShadow="md" mb={6} variant="outline">
+        <CardHeader bg={cardHeaderBg} py={4}>
+          <Heading size="md">Your Profile</Heading>
+        </CardHeader>
+        <CardBody>
+          <form onSubmit={handleProfileUpdate}>
+            <VStack spacing={6} align="stretch">
+              {/* Profile Image */}
+              <Center>
+                <VStack spacing={4}>
+                  <Box position="relative" w="32" h="32">
+                    <Avatar 
+                      size="2xl"
+                      src={imagePreview} 
+                      name={formData.username}
+                      borderWidth={2}
+                      borderColor={borderColor}
+                    />
+                    {uploadingImage && (
+                      <Box 
+                        position="absolute" 
+                        top={0} 
+                        left={0} 
+                        right={0} 
+                        bottom={0} 
+                        bg="blackAlpha.50" 
+                        borderRadius="full"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Spinner thickness="3px" color="blue.500" />
+                      </Box>
+                    )}
+                  </Box>
+                  <Button
+                    as="label"
+                    htmlFor="profile-image"
+                    colorScheme="blue"
+                    size="md"
+                    cursor="pointer"
+                    isDisabled={uploadingImage}
+                  >
+                    Change Photo
+                    <input
+                      id="profile-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      style={{ display: 'none' }}
+                      disabled={uploadingImage}
+                    />
+                  </Button>
+                  {selectedFile && (
+                    <Text fontSize="sm" color={textColor}>
+                      New photo selected. Click "Save Changes" to apply.
+                    </Text>
+                  )}
+                </VStack>
+              </Center>
+
+              <Divider />
+
+              {/* Username */}
+              <FormControl>
+                <FormLabel color={labelColor}>Username</FormLabel>
+                <Input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  bg={inputBg}
+                  borderColor={borderColor}
+                  required
                 />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No Image
-                </div>
-              )}
-              {uploadingImage && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div>
-                </div>
-              )}
-            </div>
-            <label className="cursor-pointer bg-primary text-white py-2 px-4 rounded-md hover:bg-blue-600 inline-block mt-2">
-              Change Photo
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleImageChange}
-                disabled={uploadingImage}
-              />
-            </label>
-            {selectedFile && (
-              <p className="mt-2 text-sm text-gray-600">
-                New photo selected. Click "Save Changes" to apply.
-              </p>
-            )}
-          </div>
-        </div>
-        
-        {/* Username */}
-        <div>
-          <label className="block text-gray-700 font-medium mb-2" htmlFor="username">
-            Username
-          </label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+              </FormControl>
 
-        {/* Email */}
-        <div>
-          <label className="block text-gray-700 font-medium mb-2" htmlFor="email">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+              {/* Email */}
+              <FormControl>
+                <FormLabel color={labelColor}>Email Address</FormLabel>
+                <Input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  bg={inputBg}
+                  borderColor={borderColor}
+                  required
+                />
+              </FormControl>
 
-        <div className="border-t border-gray-200 pt-6 mt-6">
-          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-          
-          {/* Current Password */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2" htmlFor="currentPassword">
-              Current Password
-            </label>
-            <input
-              type="password"
-              id="currentPassword"
-              name="currentPassword"
-              value={formData.currentPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+              <Divider />
+              
+              <Heading size="sm" color={labelColor}>Change Password</Heading>
 
-          {/* New Password */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2" htmlFor="newPassword">
-              New Password
-            </label>
-            <input
-              type="password"
-              id="newPassword"
-              name="newPassword"
-              value={formData.newPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              minLength="6"
-            />
-          </div>
+              {/* Current Password */}
+              <FormControl>
+                <FormLabel color={labelColor}>Current Password</FormLabel>
+                <InputGroup>
+                  <Input
+                    type={showPassword.current ? "text" : "password"}
+                    id="currentPassword"
+                    name="currentPassword"
+                    value={formData.currentPassword}
+                    onChange={handleChange}
+                    bg={inputBg}
+                    borderColor={borderColor}
+                  />
+                  <InputRightElement width="4.5rem">
+                    <IconButton
+                      h="1.75rem"
+                      size="sm"
+                      onClick={() => setShowPassword({...showPassword, current: !showPassword.current})}
+                      icon={showPassword.current ? <ViewOffIcon /> : <ViewIcon />}
+                      variant="ghost"
+                      aria-label={showPassword.current ? "Hide password" : "Show password"}
+                    />
+                  </InputRightElement>
+                </InputGroup>
+                <FormHelperText>Required only if changing password</FormHelperText>
+              </FormControl>
 
-          {/* Confirm New Password */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2" htmlFor="confirmNewPassword">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              id="confirmNewPassword"
-              name="confirmNewPassword"
-              value={formData.confirmNewPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              minLength="6"
-            />
-          </div>
-        </div>
+              {/* New Password */}
+              <FormControl>
+                <FormLabel color={labelColor}>New Password</FormLabel>
+                <InputGroup>
+                  <Input
+                    type={showPassword.new ? "text" : "password"}
+                    id="newPassword"
+                    name="newPassword"
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    bg={inputBg}
+                    borderColor={borderColor}
+                  />
+                  <InputRightElement width="4.5rem">
+                    <IconButton
+                      h="1.75rem"
+                      size="sm"
+                      onClick={() => setShowPassword({...showPassword, new: !showPassword.new})}
+                      icon={showPassword.new ? <ViewOffIcon /> : <ViewIcon />}
+                      variant="ghost"
+                      aria-label={showPassword.new ? "Hide password" : "Show password"}
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="bg-primary text-white py-2 px-6 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400"
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </form>
-    </div>
+              {/* Confirm New Password */}
+              <FormControl>
+                <FormLabel color={labelColor}>Confirm New Password</FormLabel>
+                <InputGroup>
+                  <Input
+                    type={showPassword.confirm ? "text" : "password"}
+                    id="confirmNewPassword"
+                    name="confirmNewPassword"
+                    value={formData.confirmNewPassword}
+                    onChange={handleChange}
+                    bg={inputBg}
+                    borderColor={borderColor}
+                  />
+                  <InputRightElement width="4.5rem">
+                    <IconButton
+                      h="1.75rem"
+                      size="sm"
+                      onClick={() => setShowPassword({...showPassword, confirm: !showPassword.confirm})}
+                      icon={showPassword.confirm ? <ViewOffIcon /> : <ViewIcon />}
+                      variant="ghost"
+                      aria-label={showPassword.confirm ? "Hide password" : "Show password"}
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
+
+              <Divider />
+
+              <Button
+                type="submit"
+                colorScheme="blue"
+                size="lg"
+                w="full"
+                isLoading={loading}
+                loadingText="Saving..."
+              >
+                Save Changes
+              </Button>
+            </VStack>
+          </form>
+        </CardBody>
+      </Card>
+    </Box>
   );
 };
 

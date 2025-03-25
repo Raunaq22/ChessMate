@@ -18,10 +18,6 @@ const SettingsPage = () => {
     const path = location.pathname;
     if (path.includes('/settings/theme')) {
       setActiveTab('theme');
-    } else if (path.includes('/settings/notifications')) {
-      setActiveTab('notifications');
-    } else if (path.includes('/settings/privacy')) {
-      setActiveTab('privacy');
     } else {
       setActiveTab('profile');
     }
@@ -30,8 +26,6 @@ const SettingsPage = () => {
   const tabs = [
     { id: 'profile', name: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', path: '/settings/profile' },
     { id: 'theme', name: 'Theme', icon: 'M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z', path: '/settings/theme' },
-    { id: 'notifications', name: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', path: '/settings/notifications' },
-    { id: 'privacy', name: 'Privacy & Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', path: '/settings/privacy' },
   ];
 
   return (

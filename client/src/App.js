@@ -16,8 +16,7 @@ import GameReplayPage from './pages/GameReplayPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfileSettings from './pages/Settings/ProfileSettings';
 import ThemeSettings from './pages/Settings/ThemeSettings';
-import NotificationSettings from './pages/Settings/NotificationSettings';
-import PrivacySettings from './pages/Settings/PrivacySettings';
+
 import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './context/ThemeContext';
 import theme from './config/theme'; // Ensure this path is correct
@@ -95,8 +94,7 @@ function App() {
                       <Route path="" element={<Navigate to="profile" />} />
                       <Route path="profile" element={<ProfileSettings />} />
                       <Route path="theme" element={<ThemeSettings />} />
-                      <Route path="notifications" element={<NotificationSettings />} />
-                      <Route path="privacy" element={<PrivacySettings />} />
+
                     </Route>
                   </Routes>
                 </Box>

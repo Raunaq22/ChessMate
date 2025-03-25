@@ -26,6 +26,25 @@ const DEFAULT_THEMES = {
     lightSquare: '#FDF0D5', // chess-light
     darkSquare: '#A77E58', // chess-hover
     pieces: 'classic'
+  },
+  // Add the new themes
+  blue: {
+    name: 'Blue',
+    lightSquare: '#cdd7e9',
+    darkSquare: '#5a80b0',
+    pieces: 'classic'
+  },
+  wood: {
+    name: 'Wood',
+    lightSquare: '#E4D2B4',
+    darkSquare: '#9E6B55',
+    pieces: 'classic'
+  },
+  emerald: {
+    name: 'Emerald',
+    lightSquare: '#BDDFD0',
+    darkSquare: '#116340',
+    pieces: 'classic'
   }
 };
 
@@ -43,6 +62,21 @@ export const ThemeProvider = ({ children }) => {
         // Get active theme key
         const activeThemeKey = localStorage.getItem('chessmate_active_theme') || 'chessmate';
         setThemeKey(activeThemeKey);
+        
+        // Check for custom theme settings
+        const themeSettings = localStorage.getItem('chessmate_theme_settings');
+        if (themeSettings) {
+          try {
+            const parsedSettings = JSON.parse(themeSettings);
+            // If we have settings that match the active theme, use those
+            if (parsedSettings && typeof parsedSettings === 'object') {
+              setCurrentTheme(parsedSettings);
+              return; // Exit early since we've loaded settings
+            }
+          } catch (err) {
+            console.error("Error parsing theme settings:", err);
+          }
+        }
         
         // Get theme data based on key
         if (activeThemeKey === 'custom') {
@@ -80,7 +114,8 @@ export const ThemeProvider = ({ children }) => {
     window.addEventListener('storage', (e) => {
       if (e.key === 'chessmate_active_theme' || 
           e.key === 'chessmate_custom_theme' ||
-          e.key === 'chessmate_themes') {
+          e.key === 'chessmate_themes' ||
+          e.key === 'chessmate_theme_settings') {
         loadTheme();
       }
     });
@@ -92,31 +127,52 @@ export const ThemeProvider = ({ children }) => {
 
   // Update the theme settings
   const updateTheme = (newThemeKey) => {
-    setThemeKey(newThemeKey);
-    
-    if (newThemeKey === 'custom') {
-      try {
-        const customThemeData = localStorage.getItem('chessmate_custom_theme');
-        if (customThemeData) {
-          setCurrentTheme(JSON.parse(customThemeData));
-        }
-      } catch (error) {
-        console.error('Error updating to custom theme:', error);
-      }
-    } else if (DEFAULT_THEMES[newThemeKey]) {
-      setCurrentTheme(DEFAULT_THEMES[newThemeKey]);
-    } else {
-      try {
-        const savedThemes = localStorage.getItem('chessmate_themes');
-        if (savedThemes) {
-          const themes = JSON.parse(savedThemes);
-          if (themes[newThemeKey]) {
-            setCurrentTheme(themes[newThemeKey]);
+    try {
+      setThemeKey(newThemeKey);
+      
+      // Save the active theme key to localStorage
+      localStorage.setItem('chessmate_active_theme', newThemeKey);
+      
+      // First check if we have theme settings saved
+      const themeSettings = localStorage.getItem('chessmate_theme_settings');
+      if (themeSettings) {
+        try {
+          const parsedSettings = JSON.parse(themeSettings);
+          if (parsedSettings && typeof parsedSettings === 'object') {
+            setCurrentTheme(parsedSettings);
+            return; // Exit early since we've applied settings
           }
+        } catch (err) {
+          console.error("Error parsing theme settings:", err);
         }
-      } catch (error) {
-        console.error('Error updating to saved theme:', error);
       }
+      
+      if (newThemeKey === 'custom') {
+        try {
+          const customThemeData = localStorage.getItem('chessmate_custom_theme');
+          if (customThemeData) {
+            setCurrentTheme(JSON.parse(customThemeData));
+          }
+        } catch (error) {
+          console.error('Error updating to custom theme:', error);
+        }
+      } else if (DEFAULT_THEMES[newThemeKey]) {
+        setCurrentTheme(DEFAULT_THEMES[newThemeKey]);
+      } else {
+        try {
+          const savedThemes = localStorage.getItem('chessmate_themes');
+          if (savedThemes) {
+            const themes = JSON.parse(savedThemes);
+            if (themes[newThemeKey]) {
+              setCurrentTheme(themes[newThemeKey]);
+            }
+          }
+        } catch (error) {
+          console.error('Error updating to saved theme:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error in updateTheme:', error);
     }
   };
 

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, Flex } from '@chakra-ui/react';
 
-const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
+const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
   // State for display time
-  const [displayTime, setDisplayTime] = useState(initialTime || 0);
+  const [displayTime, setDisplayTime] = useState(time || initialTime || 0);
   
   // Refs to maintain stable values between renders
-  const actualTimeRef = useRef(initialTime || 0);
+  const actualTimeRef = useRef(time || initialTime || 0);
   const timerIntervalRef = useRef(null);
   const lastTickRef = useRef(Date.now());
   const lastUpdateRef = useRef(Date.now());
   const pendingUpdateRef = useRef(null);
   const justReceivedIncrementRef = useRef(false);
-  const lastKnownTimeRef = useRef(initialTime || 0);
+  const lastKnownTimeRef = useRef(time || initialTime || 0);
+  const initializedRef = useRef(false);
   
   // Debug mode flag - turn on to see detailed logs
   const DEBUG = false;
@@ -24,16 +25,37 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
     }
   };
 
-  // Initialize timer or handle server time updates
+  // Initialize timer when component mounts
   useEffect(() => {
-    if (initialTime !== undefined && initialTime !== null) {
+    // Set initialized flag
+    initializedRef.current = true;
+    
+    // Use the provided time prop with fallback to initialTime
+    const providedTime = time !== undefined && time !== null ? time : initialTime;
+    
+    // Only update if we have a valid time
+    if (providedTime !== undefined && providedTime !== null && providedTime > 0) {
+      log(`Initial timer setup: ${providedTime.toFixed(1)}s`);
+      actualTimeRef.current = providedTime;
+      setDisplayTime(providedTime);
+      lastKnownTimeRef.current = providedTime;
+    }
+  }, []);  // Only run once on mount
+
+  // Handle time prop changes
+  useEffect(() => {
+    if (!initializedRef.current) return;
+    
+    const providedTime = time !== undefined && time !== null ? time : initialTime;
+    
+    if (providedTime !== undefined && providedTime !== null) {
       const prevTime = actualTimeRef.current;
-      const diff = initialTime - prevTime;
+      const diff = providedTime - prevTime;
 
       // Store the last known server time to detect future changes
-      if (initialTime !== lastKnownTimeRef.current) {
-        log(`Time changed from ${lastKnownTimeRef.current.toFixed(1)}s to ${initialTime.toFixed(1)}s`);
-        lastKnownTimeRef.current = initialTime;
+      if (providedTime !== lastKnownTimeRef.current) {
+        log(`Time changed from ${lastKnownTimeRef.current.toFixed(1)}s to ${providedTime.toFixed(1)}s`);
+        lastKnownTimeRef.current = providedTime;
       }
 
       // CRITICAL: Handle increments properly
@@ -46,30 +68,32 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
                                     (Math.abs(diff - increment) < 1.5);
         
         if (isIncrementPlausible) {
-          log(`✓ Increment detected: +${diff.toFixed(1)}s (${prevTime.toFixed(1)}s → ${initialTime.toFixed(1)}s)`);
+          log(`✓ Increment detected: +${diff.toFixed(1)}s (${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s)`);
           justReceivedIncrementRef.current = true;
           
           // Always accept increments immediately
-          actualTimeRef.current = initialTime;
-          setDisplayTime(initialTime);
+          actualTimeRef.current = providedTime;
+          setDisplayTime(providedTime);
           return; // Exit early - no other checks needed
         }
       }
       
       // Not an increment. Only update time if significant difference exists,
       // or if we're not currently running (to avoid disrupting countdown)
-      if (!isRunning || Math.abs(prevTime - initialTime) >= 2) {
-        log(`Server time sync: ${prevTime.toFixed(1)}s → ${initialTime.toFixed(1)}s (diff: ${diff.toFixed(1)}s)`);
-        actualTimeRef.current = initialTime;
-        setDisplayTime(initialTime);
+      if (!isRunning || Math.abs(prevTime - providedTime) >= 2) {
+        log(`Server time sync: ${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s (diff: ${diff.toFixed(1)}s)`);
+        actualTimeRef.current = providedTime;
+        setDisplayTime(providedTime);
       }
     }
-  }, [initialTime, increment, isRunning]);
+  }, [time, initialTime, increment, isRunning]);
 
   // Format time as mm:ss
   const formatTime = (seconds) => {
+    if (seconds === null || seconds === undefined) return '0:00';
+    
     // Use ceiling for display to avoid jumping from 1:00 to 0:59 too early
-    const adjustedSeconds = Math.ceil(seconds);
+    const adjustedSeconds = Math.max(0, Math.ceil(seconds));
     const minutes = Math.floor(adjustedSeconds / 60);
     const remainingSeconds = Math.floor(adjustedSeconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -86,6 +110,12 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
     // If game has ended, don't start the timer
     if (gameEnded) {
       log('Game has ended - timer stopped');
+      return;
+    }
+    
+    // Don't run timer if time is zero or null
+    if (actualTimeRef.current <= 0) {
+      log('Timer is zero or negative, not starting');
       return;
     }
 
@@ -172,10 +202,9 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
         fontSize="2xl" 
         fontFamily="mono" 
         fontWeight="bold" 
-        color="white"
+        color={displayTime <= 30 ? "red.500" : "black"}
         px={2}
         py={1}
-        textShadow="0px 0px 2px rgba(0,0,0,0.3)"
         position="relative"
       >
         {formatTime(displayTime)}
@@ -185,7 +214,7 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
             ml={1} 
             display="inline-block"
             animation="pulse 1.5s infinite" 
-            color={displayTime < 30 ? "red.300" : "white"}
+            color={displayTime < 30 ? "red.300" : "gray.600"}
           >
             •
           </Box>
@@ -199,7 +228,7 @@ const Timer = ({ initialTime, increment, isRunning, onTimeUp, onTimeChange, game
             bottom="0"
             borderRadius="md"
             bg="red.500"
-            opacity="0.3"
+            opacity="0.15"
             zIndex="-1"
           />
         )}

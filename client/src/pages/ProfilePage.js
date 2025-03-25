@@ -3,6 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import UserAvatar, { formatImageUrl } from '../components/common/UserAvatar';
+import {
+  Box,
+  Container,
+  Flex,
+  VStack,
+  HStack,
+  Heading,
+  Text,
+  Button,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Badge,
+  Grid,
+  GridItem,
+  useColorModeValue,
+  Spinner,
+  Avatar,
+  SimpleGrid,
+  Card,
+  CardHeader,
+  CardBody,
+  Icon
+} from '@chakra-ui/react';
+import { FaTrophy, FaGamepad, FaCalendarAlt, FaChessKing } from 'react-icons/fa';
 
 const ProfilePage = () => {
   const { currentUser, isAuthenticated } = useContext(AuthContext);
@@ -18,6 +46,11 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'descending' });
+
+  const bgCard = useColorModeValue('white', 'gray.800');
+  const bgHeader = useColorModeValue('primary', 'primary');
+  const bgHover = useColorModeValue('gray.50', 'gray.700');
+  const bgStatCard = useColorModeValue('gray.50', 'gray.700');
 
   // Sorting function for the table
   const sortedGameHistory = React.useMemo(() => {
@@ -115,125 +148,181 @@ const ProfilePage = () => {
   if (!isAuthenticated || !currentUser) return null;
   
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
-        <div className="md:flex">
-          <div className="md:w-1/3 bg-primary p-8 text-white">
-            <div className="flex justify-center mb-4">
-              <UserAvatar 
-                user={currentUser} 
-                className="w-32 h-32 rounded-full bg-white object-cover"
+    <Container maxW="container.xl" py={8}>
+      <Card bg={bgCard} boxShadow="md" mb={8} borderRadius="lg" overflow="hidden">
+        <Grid templateColumns={{ base: "1fr", md: "1fr 2fr" }}>
+          {/* Profile sidebar */}
+          <GridItem bg="primary" p={8} color="white">
+            <VStack spacing={4} align="center">
+              <Avatar 
+                size="2xl"
+                name={currentUser.username}
+                src={formatImageUrl(currentUser.avatar_url)}
+                bg="white"
+                color="gray.600"
+                border="4px solid"
+                borderColor="white"
               />
-            </div>
-            <h2 className="text-2xl font-bold text-center mb-2">{currentUser.username}</h2>
-            <p className="text-center text-white text-opacity-80">{currentUser.email}</p>
-          </div>
+              <Heading size="lg">{currentUser.username}</Heading>
+              <Text opacity={0.8}>{currentUser.email}</Text>
+            </VStack>
+          </GridItem>
           
-          <div className="md:w-2/3 p-8">
-            <h3 className="text-xl font-bold mb-4">Player Stats</h3>
+          {/* Stats section */}
+          <GridItem p={8}>
+            <Heading size="lg" mb={6} color="chess-dark" display="flex" alignItems="center">
+              <Icon as={FaTrophy} mr={2} color="primary" />
+              Player Stats
+            </Heading>
             
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Active Games</p>
-                <p className="text-2xl font-bold">{userStats.activeGames}</p>
-              </div>
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Games Played</p>
-                <p className="text-2xl font-bold">{userStats.gamesPlayed}</p>
-              </div>
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Win Rate</p>
-                <p className="text-2xl font-bold">{userStats.winRate}</p>
-              </div>
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Joined</p>
-                <p className="text-2xl font-bold">{userStats.joined}</p>
-              </div>
-            </div>
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4} mb={6}>
+              <Card bg={bgStatCard} p={4} borderRadius="md">
+                <VStack align="start">
+                  <Flex align="center">
+                    <Icon as={FaGamepad} color="primary" mr={2} />
+                    <Text fontSize="sm" color="gray.500">Active Games</Text>
+                  </Flex>
+                  <Heading size="md" color="chess-dark">{userStats.activeGames}</Heading>
+                </VStack>
+              </Card>
+              
+              <Card bg={bgStatCard} p={4} borderRadius="md">
+                <VStack align="start">
+                  <Flex align="center">
+                    <Icon as={FaChessKing} color="primary" mr={2} />
+                    <Text fontSize="sm" color="gray.500">Games Played</Text>
+                  </Flex>
+                  <Heading size="md" color="chess-dark">{userStats.gamesPlayed}</Heading>
+                </VStack>
+              </Card>
+              
+              <Card bg={bgStatCard} p={4} borderRadius="md">
+                <VStack align="start">
+                  <Flex align="center">
+                    <Icon as={FaTrophy} color="primary" mr={2} />
+                    <Text fontSize="sm" color="gray.500">Win Rate</Text>
+                  </Flex>
+                  <Heading size="md" color="chess-dark">{userStats.winRate}</Heading>
+                </VStack>
+              </Card>
+              
+              <Card bg={bgStatCard} p={4} borderRadius="md">
+                <VStack align="start">
+                  <Flex align="center">
+                    <Icon as={FaCalendarAlt} color="primary" mr={2} />
+                    <Text fontSize="sm" color="gray.500">Joined</Text>
+                  </Flex>
+                  <Heading size="md" color="chess-dark">{userStats.joined}</Heading>
+                </VStack>
+              </Card>
+            </SimpleGrid>
             
-            <div className="flex justify-center mt-4">
-              <button 
+            <Flex justify="center">
+              <Button 
                 onClick={() => navigate('/lobby')} 
-                className="bg-chess-dark hover:bg-chess-hover text-white font-bold py-2 px-6 rounded"
+                bg="primary"
+                color="white"
+                _hover={{ bg: "chess-hover" }}
+                size="lg"
+                leftIcon={<Icon as={FaGamepad} />}
               >
                 Play New Game
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+              </Button>
+            </Flex>
+          </GridItem>
+        </Grid>
+      </Card>
       
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="p-6 border-b">
-          <h3 className="text-xl font-bold">Recent Games</h3>
-        </div>
+      <Card bg={bgCard} boxShadow="md" borderRadius="lg" overflow="hidden">
+        <CardHeader bg="chess-hover" p={6}>
+          <Heading size="lg" color="white">Recent Games</Heading>
+        </CardHeader>
         
-        {loading ? (
-          <div className="p-6 text-center">Loading game history...</div>
-        ) : error ? (
-          <div className="p-6 text-center text-red-600">{error}</div>
-        ) : gameHistory.length > 0 ? (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => requestSort('date')}
-                >
-                  Date {getSortDirectionIndicator('date')}
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => requestSort('opponent')}
-                >
-                  Opponent {getSortDirectionIndicator('opponent')}
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => requestSort('result')}
-                >
-                  Result {getSortDirectionIndicator('result')}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replay</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedGameHistory.map((game, index) => (
-                <tr key={game.game_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(game.end_time || game.updated_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {game.opponent_name || "Unknown"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={`px-2 py-1 rounded ${
-                      game.result === 'win' ? 'bg-green-100 text-green-800' : 
-                      game.result === 'loss' ? 'bg-red-100 text-red-800' : 
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {game.result || 'Draw'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => navigate(`/game-replay/${game.game_id}`)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Replay
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-6 text-center text-gray-500">
-            No games played yet. Start playing to build your history!
-          </div>
-        )}
-      </div>
-    </div>
+        <CardBody p={0}>
+          {loading ? (
+            <Flex justify="center" align="center" py={10}>
+              <Spinner size="xl" color="primary" thickness="4px" />
+            </Flex>
+          ) : error ? (
+            <Box textAlign="center" py={8} color="red.500">
+              {error}
+            </Box>
+          ) : gameHistory.length > 0 ? (
+            <Table variant="simple">
+              <Thead bg="gray.50">
+                <Tr>
+                  <Th 
+                    cursor="pointer" 
+                    onClick={() => requestSort('date')}
+                    _hover={{ bg: bgHover }}
+                    transition="background 0.2s"
+                  >
+                    Date {getSortDirectionIndicator('date')}
+                  </Th>
+                  <Th 
+                    cursor="pointer" 
+                    onClick={() => requestSort('opponent')}
+                    _hover={{ bg: bgHover }}
+                    transition="background 0.2s"
+                  >
+                    Opponent {getSortDirectionIndicator('opponent')}
+                  </Th>
+                  <Th 
+                    cursor="pointer" 
+                    onClick={() => requestSort('result')}
+                    _hover={{ bg: bgHover }}
+                    transition="background 0.2s"
+                  >
+                    Result {getSortDirectionIndicator('result')}
+                  </Th>
+                  <Th>Replay</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {sortedGameHistory.map((game, index) => (
+                  <Tr key={game.game_id} bg={index % 2 === 0 ? 'white' : 'gray.50'}>
+                    <Td>
+                      {new Date(game.end_time || game.updated_at).toLocaleDateString()}
+                    </Td>
+                    <Td>
+                      {game.opponent_name || "Unknown"}
+                    </Td>
+                    <Td>
+                      <Badge 
+                        colorScheme={
+                          game.result === 'win' ? 'green' : 
+                          game.result === 'loss' ? 'red' : 
+                          'gray'
+                        }
+                        px={2}
+                        py={1}
+                        borderRadius="md"
+                      >
+                        {game.result || 'Draw'}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Button
+                        onClick={() => navigate(`/game-replay/${game.game_id}`)}
+                        colorScheme="blue"
+                        variant="link"
+                        size="sm"
+                      >
+                        Replay
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          ) : (
+            <Box textAlign="center" py={8} color="gray.500">
+              No games played yet. Start playing to build your history!
+            </Box>
+          )}
+        </CardBody>
+      </Card>
+    </Container>
   );
 };
 

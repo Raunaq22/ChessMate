@@ -11,7 +11,7 @@ const Game = sequelize.define('Game', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'user_id'
     }
   },
@@ -19,7 +19,7 @@ const Game = sequelize.define('Game', {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'user_id'
     }
   },
@@ -27,7 +27,7 @@ const Game = sequelize.define('Game', {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'user_id'
     }
   },
@@ -65,27 +65,23 @@ const Game = sequelize.define('Game', {
     defaultValue: false
   }
 }, {
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-  tableName: 'games'
+  tableName: 'games',
+  timestamps: true
 });
 
-// Define Game associations
-Game.associateModels = function(models) {
-  const { User } = models;
-  
-  Game.belongsTo(User, {
+// Define associations
+Game.associate = (models) => {
+  Game.belongsTo(models.User, {
     foreignKey: 'player1_id',
     as: 'player1'
   });
-
-  Game.belongsTo(User, {
+  
+  Game.belongsTo(models.User, {
     foreignKey: 'player2_id',
     as: 'player2'
   });
-
-  Game.belongsTo(User, {
+  
+  Game.belongsTo(models.User, {
     foreignKey: 'winner_id',
     as: 'winner'
   });

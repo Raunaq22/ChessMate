@@ -35,14 +35,11 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: true, // Allow null for OAuth users
-    validate: {
-      len: [6, 100]
-    }
+    allowNull: true // Allow null for Google OAuth users
   },
   profile_image_url: {
     type: DataTypes.STRING,
-    defaultValue: '/assets/default-avatar.png' // Changed from API endpoint to direct file path
+    defaultValue: '/assets/default-avatar.png'
   },
   last_login: {
     type: DataTypes.DATE,
@@ -66,11 +63,12 @@ const User = sequelize.define('User', {
       }
     }
   },
-  tableName: 'users' 
+  tableName: 'Users'
 });
 
 // Instance method to compare passwords
 User.prototype.verifyPassword = async function(password) {
+  if (!this.password) return false;
   return await bcrypt.compare(password, this.password);
 };
 

@@ -7,24 +7,27 @@ const Game = require('../models/Game');
 
 async function syncDatabase() {
   try {
-    // Set up model associations
+    // Force sync will drop existing tables and recreate them
+    // In production, you should use { alter: true } instead of { force: true }
+    await sequelize.sync({ force: true });
+    console.log('Database synchronized successfully');
+    
+    // Create associations
     const models = {
       User,
       Game
     };
 
-    // Call associateModels for each model
-    Object.values(models).forEach(model => {
-      if (model.associateModels) {
-        model.associateModels(models);
+    // Call associate for each model
+    Object.keys(models).forEach(modelName => {
+      if (models[modelName].associate) {
+        models[modelName].associate(models);
       }
     });
-
-    // Sync all models with database
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized successfully');
+    
+    console.log('Model associations created');
   } catch (error) {
-    console.error('Error synchronizing database:', error);
+    console.error('Error syncing database:', error);
     throw error;
   }
 }

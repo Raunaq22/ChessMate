@@ -10,8 +10,9 @@ const authRoutes = require('./src/routes/auth');
 const userRoutes = require('./src/routes/users');
 const gameRoutes = require('./src/routes/games');
 
-// Import passport config
+// Import passport config and database sync
 require('./src/config/passport');
+const syncDatabase = require('./src/config/syncDb');
 
 const app = express();
 
@@ -30,30 +31,44 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 
-// Initialize passport
+// Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
+// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/games', gameRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  console.error('Error:', err);
+  res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start server after syncing database
+async function startServer() {
+  try {
+    await syncDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Auth callback URL: ${process.env.GOOGLE_CALLBACK_URL}`);
+      console.log(`Client URL: ${process.env.CLIENT_URL}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

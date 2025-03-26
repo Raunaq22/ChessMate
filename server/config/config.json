@@ -16,7 +16,11 @@
     "dialect": "postgres"
   },
   "production": {
-    "use_env_variable": "DATABASE_URL",
+    "username": "raunaq",
+    "password": null,
+    "database": "chessmate_production",
+    "host": "127.0.0.1",
+    "port": 5432,
     "dialect": "postgres",
     "dialectOptions": {
       "ssl": {

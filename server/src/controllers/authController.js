@@ -112,18 +112,26 @@ const login = async (req, res) => {
 // Verify token and return user data
 const verify = async (req, res) => {
   try {
+    console.log('Verifying token for user:', req.user);
+    
     // User is already attached to req by passport middleware
     const user = req.user;
+    
+    if (!user) {
+      console.error('No user found in request');
+      return res.status(401).json({ message: 'User not found' });
+    }
 
-    res.status(200).json({
-      user: {
-        user_id: user.user_id,
-        username: user.username,
-        email: user.email,
-        profile_image_url: user.profile_image_url,
-        created_at: user.created_at
-      }
-    });
+    const userData = {
+      user_id: user.user_id,
+      username: user.username,
+      email: user.email,
+      profile_image_url: user.profile_image_url,
+      created_at: user.created_at
+    };
+    
+    console.log('Sending user data:', userData);
+    res.status(200).json({ user: userData });
   } catch (error) {
     console.error('Token verification error:', error);
     res.status(500).json({ message: 'Authentication failed' });

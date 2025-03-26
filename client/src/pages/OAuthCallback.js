@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { processOAuthCallback } from '../services/oauth/oauthService';
 import { AuthContext } from '../context/AuthContext';
+import axios from 'axios';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { updateUser } = React.useContext(AuthContext);
+  const { updateUser, setIsAuthenticated } = React.useContext(AuthContext);
   
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
+        console.log('Starting OAuth callback handling...');
+        
         // Get token from URL hash
         const hash = location.hash.substring(1); // Remove the # symbol
+        console.log('Hash from URL:', hash);
+        
         const params = new URLSearchParams(hash);
         const token = params.get('token');
+        console.log('Token received:', token ? 'Yes' : 'No');
         
         if (!token) {
           throw new Error('No authentication token received');
@@ -24,25 +29,32 @@ const OAuthCallback = () => {
         
         // Store token
         localStorage.setItem('token', token);
+        console.log('Token stored in localStorage');
+        
+        // Set axios default header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log('Axios header set with token');
         
         // Get user data
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/verify`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        console.log('Fetching user data from:', `${process.env.REACT_APP_API_URL}/api/auth/verify`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
+        console.log('User data received:', response.data);
         
-        if (!response.ok) {
-          throw new Error('Failed to verify token');
+        if (!response.data || !response.data.user) {
+          throw new Error('Invalid user data received');
         }
         
-        const userData = await response.json();
-        updateUser(userData.user);
+        // Update user context
+        updateUser(response.data.user);
+        setIsAuthenticated(true);
+        console.log('User context updated');
         
         // Redirect to home page
+        console.log('Redirecting to home page...');
         navigate('/');
       } catch (err) {
         console.error('OAuth callback error:', err);
+        console.error('Error details:', err.response?.data || err.message);
         setError(err.message || 'Authentication failed');
       } finally {
         setLoading(false);
@@ -50,7 +62,7 @@ const OAuthCallback = () => {
     };
     
     handleOAuthCallback();
-  }, [location, navigate, updateUser]);
+  }, [location, navigate, updateUser, setIsAuthenticated]);
   
   if (loading) {
     return (

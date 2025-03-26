@@ -1,7 +1,8 @@
-import React, { useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import OAuthButtons from './OAuth/OAuthButtons';
+import axios from 'axios';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,27 @@ const Login = () => {
   
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check for expired token message
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const expired = params.get('expired') === 'true';
+    const verificationError = params.get('error') === 'verification_failed';
+    
+    if (expired) {
+      setError('Your session has expired. Please log in again.');
+    } else if (verificationError) {
+      setError('There was an issue verifying your session. Please log in again.');
+      // Clear any existing token when verification fails
+      localStorage.removeItem('token');
+    }
+    
+    // Clear the error parameters from the URL
+    if (expired || verificationError) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location]);
   
   const handleSubmit = async e => {
     e.preventDefault();
@@ -18,11 +40,15 @@ const Login = () => {
     setLoading(true);
     
     try {
+      // Clear any existing token before attempting login
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
       await login(email, password);
+      // Clear any existing error parameters from URL
+      window.history.replaceState({}, '', window.location.pathname);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Login failed');
-    } finally {
       setLoading(false);
     }
   };
@@ -55,6 +81,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
+                autoComplete="email"
               />
             </div>
             
@@ -75,6 +102,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
               />
             </div>
             

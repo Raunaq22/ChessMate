@@ -8,10 +8,24 @@ const createGame = async (req, res) => {
     // Extract and validate time control parameters
     const { timeControl = 'rapid', initialTime, increment = 0 } = req.body;
     
-    console.log('Creating game with params:', { 
+    // Validate time parameters
+    const validatedInitialTime = Math.max(0, Number(initialTime) || 600);
+    const validatedIncrement = Math.max(0, Number(increment) || 0);
+    
+    if (isNaN(validatedInitialTime) || isNaN(validatedIncrement)) {
+      return res.status(400).json({ 
+        message: 'Invalid time control parameters',
+        details: {
+          initialTime: validatedInitialTime,
+          increment: validatedIncrement
+        }
+      });
+    }
+    
+    console.log('Creating game with validated params:', { 
       timeControl, 
-      initialTime, 
-      increment,
+      initialTime: validatedInitialTime, 
+      increment: validatedIncrement,
       userId
     });
 
@@ -34,7 +48,7 @@ const createGame = async (req, res) => {
       });
     }
 
-    // Create a new game with explicit time control parameters
+    // Create a new game with validated time control parameters
     const { data: game, error: createError } = await supabase
       .from('games')
       .insert([{
@@ -42,10 +56,10 @@ const createGame = async (req, res) => {
         status: 'waiting',
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         move_history: [],
-        initial_time: initialTime,
-        increment: increment,
-        white_time: initialTime,
-        black_time: initialTime,
+        initial_time: validatedInitialTime,
+        increment: validatedIncrement,
+        white_time: validatedInitialTime,
+        black_time: validatedInitialTime,
         created_at: new Date().toISOString()
       }])
       .select()
@@ -53,7 +67,7 @@ const createGame = async (req, res) => {
 
     if (createError) throw createError;
 
-    console.log(`Game created with ID ${game.game_id}, initial time: ${initialTime}, increment: ${increment}`);
+    console.log(`Game created with ID ${game.game_id}, initial time: ${validatedInitialTime}, increment: ${validatedIncrement}`);
 
     res.status(201).json({ 
       message: 'Game created successfully', 

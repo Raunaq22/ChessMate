@@ -13,8 +13,7 @@ const authRoutes = require('./api/routes/auth');
 const gamesRoutes = require('./api/routes/games');
 const usersRoutes = require('./api/routes/users'); 
 
-// Import passport config and database connection check
-require('./config/passport');
+// Import database connection check
 const syncDatabase = require('./config/syncDb');
 
 const app = express();
@@ -25,25 +24,16 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'],
+  exposedHeaders: ['Authorization', 'Content-Disposition']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(passport.initialize());
 
-// Update CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-  exposedHeaders: ['Content-Disposition']
-}));
-
-// Additional CORS headers specifically for image requests
+// Additional headers specifically for image requests
 app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
-  res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 });
@@ -66,7 +56,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// API Routes
+// API Routes - Mount auth routes first
 app.use('/api/auth', authRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/users', usersRoutes);
@@ -132,6 +122,10 @@ async function startServer() {
       console.log(`Server running on port ${PORT}`);
       console.log(`Auth callback URL: ${process.env.GOOGLE_CALLBACK_URL}`);
       console.log(`Client URL: ${process.env.CLIENT_URL}`);
+      console.log('Available routes:');
+      console.log('- POST /api/auth/register');
+      console.log('- POST /api/auth/login');
+      console.log('- GET /api/auth/verify');
     });
   } catch (error) {
     console.error('Failed to start server:', error);

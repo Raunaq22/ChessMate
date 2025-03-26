@@ -132,21 +132,35 @@ const login = async (req, res) => {
 // Verify token and return user data
 const verify = async (req, res) => {
   try {
-    // User is already attached to req by passport middleware
-    const user = req.user;
+    // The user is already authenticated by passport middleware
+    // Get the full user data from Supabase
+    const { data: user, error } = await supabase
+      .from('Users')
+      .select('user_id, username, email, profile_image_url')
+      .eq('user_id', req.user.user_id)
+      .single();
 
-    res.status(200).json({
+    if (error) {
+      console.error('Error fetching user data:', error);
+      return res.status(500).json({ message: 'Error fetching user data' });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return user data
+    res.json({
       user: {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        profile_image_url: user.profile_image_url,
-        created_at: user.created_at
+        profile_image_url: user.profile_image_url
       }
     });
   } catch (error) {
-    console.error('Token verification error:', error);
-    res.status(500).json({ message: 'Authentication failed', error: error.message });
+    console.error('Error verifying token:', error);
+    res.status(500).json({ message: 'Error verifying token' });
   }
 };
 

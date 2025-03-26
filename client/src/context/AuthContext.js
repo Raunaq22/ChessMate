@@ -8,20 +8,23 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is already logged in
+  // Check if user is already logged in from localStorage
   useEffect(() => {
     const checkLoggedIn = async () => {
       const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('userData');
       
-      if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      if (token && userData) {
         try {
-          const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
-          setCurrentUser(res.data.user);
+          // Set the token in axios defaults
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          // Restore user from localStorage
+          setCurrentUser(JSON.parse(userData));
           setIsAuthenticated(true);
         } catch (error) {
-          localStorage.removeItem('token');
-          delete axios.defaults.headers.common['Authorization'];
+          console.error('Error restoring session:', error);
+          clearAuthData();
         }
       }
       setLoading(false);
@@ -30,13 +33,33 @@ export const AuthProvider = ({ children }) => {
     checkLoggedIn();
   }, []);
 
-  // Function to update activity
+  // Function to update activity and check token validity
   const updateActivity = async () => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/activity`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+      
+      // Try a light API call to verify token is still valid
+      await axios.get(`${process.env.REACT_APP_API_URL}/api/health`);
     } catch (error) {
       console.error('Error updating activity:', error);
+      if (error.response?.status === 401) {
+        // Token is invalid or expired
+        clearAuthData();
+        window.location.href = '/login?expired=true';
+      }
     }
+  };
+
+  // Clear all auth data
+  const clearAuthData = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
+    delete axios.defaults.headers.common['Authorization'];
+    setCurrentUser(null);
+    setIsAuthenticated(false);
   };
 
   // Call it on successful login and setup an interval
@@ -55,13 +78,27 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       });
+      
+      if (!res.data || !res.data.token || !res.data.user) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Store data in localStorage
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userData', JSON.stringify(res.data.user));
+      
+      // Set token in axios defaults
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      
+      // Update state
       setCurrentUser(res.data.user);
       setIsAuthenticated(true);
+      
       return res.data;
     } catch (error) {
-      throw error.response.data;
+      console.error('Login error:', error);
+      clearAuthData();
+      throw error.response?.data || { message: 'Login failed' };
     }
   };
 
@@ -81,13 +118,18 @@ export const AuthProvider = ({ children }) => {
       
       console.log('Server response:', res.data); // Debug log
       
-      if (!res.data || !res.data.token) {
+      if (!res.data || !res.data.token || !res.data.user) {
         throw new Error('Invalid response from server');
       }
       
-      // Set auth state after successful registration
+      // Store data in localStorage
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userData', JSON.stringify(res.data.user));
+      
+      // Set token in axios defaults
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      
+      // Update state
       setCurrentUser(res.data.user);
       setIsAuthenticated(true);
       
@@ -95,13 +137,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Registration error:', error);
       if (error.response) {
-        // The server responded with a status code outside the 2xx range
         throw new Error(error.response.data.message || 'Registration failed');
       } else if (error.request) {
-        // The request was made but no response was received
         throw new Error('Network error - Cannot connect to server');
       } else {
-        // Something happened in setting up the request
         throw new Error('Error setting up request');
       }
     }
@@ -109,16 +148,14 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    setCurrentUser(null);
-    setIsAuthenticated(false);
+    clearAuthData();
   };
 
   // Update user function
   const updateUser = (userData) => {
     setCurrentUser(userData);
     setIsAuthenticated(true);
+    localStorage.setItem('userData', JSON.stringify(userData));
   };
 
   return (

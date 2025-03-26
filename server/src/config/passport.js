@@ -3,6 +3,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const JwtStrategy = require('passport-jwt').Strategy;
 const { ExtractJwt } = require('passport-jwt');
 const User = require('../models/User');
+const supabase = require('./supabase');
 
 // JWT Strategy
 const jwtOptions = {
@@ -18,12 +19,25 @@ passport.use(new JwtStrategy(jwtOptions, async (payload, done) => {
       return done(null, false);
     }
     
-    const user = await User.findByPk(userId);
-    if (user) {
-      return done(null, user);
+    // Get user from Supabase
+    const { data: user, error } = await supabase
+      .from('Users')
+      .select('user_id, username, email')
+      .eq('user_id', userId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching user in passport:', error);
+      return done(error, false);
     }
-    return done(null, false);
+    
+    if (!user) {
+      return done(null, false);
+    }
+    
+    return done(null, user);
   } catch (error) {
+    console.error('Passport JWT strategy error:', error);
     return done(error, false);
   }
 }));
@@ -35,50 +49,41 @@ passport.use(new GoogleStrategy({
   callbackURL: process.env.GOOGLE_CALLBACK_URL
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    console.log('Google profile:', profile);
-    
     // Check if user exists
-    let user = await User.findOne({ where: { google_id: profile.id } });
-    
-    if (user) {
-      console.log('Existing user found:', user.email);
-      // Update user's Google profile info
-      await user.update({
-        email: profile.emails[0].value,
-        avatar_url: profile.photos[0].value,
-        last_login: new Date()
-      });
-      return done(null, user);
+    const { data: existingUser, error: userError } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('google_id', profile.id)
+      .single();
+
+    if (userError && userError.code !== 'PGRST116') {
+      throw userError;
     }
 
-    // Format username from email or display name
-    let username = profile.displayName || profile.emails[0].value.split('@')[0];
-    // Remove special characters and spaces, convert to lowercase
-    username = username
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
-      .replace(/\s+/g, '');
-    
-    // Add random number if username is too short
-    if (username.length < 3) {
-      username += Math.floor(Math.random() * 1000);
+    if (existingUser) {
+      return done(null, existingUser);
     }
 
     // Create new user
-    user = await User.create({
-      google_id: profile.id,
-      email: profile.emails[0].value,
-      username: username,
-      avatar_url: profile.photos[0].value,
-      last_active: new Date(),
-      last_login: new Date()
-    });
+    const { data: newUser, error: createError } = await supabase
+      .from('Users')
+      .insert([{
+        google_id: profile.id,
+        username: profile.displayName,
+        email: profile.emails[0].value,
+        profile_image_url: profile.photos[0].value,
+        last_active: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      }])
+      .select()
+      .single();
 
-    console.log('Google Strategy - New user created:', user.user_id);
-    return done(null, user);
+    if (createError) throw createError;
+
+    return done(null, newUser);
   } catch (error) {
-    console.error('Google Strategy Error:', error);
-    return done(error, null);
+    console.error('Google strategy error:', error);
+    return done(error, false);
   }
 }));
 
@@ -89,7 +94,17 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (user_id, done) => {
   try {
-    const user = await User.findByPk(user_id);
+    const { data: user, error } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('user_id', user_id)
+      .single();
+      
+    if (error) {
+      console.error('Error deserializing user:', error);
+      return done(error, null);
+    }
+    
     done(null, user);
   } catch (error) {
     done(error, null);

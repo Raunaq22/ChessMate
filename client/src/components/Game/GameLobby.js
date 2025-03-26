@@ -151,7 +151,6 @@ const handleCreateGame = async (timeControl) => {
     // Convert values to proper types and validate
     const payload = {
       timeControl: timeControl.name.toLowerCase(),
-      // Ensure initialTime is a number or null, never undefined
       initialTime: timeControl.time !== undefined ? Number(timeControl.time) : 
                   timeControl.time === null ? null : 600,
       increment: Number(timeControl.increment || 0),
@@ -161,45 +160,40 @@ const handleCreateGame = async (timeControl) => {
     console.log('Creating game with validated params:', payload);
     
     const response = await gameService.createGame(payload);
+    console.log('Game creation response:', response);
     
-    if (response?.game?.game_id) {
-      // Store the created game ID in a state variable
-      setCreatedGameId(response.game.game_id);
-      
-      console.log('Game created successfully with time control:', {
-        timeControl: payload.timeControl,
-        initialTime: payload.initialTime,
-        increment: payload.increment,
-        label: payload.label,
-        gameId: response.game.game_id
-      });
-      
-      // Mark the game as joined to prevent cleanup
-      setGameJoined(true);
-      
-      toast({
-        title: 'Game created',
-        description: 'Your game has been created. Redirecting...',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      // Add a small delay to ensure the game is properly saved in the database
-      setTimeout(() => {
-        navigate(`/game/${response.game.game_id}`);
-      }, 300);
-    } else {
-      setDebugInfo('Game created but no game_id returned');
-      
-      toast({
-        title: 'Something went wrong',
-        description: 'Game was created but no ID was returned',
-        status: 'warning',
-        duration: 5000,
-        isClosable: true,
-      });
+    // The server returns { game: { game_id, ... } }
+    if (!response || !response.game || !response.game.game_id) {
+      console.error('Invalid response structure:', response);
+      throw new Error('Invalid response from server');
     }
+    
+    // Store the created game ID in a state variable
+    setCreatedGameId(response.game.game_id);
+    
+    console.log('Game created successfully with time control:', {
+      timeControl: payload.timeControl,
+      initialTime: payload.initialTime,
+      increment: payload.increment,
+      label: payload.label,
+      gameId: response.game.game_id
+    });
+    
+    // Mark the game as joined to prevent cleanup
+    setGameJoined(true);
+    
+    toast({
+      title: 'Game created',
+      description: 'Your game has been created. Redirecting...',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+    
+    // Add a small delay to ensure the game is properly saved in the database
+    setTimeout(() => {
+      navigate(`/game/${response.game.game_id}`);
+    }, 300);
   } catch (error) {
     console.error('Failed to create game:', error);
     setDebugInfo(`Create error: ${error.message || JSON.stringify(error)}`);
@@ -537,7 +531,7 @@ const handleCreateGame = async (timeControl) => {
                         <HStack>
                           <Icon as={FaUser} color="gray.500" />
                           <Text fontWeight="medium">
-                            Host: {game.player1?.username || 'Unknown'}
+                            Host: {game.player1?.username || 'Loading...'}
                           </Text>
                         </HStack>
                         

@@ -1,6 +1,7 @@
 const Game = require('../models/Game');
 const User = require('../models/User');
 const { Op } = require('sequelize');
+const supabase = require('../config/supabase');
 
 // Create a new game
 const createGame = async (req, res) => {
@@ -8,10 +9,8 @@ const createGame = async (req, res) => {
     const userId = req.user.user_id;
     
     // Extract and validate time control parameters
-    // Only keep necessary fields
     const { timeControl = 'rapid', initialTime, increment = 0 } = req.body;
     
-    // Debug log the received values
     console.log('Creating game with params:', { 
       timeControl, 
       initialTime, 
@@ -36,11 +35,26 @@ const createGame = async (req, res) => {
       move_history: [],
       initial_time: initialTime,
       increment: increment,
-      white_time: initialTime, // Initialize both times with the initial value
+      white_time: initialTime,
       black_time: initialTime
     });
     
-    // Debug log the created game
+    // Create game in Supabase for real-time updates
+    await supabase
+      .from('games')
+      .insert([{
+        game_id: game.game_id,
+        player1_id: userId,
+        status: 'waiting',
+        fen: game.fen,
+        move_history: [],
+        initial_time: initialTime,
+        increment: increment,
+        white_time: initialTime,
+        black_time: initialTime,
+        created_at: new Date().toISOString()
+      }]);
+
     console.log(`Game created with ID ${game.game_id}, initial time: ${initialTime}, increment: ${increment}`);
 
     res.status(201).json({ 
@@ -79,8 +93,30 @@ const joinGame = async (req, res) => {
 
     game.player2_id = userId;
     game.status = 'playing';
-    game.start_time = new Date(); // Set start_time when game transitions to 'playing'
+    game.start_time = new Date();
     await game.save();
+
+    // Update game in Supabase
+    await supabase
+      .from('games')
+      .update({
+        player2_id: userId,
+        status: 'playing',
+        start_time: game.start_time.toISOString()
+      })
+      .eq('game_id', gameId);
+
+    // Create game player record in Supabase
+    await supabase
+      .from('game_players')
+      .insert([
+        {
+          game_id: gameId,
+          user_id: userId,
+          color: 'black',
+          joined_at: new Date().toISOString()
+        }
+      ]);
 
     res.status(200).json({ 
       message: 'Joined game successfully', 
@@ -91,7 +127,7 @@ const joinGame = async (req, res) => {
         increment: game.increment,
         white_time: game.white_time,
         black_time: game.black_time,
-        start_time: game.start_time // Include start_time in the response
+        start_time: game.start_time
       }
     });
   } catch (error) {
@@ -331,6 +367,140 @@ const cancelGame = async (req, res) => {
   }
 };
 
+// Make a move in the game
+const makeMove = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { from, to, promotion, fen, moveNotation } = req.body;
+    const userId = req.user.user_id;
+
+    const game = await Game.findByPk(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    // Validate it's the player's turn
+    const isWhiteTurn = game.fen.split(' ')[1] === 'w';
+    const isPlayerWhite = game.player1_id === userId;
+    
+    if ((isWhiteTurn && !isPlayerWhite) || (!isWhiteTurn && isPlayerWhite)) {
+      return res.status(400).json({ message: 'Not your turn' });
+    }
+
+    // Update game state
+    game.fen = fen;
+    game.move_history = [...(game.move_history || []), {
+      from,
+      to,
+      promotion,
+      notation: moveNotation,
+      timestamp: new Date().toISOString()
+    }];
+
+    // Update time controls if needed
+    if (isWhiteTurn) {
+      game.white_time = req.body.whiteTimeLeft;
+    } else {
+      game.black_time = req.body.blackTimeLeft;
+    }
+
+    await game.save();
+
+    // Update game in Supabase
+    await supabase
+      .from('games')
+      .update({
+        fen,
+        move_history: game.move_history,
+        white_time: game.white_time,
+        black_time: game.black_time
+      })
+      .eq('game_id', gameId);
+
+    // Record the move in Supabase
+    await supabase
+      .from('game_moves')
+      .insert([{
+        game_id: gameId,
+        user_id: userId,
+        from,
+        to,
+        promotion,
+        fen,
+        move_notation: moveNotation,
+        created_at: new Date().toISOString()
+      }]);
+
+    res.json({ 
+      message: 'Move made successfully',
+      game: {
+        fen: game.fen,
+        move_history: game.move_history,
+        white_time: game.white_time,
+        black_time: game.black_time
+      }
+    });
+  } catch (error) {
+    console.error('Error making move:', error);
+    res.status(500).json({ message: 'Failed to make move', error: error.message });
+  }
+};
+
+// End game (checkmate, draw, resignation, etc.)
+const endGame = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { reason, winner } = req.body;
+    const userId = req.user.user_id;
+
+    const game = await Game.findByPk(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    // Update game status
+    game.status = 'completed';
+    game.end_time = new Date();
+    game.result = reason;
+    game.winner_id = winner;
+
+    await game.save();
+
+    // Update game in Supabase
+    await supabase
+      .from('games')
+      .update({
+        status: 'completed',
+        end_time: game.end_time.toISOString(),
+        result,
+        winner_id: winner
+      })
+      .eq('game_id', gameId);
+
+    // Create game result record in Supabase
+    await supabase
+      .from('game_results')
+      .insert([{
+        game_id: gameId,
+        reason,
+        winner_id: winner,
+        completed_at: game.end_time.toISOString()
+      }]);
+
+    res.json({ 
+      message: 'Game ended successfully',
+      game: {
+        status: game.status,
+        result: game.result,
+        winner_id: game.winner_id
+      }
+    });
+  } catch (error) {
+    console.error('Error ending game:', error);
+    res.status(500).json({ message: 'Failed to end game', error: error.message });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
@@ -338,5 +508,7 @@ module.exports = {
   getGameHistory,
   getGameById,
   getGame,
-  cancelGame
+  cancelGame,
+  makeMove,
+  endGame
 };

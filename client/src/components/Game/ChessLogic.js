@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { AuthContext } from '../../context/AuthContext';
-import { io } from 'socket.io-client';
+import supabase from '../../config/supabase';
 import axios from 'axios';
 
 const STORAGE_KEY = 'chessmate_game_state';
@@ -87,7 +87,7 @@ const useChessLogic = (gameId, navigate) => {
     checkGameStatus();
   }, [gameId, currentUser, isAuthenticated, navigate]);
 
-  // Initialize from storage and connect socket
+  // Initialize from storage and connect to Supabase real-time
   useEffect(() => {
     if (!gameId || !currentUser || !currentUser.user_id) return;
 
@@ -108,449 +108,146 @@ const useChessLogic = (gameId, navigate) => {
       gameInitialized.current = true;
     }
 
-    const newSocket = io(process.env.REACT_APP_API_URL, {
-      withCredentials: true,
-      query: { 
-        gameId, 
-        userId: currentUser.user_id 
-      },
-      // Add reconnection settings
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
-
-    newSocket.on('connect', () => {
-      newSocket.emit('joinGame', { gameId, userId: currentUser.user_id });
-    });
-
-    // Add this new event listener for player updates
-    newSocket.on('playerUpdate', ({ whitePlayerId, blackPlayerId, whitePlayerProfile, blackPlayerProfile }) => {
-      console.log('Player update received:', { whitePlayerProfile, blackPlayerProfile });
-      
-      // Update player IDs
-      setPlayerIds({ 
-        white: whitePlayerId, 
-        black: blackPlayerId 
-      });
-      
-      // Update player profiles
-      setPlayerProfiles({ 
-        white: whitePlayerProfile || null, 
-        black: blackPlayerProfile || null 
-      });
-      
-      // Set opponent joined to true if both players are present
-      if (whitePlayerId && blackPlayerId) {
-        setOpponentJoined(true);
-        
-        // Update opponent name based on current player color
-        if (playerColor === 'white' && blackPlayerProfile?.username) {
-          setOpponentName(blackPlayerProfile.username);
-          console.log('Black player joined:', blackPlayerProfile.username);
-        } else if (playerColor === 'black' && whitePlayerProfile?.username) {
-          setOpponentName(whitePlayerProfile.username);
-          console.log('White player joined:', whitePlayerProfile.username);
+    // Subscribe to game updates
+    const gameSubscription = supabase
+      .channel(`game:${gameId}`)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'games',
+          filter: `game_id=eq.${gameId}`
+        }, 
+        (payload) => {
+          console.log('Game update received:', payload);
+          handleGameUpdate(payload);
         }
-      }
-    });
+      )
+      .subscribe();
 
-    newSocket.on('gameState', ({ 
-      fen, 
-      playerColor, 
-      initialTime, 
-      increment, 
-      isWhiteTimerRunning, 
-      isBlackTimerRunning,
-      whitePlayerId,
-      blackPlayerId,
-      whitePlayerProfile,
-      blackPlayerProfile,
-      started,
-      whiteTimeLeft,
-      blackTimeLeft,
-      firstMoveMade: serverFirstMoveMade,
-      moveHistory: serverMoveHistory, // Get move history from server on reconnection
-      // Add new field to capture raw game data
-      gameData
-    }) => {
-      const newGame = new Chess(fen);
-      
-      // Enhanced debugging - log the full game state object
-      console.log('DETAILED SERVER RESPONSE:', {
-        initialTime, 
-        increment,
-        whiteTimeLeft,
-        blackTimeLeft,
-        whitePlayerProfile,
-        blackPlayerProfile,
-        gameData // This will show the raw game object if the server sends it
-      });
-      
-      // No default values - use exactly what the server sends
-      setGame(newGame);
-      setPosition(fen);
-      setPlayerColor(playerColor); 
-      
-      // Set player profiles with real data from server
-      setPlayerProfiles({
-        white: whitePlayerProfile || null,
-        black: blackPlayerProfile || null
-      });
-      
-      // Get opponent name
-      if (playerColor === 'white' && blackPlayerProfile?.username) {
-        setOpponentName(blackPlayerProfile.username);
-      } else if (playerColor === 'black' && whitePlayerProfile?.username) {
-        setOpponentName(whitePlayerProfile.username);
-      }
-      
-      // Ensure both players are tracked properly
-      setPlayerIds({ white: whitePlayerId, black: blackPlayerId });
-      setPlayerProfiles({ 
-        white: whitePlayerProfile || null, 
-        black: blackPlayerProfile || null 
-      });
-      
-      // CRITICAL FIX: Set opponentJoined immediately based on player IDs
-      if (whitePlayerId && blackPlayerId) {
-        setOpponentJoined(true);
-      }
-      
-      // CRITICAL FIX: Only show animation once and briefly
-      if (!started && !localStorage.getItem(`${STORAGE_KEY}_${gameId}_seen`)) {
-        setShowStartAnimation(true);
-        localStorage.setItem(`${STORAGE_KEY}_${gameId}_seen`, 'true');
-        setTimeout(() => setShowStartAnimation(false), 2000);
-      } else {
-        setShowStartAnimation(false); // Ensure it's hidden if already seen
-      }
-      
-      if (serverFirstMoveMade !== undefined) {
-        setFirstMoveMade(serverFirstMoveMade);
-      }
-      
-      if (started) {
-        setGameStarted(true);
-      }
-      
-      // Update move history from server on reconnection
-      if (serverMoveHistory && Array.isArray(serverMoveHistory) && serverMoveHistory.length > 0) {
-        console.log(`Received ${serverMoveHistory.length} moves from server on reconnection`);
-        
-        // Process the raw move objects into our expected format
-        const processedMoves = [];
-        const chessInstance = new Chess();
-        
-        for (const moveObj of serverMoveHistory) {
-          try {
-            const result = chessInstance.move({
-              from: moveObj.from,
-              to: moveObj.to,
-              promotion: moveObj.promotion
-            });
-            
-            if (result) {
-              processedMoves.push({
-                notation: result.san,
-                fen: chessInstance.fen()
-              });
-            }
-          } catch (err) {
-            console.error("Error replaying move:", err);
-          }
+    // Subscribe to player updates
+    const playerSubscription = supabase
+      .channel(`players:${gameId}`)
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_players',
+          filter: `game_id=eq.${gameId}`
+        },
+        (payload) => {
+          console.log('Player update received:', payload);
+          handlePlayerUpdate(payload);
         }
-        
-        // Only update if we have valid moves
-        if (processedMoves.length > 0) {
-          setMoveHistory(processedMoves);
-          console.log(`Processed ${processedMoves.length} moves for reconnection`);
-        }
-      }
-      
-      // CRITICAL FIX: Time control initialization
-      // Remove fallbacks to force using only server values
-      let whiteTimeValue = whiteTimeLeft !== undefined ? whiteTimeLeft : initialTime;
-      let blackTimeValue = blackTimeLeft !== undefined ? blackTimeLeft : initialTime;
-      
-      console.log('Final time settings:', {
-        white: whiteTimeValue,
-        black: blackTimeValue,
-        increment: increment || 0
-      });
-      
-      setWhiteTime(whiteTimeValue);
-      setBlackTime(blackTimeValue);
-      setTimeIncrement(increment || 0);
-  
-      const firstMoveStatus = serverFirstMoveMade !== undefined ? serverFirstMoveMade : firstMoveMade;
-      const isWhiteTurn = newGame.turn() === 'w';
-      
-      setIsWhiteTimerRunning(started && firstMoveStatus && isWhiteTurn);
-      setIsBlackTimerRunning(started && firstMoveStatus && !isWhiteTurn);
-      
-      // Fix: Set opponentJoined to true when both players are present
-      setOpponentJoined(whitePlayerId && blackPlayerId);
-      
-      gameInitialized.current = true;
-    });
+      )
+      .subscribe();
 
-    // Add event listener for notifications
-    newSocket.on('notification', ({ type, message }) => {
-      if (message) {
-        setNotification({
-          message,
-          type: type || 'info'
-        });
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => setNotification(null), 5000);
-      }
-    });
-
-    newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, whiteTimeLeft, blackTimeLeft, firstMoveMade: serverFirstMoveMade, gameOverInfo }) => {
-      try {
-        const newGame = new Chess(fen);
-        setGame(newGame);
-        setPosition(fen);
-        
-        if (serverFirstMoveMade !== undefined) {
-          setFirstMoveMade(serverFirstMoveMade);
-        } else {
-          setFirstMoveMade(true);
+    // Subscribe to move updates
+    const moveSubscription = supabase
+      .channel(`moves:${gameId}`)
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_moves',
+          filter: `game_id=eq.${gameId}`
+        },
+        (payload) => {
+          console.log('Move update received:', payload);
+          handleMoveUpdate(payload);
         }
-        
-        if (firstMoveMade || serverFirstMoveMade) {
-          setIsWhiteTimerRunning(isWhiteTimerRunning);
-          setIsBlackTimerRunning(isBlackTimerRunning);
-        }
-        
-        if (whiteTimeLeft !== undefined) setWhiteTime(whiteTimeLeft);
-        if (blackTimeLeft !== undefined) setBlackTime(blackTimeLeft);
-        
-        setMoveHistory(prev => {
-          if (prev.length > 0 && prev[prev.length - 1].notation === moveNotation && prev[prev.length - 1].fen === fen) {
-            return prev;
-          }
-          return [...prev, { notation: moveNotation, fen }];
-        });
+      )
+      .subscribe();
 
-        // Check if this move resulted in checkmate (sent by opponent)
-        if (gameOverInfo && gameOverInfo.reason === 'checkmate') {
-          console.log("CHECKMATE detected from received move!");
-          console.log("Winner according to move data:", gameOverInfo.winner);
-          
-          const winnerColor = gameOverInfo.winner === 'white' ? 'White' : 'Black';
-          const isCurrentPlayerWinner = 
-            (gameOverInfo.winner === 'white' && playerIds.white === currentUser.user_id) || 
-            (gameOverInfo.winner === 'black' && playerIds.black === currentUser.user_id);
-          
-          if (isCurrentPlayerWinner) {
-            console.log("Setting winner UI for checkmate from move");
-            setGameStatus(`Checkmate! You win!`);
-            setShowConfetti(true);
-          } else {
-            console.log("Setting loser UI for checkmate from move");
-            setGameStatus(`Checkmate! ${winnerColor} wins!`);
-          }
-          
-          setGameEnded(true);
+    // Subscribe to chat messages
+    const chatSubscription = supabase
+      .channel(`chat:${gameId}`)
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_chat',
+          filter: `game_id=eq.${gameId}`
+        },
+        (payload) => {
+          console.log('Chat message received:', payload);
+          handleChatUpdate(payload);
         }
-      } catch (error) {
-        console.error('Error processing received move:', error);
-      }
-    });
+      )
+      .subscribe();
 
-    newSocket.on('playerDisconnected', ({ message, gameActive }) => {
-      // Only show disconnection UI and redirect if the game was still active
-      if (gameActive && !gameEnded) {
-        setDisconnected(true);
-        
-        // Show notification
-        setNotification({
-          message: message || 'Opponent disconnected. Returning to lobby...',
-          type: 'warning'
-        });
-        
-        // Redirect after delay only for active games
-        setTimeout(() => navigate('/lobby'), 3000);
-      } else {
-        // For completed games, just show a subtle notification without the banner
-        setNotification({
-          message: message || 'Opponent has left the game.',
-          type: 'info'
-        });
-        
-        // Clear notification after a few seconds
-        setTimeout(() => setNotification(null), 5000);
-        
-        // DON'T set disconnected to true for completed games
-        // This prevents showing the red disconnection banner
-      }
-    });
-
-    newSocket.on('timeUpdate', ({ color, timeLeft }) => {
-      if (color === 'white') {
-        setWhiteTime(timeLeft);
-      } else {
-        setBlackTime(timeLeft);
-      }
-    });
-    
-    // Update the socket event listener for chat in ChessGame.js:
-    newSocket.on('chat', (message) => {
-      console.log('Received chat message:', message);
-      // Create a new array to ensure React detects the change
-      setChatMessages(prevMessages => {
-        // Prevent duplicate messages
-        if (prevMessages.some(m => 
-          m.userId === message.userId && 
-          m.text === message.text &&
-          m.timestamp === message.timestamp)) {
-          return prevMessages;
-        }
-        return [...prevMessages, message];
-      });
-    });
-    
-    newSocket.on('drawOffer', ({ fromPlayerId }) => {
-      if (fromPlayerId !== currentUser.user_id) {
-        setDrawOfferReceived(true);
-      }
-    });
-    
-    newSocket.on('drawOfferRejected', () => {
-      setOfferingDraw(false);
-    });
-    
-    newSocket.on('gameOver', ({ reason, winner }) => {
-      console.log("GAME OVER EVENT RECEIVED:", { reason, winner, playerColor });
-      console.log("Player IDs:", playerIds);
-      console.log("Current user ID:", currentUser.user_id);
-      
-      if (reason === 'draw') {
-        setGameStatus('Game ended in a draw by agreement');
-        setGameEnded(true); // Set game ended state
-      } else if (reason === 'resignation') {
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        const isCurrentPlayerWinner = 
-          (winner === 'white' && playerIds.white === currentUser.user_id) || 
-          (winner === 'black' && playerIds.black === currentUser.user_id);
-        
-        // Different messages for winner and loser
-        if (isCurrentPlayerWinner) {
-          setGameStatus(`You win! Your opponent resigned.`);
-          setShowConfetti(true);
-        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
-          // Only show this message if current user is a player (not a spectator)
-          setGameStatus(`You resigned. ${winnerColor} wins!`);
-        } else {
-          // Generic message for spectators
-          setGameStatus(`${winnerColor} wins by resignation!`);
-        }
-        
-        setGameEnded(true);
-      } else if (reason === 'checkmate') {
-        console.log("CHECKMATE event received from server!");
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        const isCurrentPlayerWinner = 
-          (winner === 'white' && playerIds.white === currentUser.user_id) || 
-          (winner === 'black' && playerIds.black === currentUser.user_id);
-        
-        console.log("Is current player the winner?", isCurrentPlayerWinner);
-        
-        if (isCurrentPlayerWinner) {
-          console.log("Setting winner UI for checkmate from server");
-          setGameStatus(`Checkmate! You win!`);
-          setShowConfetti(true);
-        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
-          console.log("Setting loser UI for checkmate from server");
-          setGameStatus(`Checkmate! ${winnerColor} wins!`);
-        } else {
-          console.log("Setting spectator UI for checkmate from server");
-          setGameStatus(`Checkmate! ${winnerColor} wins!`);
-        }
-        
-        setGameEnded(true);
-      } else if (reason === 'timeout') {
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        const isCurrentPlayerWinner = 
-          (winner === 'white' && playerIds.white === currentUser.user_id) || 
-          (winner === 'black' && playerIds.black === currentUser.user_id);
-        
-        if (isCurrentPlayerWinner) {
-          setGameStatus(`You win on time!`);
-          setShowConfetti(true);
-        } else if (playerIds.white === currentUser.user_id || playerIds.black === currentUser.user_id) {
-          setGameStatus(`${winnerColor} wins on time!`);
-        } else {
-          setGameStatus(`${winnerColor} wins on time!`);
-        }
-        
-        setGameEnded(true);
-      } else if (reason === 'abandonment') {
-        const winnerColor = winner === 'white' ? 'White' : 'Black';
-        const isCurrentPlayerWinner = 
-          (winner === 'white' && playerIds.white === currentUser.user_id) || 
-          (winner === 'black' && playerIds.black === currentUser.user_id);
-        
-        if (isCurrentPlayerWinner) {
-          setGameStatus(`You win! Your opponent abandoned the game.`);
-          setShowConfetti(true);
-        } else {
-          setGameStatus(`Game forfeit. ${winnerColor} wins by abandonment.`);
-        }
-        
-        setGameEnded(true);
-        setWaitingForReconnection(false);
-      }
-    });
-
-    newSocket.on('playerTemporarilyDisconnected', ({ message, userId }) => {
-      // Show reconnection countdown if opponent disconnected
-      setWaitingForReconnection(true);
-      setReconnectionCountdown(15);
-      
-      // Start countdown
-      const countdownInterval = setInterval(() => {
-        setReconnectionCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      setNotification({
-        message: `${message} (${15}s)`,
-        type: 'warning'
-      });
-    });
-
-    newSocket.on('playerReconnected', ({ message }) => {
-      // Clear reconnection state
-      setWaitingForReconnection(false);
-      setReconnectionCountdown(0);
-      
-      setNotification({
-        message: message || 'Your opponent has reconnected. The game continues!',
-        type: 'success'
-      });
-      
-      setTimeout(() => setNotification(null), 3000);
-    });
-
-    setSocket(newSocket);
-
+    // Cleanup subscriptions on unmount
     return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
+      gameSubscription.unsubscribe();
+      playerSubscription.unsubscribe();
+      moveSubscription.unsubscribe();
+      chatSubscription.unsubscribe();
     };
-  }, [gameId, currentUser, navigate]);
+  }, [gameId, currentUser]);
+
+  // Handler functions for different types of updates
+  const handleGameUpdate = useCallback((payload) => {
+    const { new: gameData } = payload;
+    if (!gameData) return;
+
+    // Update game state based on the new data
+    if (gameData.fen) {
+      const newGame = new Chess(gameData.fen);
+      setGame(newGame);
+      setPosition(gameData.fen);
+    }
+
+    if (gameData.status === 'completed') {
+      setGameEnded(true);
+      setGameStatus(`Game ended: ${gameData.result}`);
+    }
+
+    // Update time controls
+    if (gameData.white_time !== undefined) setWhiteTime(gameData.white_time);
+    if (gameData.black_time !== undefined) setBlackTime(gameData.black_time);
+    if (gameData.increment !== undefined) setTimeIncrement(gameData.increment);
+  }, []);
+
+  const handlePlayerUpdate = useCallback((payload) => {
+    const { new: playerData } = payload;
+    if (!playerData) return;
+
+    // Update player information
+    if (playerData.player_id === playerIds.white) {
+      setPlayerProfiles(prev => ({ ...prev, white: playerData }));
+    } else if (playerData.player_id === playerIds.black) {
+      setPlayerProfiles(prev => ({ ...prev, black: playerData }));
+    }
+  }, [playerIds]);
+
+  const handleMoveUpdate = useCallback((payload) => {
+    const { new: moveData } = payload;
+    if (!moveData) return;
+
+    // Update game state with new move
+    if (moveData.fen) {
+      const newGame = new Chess(moveData.fen);
+      setGame(newGame);
+      setPosition(moveData.fen);
+    }
+
+    // Update move history
+    if (moveData.move_notation) {
+      setMoveHistory(prev => [...prev, moveData.move_notation]);
+    }
+  }, []);
+
+  const handleChatUpdate = useCallback((payload) => {
+    const { new: chatData } = payload;
+    if (!chatData) return;
+
+    // Add new chat message
+    setChatMessages(prev => [...prev, {
+      userId: chatData.user_id,
+      text: chatData.message,
+      timestamp: chatData.created_at
+    }]);
+  }, []);
 
   // Properly initialize game state
   useEffect(() => {

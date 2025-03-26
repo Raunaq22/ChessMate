@@ -6,6 +6,7 @@ const passport = require('passport');
 const { Op } = require('sequelize');
 const Game = require('./models/Game');
 const User = require('./models/User');
+const supabase = require('./config/supabase');
 require('./config/passport')(passport);
 require('dotenv').config();
 
@@ -34,7 +35,7 @@ app.use(passport.initialize());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
-  exposedHeaders: ['Content-Disposition']  // Add any needed headers
+  exposedHeaders: ['Content-Disposition']
 }));
 
 // Additional CORS headers specifically for image requests
@@ -63,7 +64,7 @@ app.get('/', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/games', gamesRoutes);
-app.use('/api/users', usersRoutes); // Add this line
+app.use('/api/users', usersRoutes);
 
 // Add a cleanup job for abandoned games
 const cleanupAbandonedGames = async () => {
@@ -96,6 +97,12 @@ const cleanupAbandonedGames = async () => {
       
       if (result[0] > 0) {
         console.log(`Cleaned up ${result[0]} abandoned games from inactive users`);
+        // Update Supabase real-time
+        await supabase
+          .from('games')
+          .update({ status: 'completed' })
+          .in('player1_id', inactiveUserIds)
+          .eq('status', 'waiting');
       }
     }
   } catch (error) {

@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const Game = require('../../models/Game');
 const User = require('../../models/User');
 const gameController = require('../../controllers/gameController');
+const supabase = require('../../config/supabase');
 const router = express.Router();
 
 // Generate a random 6-character code
@@ -29,7 +30,6 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
         player1_id: {
           [Op.ne]: req.user.user_id // Not created by current user
         },
-        // NOTE: Removed is_private filter to show all games for debugging
         is_private: false
       },
       include: [{
@@ -92,8 +92,8 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
 
     console.log(`Created game with ID ${game.game_id} and invite code ${inviteCode}, is_private=${game.is_private}`);
     
-    // Broadcast to all connected clients if the game is not private
-    if (!game.is_private && req.app.get('io')) {
+    // Broadcast to Supabase real-time if the game is not private
+    if (!game.is_private) {
       const gameData = {
         game_id: game.game_id,
         initial_time: game.initial_time,
@@ -107,8 +107,12 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
         created_at: game.createdAt
       };
       
-      req.app.get('io').emit('newGameAvailable', gameData);
-      console.log(`Broadcasting new game ${game.game_id} to all users`);
+      // Insert into Supabase games table
+      await supabase
+        .from('games')
+        .insert([gameData]);
+      
+      console.log(`Broadcasting new game ${game.game_id} to all users via Supabase`);
     }
     
     res.status(201).json({ 
@@ -131,7 +135,7 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
 // Get user's game history
 router.get('/history', passport.authenticate('jwt', { session: false }), gameController.getGameHistory);
 
-// Join a game using invite code - Make this route come BEFORE the /:gameId routes
+// Join a game using invite code
 router.post('/join-by-code', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const { code } = req.body;
@@ -175,6 +179,15 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
     game.status = 'playing';
     await game.save();
     
+    // Update Supabase real-time
+    await supabase
+      .from('games')
+      .update({
+        player2_id: req.user.user_id,
+        status: 'playing'
+      })
+      .eq('game_id', game.game_id);
+    
     // Mark any other waiting games by this user as completed
     await Game.update(
       { status: 'completed' },
@@ -186,19 +199,30 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
       }
     );
     
-    // Emit a socket event to notify the game creator that someone joined their game
-    // This assumes you have access to the io object from socket.io
-    if (req.app.get('io')) {
-      req.app.get('io').to(`user_${game.player1_id}`).emit('game_joined', {
-        game_id: game.game_id,
-        player: {
-          user_id: req.user.user_id,
-          username: req.user.username
-        },
-        message: 'A player has joined your game!'
-      });
-      console.log(`Emitted game_joined event to user_${game.player1_id} for game ${game.game_id}`);
-    }
+    // Update other waiting games in Supabase
+    await supabase
+      .from('games')
+      .update({ status: 'completed' })
+      .eq('player1_id', req.user.user_id)
+      .eq('status', 'waiting');
+    
+    // Notify game creator via Supabase
+    await supabase
+      .from('notifications')
+      .insert([{
+        user_id: game.player1_id,
+        type: 'game_joined',
+        content: {
+          game_id: game.game_id,
+          player: {
+            user_id: req.user.user_id,
+            username: req.user.username
+          },
+          message: 'A player has joined your game!'
+        }
+      }]);
+    
+    console.log(`Notified creator of game ${game.game_id} via Supabase`);
     
     res.json({ game });
   } catch (error) {
@@ -232,6 +256,15 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
     game.status = 'playing';
     await game.save();
     
+    // Update Supabase real-time
+    await supabase
+      .from('games')
+      .update({
+        player2_id: req.user.user_id,
+        status: 'playing'
+      })
+      .eq('game_id', game.game_id);
+    
     // Mark any other waiting games by this user as completed
     await Game.update(
       { status: 'completed' },
@@ -243,18 +276,28 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
       }
     );
     
-    // Emit a socket event to notify the game creator
-    if (req.app.get('io')) {
-      req.app.get('io').to(`user_${game.player1_id}`).emit('game_joined', {
-        game_id: game.game_id,
-        player: {
-          user_id: req.user.user_id,
-          username: req.user.username
-        },
-        message: 'A player has joined your game!'
-      });
-      console.log(`Emitted game_joined event to user_${game.player1_id} for game ${game.game_id}`);
-    }
+    // Update other waiting games in Supabase
+    await supabase
+      .from('games')
+      .update({ status: 'completed' })
+      .eq('player1_id', req.user.user_id)
+      .eq('status', 'waiting');
+    
+    // Notify game creator via Supabase
+    await supabase
+      .from('notifications')
+      .insert([{
+        user_id: game.player1_id,
+        type: 'game_joined',
+        content: {
+          game_id: game.game_id,
+          player: {
+            user_id: req.user.user_id,
+            username: req.user.username
+          },
+          message: 'A player has joined your game!'
+        }
+      }]);
     
     res.json({ game });
   } catch (error) {

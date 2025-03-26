@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const passport = require('passport');
 const supabase = require('./config/supabase');
+const path = require('path');
 require('./config/passport')(passport);
 require('dotenv').config();
 
@@ -11,6 +12,10 @@ require('dotenv').config();
 const authRoutes = require('./api/routes/auth');
 const gamesRoutes = require('./api/routes/games');
 const usersRoutes = require('./api/routes/users'); 
+
+// Import passport config and database connection check
+require('./config/passport');
+const syncDatabase = require('./config/syncDb');
 
 const app = express();
 
@@ -43,6 +48,9 @@ app.use('/uploads', (req, res, next) => {
   next();
 });
 
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -71,7 +79,7 @@ const cleanupAbandonedGames = async () => {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     
     const { data: inactiveUsers, error: inactiveError } = await supabase
-      .from('users')
+      .from('Users')
       .select('user_id')
       .lt('last_active', twoMinutesAgo);
 
@@ -85,7 +93,7 @@ const cleanupAbandonedGames = async () => {
       const { data: result, error: updateError } = await supabase
         .from('games')
         .update({ status: 'completed' })
-        .in('player1_id', inactiveUserIds)
+        .in('creator_id', inactiveUserIds)
         .eq('status', 'waiting')
         .select();
 
@@ -110,8 +118,27 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal Server Error' });
+  console.error('Error:', err);
+  res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
+
+const PORT = process.env.PORT || 5001;
+
+// Start server after checking database connection
+async function startServer() {
+  try {
+    await syncDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Auth callback URL: ${process.env.GOOGLE_CALLBACK_URL}`);
+      console.log(`Client URL: ${process.env.CLIENT_URL}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = app;

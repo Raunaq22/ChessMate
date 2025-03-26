@@ -222,15 +222,15 @@ const useChessLogic = (gameId, navigate) => {
       }, (payload) => {
         const offerData = payload.new;
         if (offerData.status === 'pending' && offerData.from_player_id !== currentUser?.user_id) {
-          setDrawOfferReceived(true);
+        setDrawOfferReceived(true);
         } else if (offerData.status === 'declined') {
-          setOfferingDraw(false);
+      setOfferingDraw(false);
           setDrawOfferReceived(false);
-          setNotification({
+      setNotification({
             message: 'Draw offer declined',
             type: 'info'
           });
-          setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 3000);
         }
       })
       .subscribe();
@@ -502,12 +502,12 @@ const useChessLogic = (gameId, navigate) => {
       .from('game_moves')
       .insert([{
         game_id: gameId,
-        move: { 
-          from: sourceSquare, 
-          to: targetSquare,
-          promotion: validMove.promotion || 'q'
-        },
-        fen: gameCopy.fen(),
+      move: { 
+        from: sourceSquare, 
+        to: targetSquare,
+        promotion: validMove.promotion || 'q'
+      },
+      fen: gameCopy.fen(),
         move_notation: move.san,
         white_time: currentWhiteTime,
         black_time: currentBlackTime,
@@ -537,7 +537,7 @@ const useChessLogic = (gameId, navigate) => {
       .from('games')
       .update({
         status: 'completed',
-        winner: color === 'w' ? 'black' : 'white',
+      winner: color === 'w' ? 'black' : 'white',
         result: 'timeout'
       })
       .eq('game_id', gameId)
@@ -545,7 +545,7 @@ const useChessLogic = (gameId, navigate) => {
         if (response.error) {
           console.error('Error updating game on timeout:', response.error);
         }
-      });
+    });
   };
 
   // Fix the handleSendMessage function to properly structure the message
@@ -574,7 +574,7 @@ const useChessLogic = (gameId, navigate) => {
         if (response.error) {
           console.error('Error sending chat message:', response.error);
         }
-      });
+    });
   };
 
   // Fix handleResign to show confirmation dialog
@@ -622,7 +622,7 @@ const useChessLogic = (gameId, navigate) => {
         if (response.error) {
           console.error('Error sending draw offer:', response.error);
         }
-      });
+    });
     
     // Add temporary notification
     setNotification({

@@ -3,7 +3,7 @@ const supabase = require('../config/db');
 
 class User {
   constructor(data) {
-    this.user_id = data.user_id;
+    this.user_id = data.user_id || data.id;
     this.google_id = data.google_id;
     this.email = data.email;
     this.username = data.username;
@@ -18,20 +18,25 @@ class User {
 
   // Static method to find user by ID
   static async findByPk(user_id) {
+    if (!user_id) return null;
+    
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('user_id', user_id)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error finding user:', error);
+      return null;
+    }
     return data ? new User(data) : null;
   }
 
   // Static method to find user by email
   static async findByEmail(email) {
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('email', email)
       .single();
@@ -43,7 +48,7 @@ class User {
   // Static method to find user by Google ID
   static async findByGoogleId(google_id) {
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('google_id', google_id)
       .single();
@@ -60,7 +65,7 @@ class User {
     }
 
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .insert([{
         ...userData,
         last_active: new Date(),
@@ -81,7 +86,7 @@ class User {
     }
 
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .update(updateData)
       .eq('user_id', this.user_id)
       .select()
@@ -100,7 +105,7 @@ class User {
   // Instance method to save user
   async save() {
     const { data, error } = await supabase
-      .from('users')
+      .from('Users')
       .update(this)
       .eq('user_id', this.user_id)
       .select()

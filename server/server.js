@@ -1,19 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
-const session = require('express-session');
 const path = require('path');
 require('dotenv').config();
-
-// Import models and initialize associations
-require('./src/models');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
 const userRoutes = require('./src/routes/users');
 const gameRoutes = require('./src/routes/games');
 
-// Import passport config and database sync
+// Import passport config and database connection check
 require('./src/config/passport');
 const syncDatabase = require('./src/config/syncDb');
 
@@ -35,20 +31,8 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware
-app.use(session({
-  secret: process.env.JWT_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Initialize Passport and restore authentication state from session
+// Initialize Passport
 app.use(passport.initialize());
-app.use(passport.session());
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -66,7 +50,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
-// Start server after syncing database
+// Start server after checking database connection
 async function startServer() {
   try {
     await syncDatabase();

@@ -9,7 +9,7 @@ const register = async (req, res) => {
 
     // Check if user already exists
     const { data: existingUser, error: checkError } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .or(`email.eq.${email},username.eq.${username}`)
       .single();
@@ -28,13 +28,14 @@ const register = async (req, res) => {
 
     // Create new user
     const { data: user, error: createError } = await supabase
-      .from('users')
+      .from('Users')
       .insert([{
         username,
         email,
         password: hashedPassword,
         profile_image_url: '/assets/default-avatar.png',
-        created_at: new Date().toISOString()
+        last_active: new Date().toISOString(),
+        last_login: new Date().toISOString()
       }])
       .select()
       .single();
@@ -62,7 +63,7 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed' });
+    res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 };
 
@@ -73,7 +74,7 @@ const login = async (req, res) => {
 
     // Find the user by email
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('email', email)
       .single();
@@ -98,7 +99,7 @@ const login = async (req, res) => {
 
     // Update last login time
     const { error: updateError } = await supabase
-      .from('users')
+      .from('Users')
       .update({ last_login: new Date().toISOString() })
       .eq('user_id', user.user_id);
 
@@ -124,7 +125,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Login failed' });
+    res.status(500).json({ message: 'Login failed', error: error.message });
   }
 };
 
@@ -145,7 +146,7 @@ const verify = async (req, res) => {
     });
   } catch (error) {
     console.error('Token verification error:', error);
-    res.status(500).json({ message: 'Authentication failed' });
+    res.status(500).json({ message: 'Authentication failed', error: error.message });
   }
 };
 
@@ -154,7 +155,7 @@ const updateActivity = async (req, res) => {
   try {
     const userId = req.user.user_id;
     const { error } = await supabase
-      .from('users')
+      .from('Users')
       .update({ last_active: new Date().toISOString() })
       .eq('user_id', userId);
 
@@ -163,7 +164,7 @@ const updateActivity = async (req, res) => {
     res.status(200).json({ message: 'Activity updated' });
   } catch (error) {
     console.error('Error updating user activity:', error);
-    res.status(500).json({ message: 'Failed to update activity' });
+    res.status(500).json({ message: 'Failed to update activity', error: error.message });
   }
 };
 

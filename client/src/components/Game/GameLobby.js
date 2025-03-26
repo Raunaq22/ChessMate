@@ -57,17 +57,17 @@ const GameLobby = () => {
 
   const fetchGames = useCallback(async () => {
     try {
-      const { availableGames } = await gameService.getAvailableGames();
-      console.log("Fetched games:", availableGames);
+      const games = await gameService.getAvailableGames();
+      console.log("Fetched games:", games);
       
-      if (!Array.isArray(availableGames)) {
-        console.error("Expected array of games, got:", availableGames);
+      if (!Array.isArray(games)) {
+        console.error("Expected array of games, got:", games);
         setAvailableGames([]);
         return;
       }
       
       // Only filter out expired games (created too long ago)
-      const activeGames = availableGames.filter(game => !isGameExpired(game));
+      const activeGames = games.filter(game => !isGameExpired(game));
       console.log(`Displaying ${activeGames.length} games in lobby`);
       setAvailableGames(activeGames);
     } catch (error) {

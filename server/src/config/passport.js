@@ -12,7 +12,13 @@ const jwtOptions = {
 
 passport.use(new JwtStrategy(jwtOptions, async (payload, done) => {
   try {
-    const user = await User.findByPk(payload.user_id);
+    // Only use user_id from the token
+    const userId = payload.user_id;
+    if (!userId) {
+      return done(null, false);
+    }
+    
+    const user = await User.findByPk(userId);
     if (user) {
       return done(null, user);
     }

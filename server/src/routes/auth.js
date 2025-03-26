@@ -9,7 +9,7 @@ const router = express.Router();
 router.post('/activity', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const { error } = await supabase
-      .from('users')
+      .from('Users')
       .update({ last_active: new Date().toISOString() })
       .eq('user_id', req.user.user_id);
     
@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
 
     // Find user by email
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('email', email)
       .single();
@@ -50,7 +50,7 @@ router.post('/login', async (req, res) => {
 
     // Update last login
     const { error: updateError } = await supabase
-      .from('users')
+      .from('Users')
       .update({ last_login: new Date().toISOString() })
       .eq('user_id', user.user_id);
 
@@ -60,7 +60,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { user_id: user.user_id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRATION }
+      { expiresIn: '24h' }
     );
 
     console.log('Login successful for user:', email);
@@ -85,45 +85,48 @@ router.post('/register', async (req, res) => {
     const { email, password, username } = req.body;
     console.log('Registration attempt for email:', email);
 
-    // Check if user already exists
+    // Check if user exists
     const { data: existingUser, error: checkError } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('email', email)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (checkError && checkError.code !== 'PGRST116') {
       throw checkError;
     }
 
     if (existingUser) {
       console.log('User already exists:', email);
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // Create user
     const { data: user, error: createError } = await supabase
-      .from('users')
-      .insert([{
-        email,
-        password: hashedPassword,
-        username,
-        last_login: new Date().toISOString()
-      }])
+      .from('Users')
+      .insert([
+        {
+          email,
+          password: hashedPassword,
+          username,
+          last_active: new Date().toISOString(),
+          last_login: new Date().toISOString()
+        }
+      ])
       .select()
       .single();
 
     if (createError) throw createError;
 
-    // Generate JWT token
+    // Generate JWT
     const token = jwt.sign(
       { user_id: user.user_id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRATION }
+      { expiresIn: '24h' }
     );
 
     console.log('Registration successful for user:', email);
@@ -138,70 +141,30 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed', error: error.message });
+    res.status(500).json({ message: 'Error registering user', error: error.message });
   }
 });
 
 // Google OAuth routes
-router.get('/oauth/google',
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'],
-    prompt: 'select_account'
-  })
+router.get('/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-router.get('/oauth/google/callback',
-  (req, res, next) => {
-    console.log('Google callback received with code:', req.query.code);
-    passport.authenticate('google', { session: false }, async (err, user, info) => {
-      console.log('Passport authenticate callback:', { err, user, info });
-      
-      if (err) {
-        console.error('Authentication error:', err);
-        return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent(err.message)}`);
-      }
-      
-      if (!user) {
-        console.error('No user returned from Google auth');
-        return res.redirect(`${process.env.CLIENT_URL}/login?error=Authentication failed`);
-      }
+router.get('/google/callback',
+  passport.authenticate('google', { session: false }),
+  async (req, res) => {
+    try {
+      const token = jwt.sign(
+        { user_id: req.user.user_id },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
 
-      try {
-        // Generate JWT token
-        const token = jwt.sign(
-          { user_id: user.user_id },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.JWT_EXPIRATION }
-        );
-
-        console.log('Successfully generated JWT token for user:', user.user_id);
-        
-        // Update last login
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({ last_login: new Date().toISOString() })
-          .eq('user_id', user.user_id);
-
-        if (updateError) {
-          console.error('Error updating last login:', updateError);
-        }
-        
-        // Redirect to frontend with token and user info
-        const redirectUrl = new URL(`${process.env.CLIENT_URL}/auth/callback`);
-        redirectUrl.searchParams.append('token', token);
-        redirectUrl.searchParams.append('user', JSON.stringify({
-          user_id: user.user_id,
-          email: user.email,
-          username: user.username,
-          avatar_url: user.avatar_url
-        }));
-        
-        res.redirect(redirectUrl.toString());
-      } catch (error) {
-        console.error('Error generating JWT:', error);
-        res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent('Failed to generate authentication token')}`);
-      }
-    })(req, res, next);
+      res.redirect(`${process.env.CLIENT_URL}/auth/success?token=${token}`);
+    } catch (error) {
+      console.error('Google auth error:', error);
+      res.redirect(`${process.env.CLIENT_URL}/auth/error`);
+    }
   }
 );
 

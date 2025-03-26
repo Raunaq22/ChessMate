@@ -21,7 +21,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Test the connection
-supabase.from('users').select('count').limit(1)
+supabase.from('Users').select('count').limit(1)
   .then(() => {
     console.log('Supabase connection has been established successfully.');
   })

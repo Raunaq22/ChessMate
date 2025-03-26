@@ -24,7 +24,7 @@ const configureSocket = (io) => {
           const now = new Date();
           console.log(`Updating activity for user ${userId} to ${now.toISOString()}`);
           const { error } = await supabase
-            .from('users')
+            .from('Users')
             .update({ last_active: now.toISOString() })
             .eq('user_id', userId);
           
@@ -97,12 +97,12 @@ const configureSocket = (io) => {
         // Fetch the player information for both players
         const [player1Result, player2Result] = await Promise.all([
           supabase
-            .from('users')
+            .from('Users')
             .select('user_id, username')
             .eq('user_id', game.player1_id)
             .single(),
           game.player2_id ? supabase
-            .from('users')
+            .from('Users')
             .select('user_id, username')
             .eq('user_id', game.player2_id)
             .single() : { data: null, error: null }

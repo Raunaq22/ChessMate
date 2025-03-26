@@ -6,14 +6,18 @@ const bcrypt = require('bcryptjs');
 // Get user statistics
 const getUserStats = async (req, res) => {
   try {
+    if (!req.user || !req.user.user_id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     const userId = req.user.user_id;
     
     // Count active games (both waiting and playing)
     const { count: activeGamesCount, error: activeError } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
-      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
-      .in('status', ['waiting', 'playing']);
+      .or(`creator_id.eq.${userId},opponent_id.eq.${userId}`)
+      .in('status', ['waiting', 'in_progress']);
 
     if (activeError) throw activeError;
 
@@ -21,7 +25,7 @@ const getUserStats = async (req, res) => {
     const { count: completedGamesCount, error: completedError } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
-      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+      .or(`creator_id.eq.${userId},opponent_id.eq.${userId}`)
       .eq('status', 'completed');
 
     if (completedError) throw completedError;
@@ -56,16 +60,16 @@ const getUserById = async (req, res) => {
   try {
     const userId = req.params.userId;
     
-    // Validate that userId is actually a number
-    if (!userId || isNaN(parseInt(userId))) {
+    // Validate that userId is actually a UUID
+    if (!userId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
       return res.status(400).json({ message: 'Invalid user ID format' });
     }
     
     // Find user by ID, only return public information
     const { data: user, error } = await supabase
-      .from('users')
+      .from('Users')
       .select('user_id, username, created_at')
-      .eq('user_id', parseInt(userId))
+      .eq('user_id', userId)
       .single();
 
     if (error) {
@@ -82,12 +86,16 @@ const getUserById = async (req, res) => {
 // Update user profile
 const updateUser = async (req, res) => {
   try {
+    if (!req.user || !req.user.user_id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     const userId = req.user.user_id;
     const { username, email, profile_image_url, currentPassword, newPassword } = req.body;
     
     // Find the user
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('Users')
       .select('*')
       .eq('user_id', userId)
       .single();
@@ -113,7 +121,7 @@ const updateUser = async (req, res) => {
     if (username && username !== user.username) {
       // Check if username is already taken
       const { data: existingUser, error: usernameError } = await supabase
-        .from('users')
+        .from('Users')
         .select('user_id')
         .eq('username', username)
         .neq('user_id', userId)
@@ -132,7 +140,7 @@ const updateUser = async (req, res) => {
     if (email && email !== user.email) {
       // Check if email is already taken
       const { data: existingUser, error: emailError } = await supabase
-        .from('users')
+        .from('Users')
         .select('user_id')
         .eq('email', email)
         .neq('user_id', userId)
@@ -154,7 +162,7 @@ const updateUser = async (req, res) => {
     
     // Update the user
     const { data: updatedUser, error: updateError } = await supabase
-      .from('users')
+      .from('Users')
       .update({
         username: user.username,
         email: user.email,
@@ -189,6 +197,10 @@ const updateUser = async (req, res) => {
 // Upload profile image
 const uploadProfileImage = async (req, res) => {
   try {
+    if (!req.user || !req.user.user_id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
@@ -208,7 +220,7 @@ const uploadProfileImage = async (req, res) => {
     
     // Get the user's current profile image URL
     const { data: user, error: userError } = await supabase
-      .from('users')
+      .from('Users')
       .select('profile_image_url')
       .eq('user_id', userId)
       .single();
@@ -260,7 +272,7 @@ const uploadProfileImage = async (req, res) => {
     
     // Update the user profile
     const { error: updateError } = await supabase
-      .from('users')
+      .from('Users')
       .update({ profile_image_url: fileUrl })
       .eq('user_id', userId);
 
@@ -281,16 +293,20 @@ const uploadProfileImage = async (req, res) => {
 // Get user's games
 const getUserGames = async (req, res) => {
   try {
-    const { id } = req.params;
+    if (!req.user || !req.user.user_id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userId = req.user.user_id;
     
     const { data: games, error } = await supabase
       .from('games')
       .select(`
         *,
-        player1:users!games_player1_id_fkey (*),
-        player2:users!games_player2_id_fkey (*)
+        creator:Users!games_creator_id_fkey(user_id, username, avatar_url),
+        opponent:Users!games_opponent_id_fkey(user_id, username, avatar_url)
       `)
-      .or(`player1_id.eq.${id},player2_id.eq.${id}`)
+      .or(`creator_id.eq.${userId},opponent_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;

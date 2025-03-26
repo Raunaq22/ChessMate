@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from './Button';
 
 const Controls = ({ 
@@ -12,6 +13,7 @@ const Controls = ({
   gameStarted
 }) => {
   const [confirmResign, setConfirmResign] = useState(false);
+  const navigate = useNavigate();
   
   return (
     <div className="p-4 bg-white rounded-lg shadow-md">
@@ -89,7 +91,7 @@ const Controls = ({
         {gameOver && (
           <Button
             variant="primary"
-            onClick={() => window.location.href = '/lobby'}
+            onClick={() => navigate('/lobby')}
             className="w-full"
           >
             Back to Lobby

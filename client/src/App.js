@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ChakraProvider, CSSReset, Box, Flex, Avatar, Tooltip } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import Sidebar from './components/common/Sidebar';
@@ -31,6 +31,7 @@ const formatImageUrl = (url) => {
 // Profile Avatar Component - will only be rendered when AuthContext is available
 const ProfileAvatar = () => {
   const { currentUser, isAuthenticated } = React.useContext(AuthContext);
+  const navigate = useNavigate();
   
   if (!isAuthenticated || !currentUser) return null;
   
@@ -53,7 +54,7 @@ const ProfileAvatar = () => {
           bg="chess-light"
           color="white"
           cursor="pointer"
-          onClick={() => window.location.href = '/profile'}
+          onClick={() => navigate('/profile')}
           _hover={{ 
             transform: 'scale(1.05)',
             shadow: "md" 

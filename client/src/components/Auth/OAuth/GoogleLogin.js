@@ -1,7 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const GoogleLogin = () => {
+  const navigate = useNavigate();
+  
   const handleGoogleLogin = () => {
+    // For OAuth redirect, we still need to use window.location as it's an external redirect
     window.location.href = `${process.env.REACT_APP_API_URL}/api/auth/oauth/google`;
   };
 

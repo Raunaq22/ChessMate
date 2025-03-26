@@ -106,13 +106,15 @@ const cleanupAbandonedGames = async () => {
 // Run cleanup job every minute
 setInterval(cleanupAbandonedGames, 60 * 1000);
 
+// Basic health check route
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({
-    message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
+  console.error(err);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 module.exports = app;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import gameService from '../../services/gameService';
 import CreateGameModal from './CreateGameModal';
-import io from 'socket.io-client';
+import supabase from '../../config/supabase';
 import {
   Box,
   Container,
@@ -42,7 +42,6 @@ const GameLobby = () => {
   const [joinError, setJoinError] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
   const [createdGameId, setCreatedGameId] = useState(null);
-  const [socket, setSocket] = useState(null);
   const [gameJoined, setGameJoined] = useState(false);
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -87,44 +86,46 @@ const GameLobby = () => {
     }
   }, [toast]);
 
-  // Initialize socket connection for real-time updates
+  // Initialize Supabase real-time subscription
   useEffect(() => {
-    const newSocket = io(process.env.REACT_APP_API_URL);
-    
-    newSocket.on('connect', () => {
-      console.log('Connected to lobby socket for real-time game updates');
-    });
-    
-    // Listen for new game creation events
-    newSocket.on('newGameAvailable', (gameData) => {
-      console.log('New game available notification received:', gameData);
-      
-      setAvailableGames(prevGames => {
-        // Check if game already exists in the list
-        if (prevGames.some(g => g.game_id === gameData.game_id)) {
-          return prevGames;
+    // Subscribe to new games
+    const gamesSubscription = supabase
+      .channel('games')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'games' 
+        }, 
+        (payload) => {
+          console.log('New game available notification received:', payload.new);
+          
+          setAvailableGames(prevGames => {
+            // Check if game already exists in the list
+            if (prevGames.some(g => g.game_id === payload.new.game_id)) {
+              return prevGames;
+            }
+            
+            // Add the new game to the list
+            return [payload.new, ...prevGames];
+          });
+          
+          toast({
+            title: 'New game available',
+            description: 'A new game has been created in the lobby',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+            position: 'bottom-right'
+          });
         }
-        
-        // Add the new game to the list
-        return [gameData, ...prevGames];
-      });
-      
-      toast({
-        title: 'New game available',
-        description: 'A new game has been created in the lobby',
-        status: 'info',
-        duration: 3000,
-        isClosable: true,
-        position: 'bottom-right'
-      });
-    });
-    
-    setSocket(newSocket);
-    
-    // Cleanup on unmount
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
     return () => {
-      console.log('Disconnecting from lobby socket');
-      newSocket.disconnect();
+      console.log('Unsubscribing from games channel');
+      gamesSubscription.unsubscribe();
     };
   }, [toast]);
 

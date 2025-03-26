@@ -198,7 +198,7 @@ const useChessLogic = (gameId, navigate) => {
     }
 
     if (gameData.status === 'completed') {
-      setGameEnded(true);
+          setGameEnded(true);
       setGameStatus(`Game ended: ${gameData.result}`);
     }
 

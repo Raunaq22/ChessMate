@@ -1,20 +1,32 @@
 const sequelize = require('./db');
-// No need to import models here just for associations
-// const Game = require('../models/Game');
-// const User = require('../models/User');
+const User = require('../models/User');
+const Game = require('../models/Game');
 
 // Remove duplicate association definitions
 // Associations are already defined in the model files
 
-const syncDatabase = async () => {
+async function syncDatabase() {
   try {
-    // This will use the associations defined in the model files
+    // Set up model associations
+    const models = {
+      User,
+      Game
+    };
+
+    // Call associateModels for each model
+    Object.values(models).forEach(model => {
+      if (model.associateModels) {
+        model.associateModels(models);
+      }
+    });
+
+    // Sync all models with database
     await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
   } catch (error) {
     console.error('Error synchronizing database:', error);
     throw error;
   }
-};
+}
 
 module.exports = syncDatabase;

@@ -1,35 +1,56 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { processOAuthCallback } from '../services/oauth/oauthService';
+import { AuthContext } from '../context/AuthContext';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { updateUser } = React.useContext(AuthContext);
   
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        const result = await processOAuthCallback(location.search);
+        // Get token from URL hash
+        const hash = location.hash.substring(1); // Remove the # symbol
+        const params = new URLSearchParams(hash);
+        const token = params.get('token');
         
-        if (result.success) {
-          // If you have an auth context, update it here
-          // updateUser(result.user);
-          navigate('/');
-        } else {
-          setError(result.error);
+        if (!token) {
+          throw new Error('No authentication token received');
         }
+        
+        // Store token
+        localStorage.setItem('token', token);
+        
+        // Get user data
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/verify`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to verify token');
+        }
+        
+        const userData = await response.json();
+        updateUser(userData.user);
+        
+        // Redirect to home page
+        navigate('/');
       } catch (err) {
-        setError('Failed to complete authentication');
-        console.error(err);
+        console.error('OAuth callback error:', err);
+        setError(err.message || 'Authentication failed');
       } finally {
         setLoading(false);
       }
     };
     
     handleOAuthCallback();
-  }, [location, navigate]);
+  }, [location, navigate, updateUser]);
   
   if (loading) {
     return (

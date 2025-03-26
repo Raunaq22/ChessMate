@@ -1,7 +1,5 @@
-const User = require('./User');
-const Game = require('./Game');
+const supabase = require('../config/supabase');
 
 module.exports = {
-  User,
-  Game
+  supabase
 };

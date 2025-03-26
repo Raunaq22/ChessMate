@@ -1,6 +1,3 @@
-const Game = require('../models/Game');
-const User = require('../models/User');
-const { Op } = require('sequelize');
 const supabase = require('../config/supabase');
 
 // Create a new game
@@ -19,7 +16,17 @@ const createGame = async (req, res) => {
     });
 
     // Validate the existing active game logic
-    const existingGame = await Game.findUserActiveGame(userId);
+    const { data: existingGame, error: existingError } = await supabase
+      .from('games')
+      .select('*')
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+      .eq('status', 'playing')
+      .single();
+
+    if (existingError && existingError.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw existingError;
+    }
+
     if (existingGame) {
       return res.status(400).json({ 
         message: 'You already have an active game', 
@@ -28,32 +35,23 @@ const createGame = async (req, res) => {
     }
 
     // Create a new game with explicit time control parameters
-    const game = await Game.create({
-      player1_id: userId,
-      status: 'waiting',
-      fen: 'rnbqkbnr/pppppppp/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      move_history: [],
-      initial_time: initialTime,
-      increment: increment,
-      white_time: initialTime,
-      black_time: initialTime
-    });
-    
-    // Create game in Supabase for real-time updates
-    await supabase
+    const { data: game, error: createError } = await supabase
       .from('games')
       .insert([{
-        game_id: game.game_id,
         player1_id: userId,
         status: 'waiting',
-        fen: game.fen,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         move_history: [],
         initial_time: initialTime,
         increment: increment,
         white_time: initialTime,
         black_time: initialTime,
         created_at: new Date().toISOString()
-      }]);
+      }])
+      .select()
+      .single();
+
+    if (createError) throw createError;
 
     console.log(`Game created with ID ${game.game_id}, initial time: ${initialTime}, increment: ${increment}`);
 
@@ -78,8 +76,13 @@ const joinGame = async (req, res) => {
     const userId = req.user.user_id;
     const { gameId } = req.params;
 
-    const game = await Game.findByPk(gameId);
-    if (!game) {
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', gameId)
+      .single();
+
+    if (gameError) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
@@ -91,43 +94,42 @@ const joinGame = async (req, res) => {
       return res.status(400).json({ message: 'Game is not available for joining' });
     }
 
-    game.player2_id = userId;
-    game.status = 'playing';
-    game.start_time = new Date();
-    await game.save();
-
-    // Update game in Supabase
-    await supabase
+    const startTime = new Date().toISOString();
+    const { data: updatedGame, error: updateError } = await supabase
       .from('games')
       .update({
         player2_id: userId,
         status: 'playing',
-        start_time: game.start_time.toISOString()
+        start_time: startTime
       })
-      .eq('game_id', gameId);
+      .eq('game_id', gameId)
+      .select()
+      .single();
 
-    // Create game player record in Supabase
-    await supabase
+    if (updateError) throw updateError;
+
+    // Create game player record
+    const { error: playerError } = await supabase
       .from('game_players')
-      .insert([
-        {
-          game_id: gameId,
-          user_id: userId,
-          color: 'black',
-          joined_at: new Date().toISOString()
-        }
-      ]);
+      .insert([{
+        game_id: gameId,
+        user_id: userId,
+        color: 'black',
+        joined_at: startTime
+      }]);
+
+    if (playerError) throw playerError;
 
     res.status(200).json({ 
       message: 'Joined game successfully', 
       game: {
-        game_id: game.game_id,
-        status: game.status,
-        initial_time: game.initial_time,
-        increment: game.increment,
-        white_time: game.white_time,
-        black_time: game.black_time,
-        start_time: game.start_time
+        game_id: updatedGame.game_id,
+        status: updatedGame.status,
+        initial_time: updatedGame.initial_time,
+        increment: updatedGame.increment,
+        white_time: updatedGame.white_time,
+        black_time: updatedGame.black_time,
+        start_time: updatedGame.start_time
       }
     });
   } catch (error) {
@@ -142,25 +144,24 @@ const getAvailableGames = async (req, res) => {
     const userId = req.user.user_id;
     
     // Find all waiting games that aren't too old
-    const games = await Game.findAll({
-      where: {
-        status: 'waiting',
-        player2_id: null,
-        player1_id: {
-          [Op.ne]: userId // Don't show user's own games
-        },
-        is_private: false, // Only show public games in the lobby
-        created_at: {
-          [Op.gt]: new Date(Date.now() - 10 * 60 * 1000) // 10 minutes ago
-        }
-      },
-      include: [{
-        model: User,
-        as: 'player1',
-        attributes: ['user_id', 'username', 'last_active']
-      }],
-      order: [['createdAt', 'DESC']]
-    });
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (
+          user_id,
+          username,
+          last_active
+        )
+      `)
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .neq('player1_id', userId)
+      .eq('is_private', false)
+      .gt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
 
     res.status(200).json({ availableGames: games });
   } catch (error) {
@@ -175,36 +176,28 @@ const getGameHistory = async (req, res) => {
     const userId = req.user.user_id;
     
     // Find all completed games where the user was a player
-    // AND both player1_id and player2_id fields are populated
-    const games = await Game.findAll({
-      where: {
-        [Op.or]: [
-          { player1_id: userId },
-          { player2_id: userId }
-        ],
-        status: 'completed',
-        player1_id: { [Op.ne]: null },  // Ensure player1 exists
-        player2_id: { [Op.ne]: null }   // Ensure player2 exists
-      },
-      include: [
-        {
-          model: User,
-          as: 'player1',
-          attributes: ['username']
-        },
-        {
-          model: User,
-          as: 'player2',
-          attributes: ['username']
-        },
-        {
-          model: User,
-          as: 'winner',
-          attributes: ['user_id', 'username']
-        }
-      ],
-      order: [['end_time', 'DESC']]
-    });
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (
+          username
+        ),
+        player2:users!games_player2_id_fkey (
+          username
+        ),
+        winner:users!games_winner_id_fkey (
+          user_id,
+          username
+        )
+      `)
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+      .eq('status', 'completed')
+      .not('player1_id', 'is', null)
+      .not('player2_id', 'is', null)
+      .order('end_time', { ascending: false });
+
+    if (error) throw error;
     
     // Format the game history to return meaningful data
     const formattedGames = games.map(game => {
@@ -228,7 +221,7 @@ const getGameHistory = async (req, res) => {
       return {
         game_id: game.game_id,
         end_time: game.end_time,
-        updated_at: game.updatedAt,
+        updated_at: game.updated_at,
         opponent_name: opponentName,
         result: result,
         winner_name: game.winner ? game.winner.username : null
@@ -247,257 +240,158 @@ const getGameById = async (req, res) => {
   try {
     const { gameId } = req.params;
     
-    // Find the game with related data
-    const game = await Game.findByPk(gameId, {
-      include: [
-        {
-          model: User,
-          as: 'player1',
-          attributes: ['user_id', 'username']
-        },
-        {
-          model: User,
-          as: 'player2',
-          attributes: ['user_id', 'username']
-        },
-        {
-          model: User,
-          as: 'winner',
-          attributes: ['user_id', 'username']
-        }
-      ]
-    });
-    
-    if (!game) {
+    const { data: game, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (*),
+        player2:users!games_player2_id_fkey (*),
+        winner:users!games_winner_id_fkey (*)
+      `)
+      .eq('game_id', gameId)
+      .single();
+
+    if (error) {
       return res.status(404).json({ message: 'Game not found' });
     }
-    
-    // Ensure move_history is always an array, even if null/undefined in database
-    const moveHistory = Array.isArray(game.move_history) ? game.move_history : [];
-    
-    // Temporary debug log to see what's in the database
-    console.log(`Game ${gameId} move history type: ${typeof game.move_history}, isArray: ${Array.isArray(game.move_history)}, length: ${moveHistory.length}`);
-    
-    // Return game data
-    res.json({
-      game_id: game.game_id,
-      player1_id: game.player1_id,
-      player2_id: game.player2_id,
-      status: game.status,
-      result: game.result,
-      move_history: moveHistory, // Use the guaranteed array value
-      fen: game.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Provide default FEN if missing
-      initial_time: game.initial_time,
-      increment: game.increment,
-      created_at: game.createdAt,
-      end_time: game.end_time,
-      winner_id: game.winner_id,
-      player1: game.player1,
-      player2: game.player2,
-      winner: game.winner
-    });
+
+    res.json({ game });
   } catch (error) {
-    console.error('Error fetching game details:', error);
+    console.error('Error fetching game:', error);
     res.status(500).json({ message: 'Failed to fetch game details' });
   }
 };
 
-// Find functions that use "firstPlayer" or "secondPlayer" and replace with "player1" and "player2"
-// For example, if there's a function like:
+// Get game details (alias for getGameById)
+const getGame = getGameById;
 
-const getGame = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Find the problematic include - replace "firstPlayer" with "player1"
-    const game = await Game.findOne({
-      where: { game_id: id },
-      include: [
-        { model: User, as: 'player1', attributes: ['user_id', 'username'] },  // Changed from 'firstPlayer' to 'player1'
-        { model: User, as: 'player2', attributes: ['user_id', 'username'] }   // Make sure this is 'player2', not 'secondPlayer'
-      ]
-    });
-    
-    if (!game) {
-      return res.status(404).json({ message: 'Game not found' });
-    }
-    
-    res.json(game);
-  } catch (error) {
-    console.error("Game fetch error:", error);
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// Controller function to cancel a game
+// Cancel a game
 const cancelGame = async (req, res) => {
   try {
-    const userId = req.user.user_id;
     const { gameId } = req.params;
-    
-    // Only allow cancellation of waiting games by the creator
-    const game = await Game.findOne({
-      where: {
-        game_id: gameId,
-        player1_id: userId,
-        status: 'waiting',
-        player2_id: null
-      }
-    });
+    const userId = req.user.user_id;
 
-    if (!game) {
-      return res.status(404).json({ 
-        message: 'Game not found or cannot be cancelled' 
-      });
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', gameId)
+      .eq('player1_id', userId)
+      .is('player2_id', null)
+      .eq('status', 'waiting')
+      .single();
+
+    if (gameError) {
+      return res.status(404).json({ message: 'Game not found or cannot be cancelled' });
     }
 
-    // Delete the game from the database
-    await game.destroy();
-    
-    res.status(200).json({ 
-      message: 'Game cancelled successfully' 
-    });
+    const { error: deleteError } = await supabase
+      .from('games')
+      .delete()
+      .eq('game_id', gameId);
 
+    if (deleteError) throw deleteError;
+
+    res.json({ message: 'Game cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling game:', error);
-    res.status(500).json({ 
-      message: 'Failed to cancel game', 
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to cancel game' });
   }
 };
 
-// Make a move in the game
+// Make a move
 const makeMove = async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { from, to, promotion, fen, moveNotation } = req.body;
+    const { move, fen, whiteTime, blackTime } = req.body;
     const userId = req.user.user_id;
 
-    const game = await Game.findByPk(gameId);
-    if (!game) {
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', gameId)
+      .single();
+
+    if (gameError) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
-    // Validate it's the player's turn
-    const isWhiteTurn = game.fen.split(' ')[1] === 'w';
-    const isPlayerWhite = game.player1_id === userId;
-    
-    if ((isWhiteTurn && !isPlayerWhite) || (!isWhiteTurn && isPlayerWhite)) {
+    if (game.status !== 'playing') {
+      return res.status(400).json({ message: 'Game is not in progress' });
+    }
+
+    // Verify it's the player's turn
+    const isWhiteTurn = game.move_history.length % 2 === 0;
+    const isPlayerWhite = (game.player1_id === userId && isWhiteTurn) || 
+                         (game.player2_id === userId && !isWhiteTurn);
+
+    if (!isPlayerWhite) {
       return res.status(400).json({ message: 'Not your turn' });
     }
 
     // Update game state
-    game.fen = fen;
-    game.move_history = [...(game.move_history || []), {
-      from,
-      to,
-      promotion,
-      notation: moveNotation,
-      timestamp: new Date().toISOString()
-    }];
-
-    // Update time controls if needed
-    if (isWhiteTurn) {
-      game.white_time = req.body.whiteTimeLeft;
-    } else {
-      game.black_time = req.body.blackTimeLeft;
-    }
-
-    await game.save();
-
-    // Update game in Supabase
-    await supabase
+    const { data: updatedGame, error: updateError } = await supabase
       .from('games')
       .update({
         fen,
-        move_history: game.move_history,
-        white_time: game.white_time,
-        black_time: game.black_time
+        move_history: [...game.move_history, move],
+        white_time: whiteTime,
+        black_time: blackTime,
+        updated_at: new Date().toISOString()
       })
-      .eq('game_id', gameId);
+      .eq('game_id', gameId)
+      .select()
+      .single();
 
-    // Record the move in Supabase
-    await supabase
-      .from('game_moves')
-      .insert([{
-        game_id: gameId,
-        user_id: userId,
-        from,
-        to,
-        promotion,
-        fen,
-        move_notation: moveNotation,
-        created_at: new Date().toISOString()
-      }]);
+    if (updateError) throw updateError;
 
     res.json({ 
       message: 'Move made successfully',
-      game: {
-        fen: game.fen,
-        move_history: game.move_history,
-        white_time: game.white_time,
-        black_time: game.black_time
-      }
+      game: updatedGame
     });
   } catch (error) {
     console.error('Error making move:', error);
-    res.status(500).json({ message: 'Failed to make move', error: error.message });
+    res.status(500).json({ message: 'Failed to make move' });
   }
 };
 
-// End game (checkmate, draw, resignation, etc.)
+// End a game
 const endGame = async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { reason, winner } = req.body;
-    const userId = req.user.user_id;
+    const { winnerId, result } = req.body;
 
-    const game = await Game.findByPk(gameId);
-    if (!game) {
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', gameId)
+      .single();
+
+    if (gameError) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
-    // Update game status
-    game.status = 'completed';
-    game.end_time = new Date();
-    game.result = reason;
-    game.winner_id = winner;
-
-    await game.save();
-
-    // Update game in Supabase
-    await supabase
+    const { data: updatedGame, error: updateError } = await supabase
       .from('games')
       .update({
         status: 'completed',
-        end_time: game.end_time.toISOString(),
+        winner_id: winnerId,
         result,
-        winner_id: winner
+        end_time: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .eq('game_id', gameId);
+      .eq('game_id', gameId)
+      .select()
+      .single();
 
-    // Create game result record in Supabase
-    await supabase
-      .from('game_results')
-      .insert([{
-        game_id: gameId,
-        reason,
-        winner_id: winner,
-        completed_at: game.end_time.toISOString()
-      }]);
+    if (updateError) throw updateError;
 
     res.json({ 
       message: 'Game ended successfully',
-      game: {
-        status: game.status,
-        result: game.result,
-        winner_id: game.winner_id
-      }
+      game: updatedGame
     });
   } catch (error) {
     console.error('Error ending game:', error);
-    res.status(500).json({ message: 'Failed to end game', error: error.message });
+    res.status(500).json({ message: 'Failed to end game' });
   }
 };
 

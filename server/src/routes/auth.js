@@ -2,16 +2,18 @@ const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 const router = express.Router();
 
 // Update user activity
 router.post('/activity', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    await User.update(
-      { last_active: new Date() },
-      { where: { user_id: req.user.user_id } }
-    );
+    const { error } = await supabase
+      .from('users')
+      .update({ last_active: new Date().toISOString() })
+      .eq('user_id', req.user.user_id);
+    
+    if (error) throw error;
     res.json({ message: 'Activity updated successfully' });
   } catch (error) {
     console.error('Error updating activity:', error);
@@ -26,21 +28,33 @@ router.post('/login', async (req, res) => {
     console.log('Login attempt for email:', email);
 
     // Find user by email
-    const user = await User.findOne({ where: { email } });
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (userError) throw userError;
+    
     if (!user) {
       console.log('User not found for email:', email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Check password using the instance method
-    const isValidPassword = await user.verifyPassword(password);
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       console.log('Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     // Update last login
-    await user.update({ last_login: new Date() });
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+
+    if (updateError) throw updateError;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -72,18 +86,38 @@ router.post('/register', async (req, res) => {
     console.log('Registration attempt for email:', email);
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw checkError;
+    }
+
     if (existingUser) {
       console.log('User already exists:', email);
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Create new user (password will be hashed by the model's beforeCreate hook)
-    const user = await User.create({
-      email,
-      password,
-      username
-    });
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create new user
+    const { data: user, error: createError } = await supabase
+      .from('users')
+      .insert([{
+        email,
+        password: hashedPassword,
+        username,
+        last_login: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (createError) throw createError;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -119,7 +153,7 @@ router.get('/oauth/google',
 router.get('/oauth/google/callback',
   (req, res, next) => {
     console.log('Google callback received with code:', req.query.code);
-    passport.authenticate('google', { session: false }, (err, user, info) => {
+    passport.authenticate('google', { session: false }, async (err, user, info) => {
       console.log('Passport authenticate callback:', { err, user, info });
       
       if (err) {
@@ -143,9 +177,14 @@ router.get('/oauth/google/callback',
         console.log('Successfully generated JWT token for user:', user.user_id);
         
         // Update last login
-        user.update({ last_login: new Date() }).catch(error => {
-          console.error('Error updating last login:', error);
-        });
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ last_login: new Date().toISOString() })
+          .eq('user_id', user.user_id);
+
+        if (updateError) {
+          console.error('Error updating last login:', updateError);
+        }
         
         // Redirect to frontend with token and user info
         const redirectUrl = new URL(`${process.env.CLIENT_URL}/auth/callback`);

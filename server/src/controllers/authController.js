@@ -1,7 +1,6 @@
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { Op } = require('sequelize');
 
 // Register a new user
 const register = async (req, res) => {
@@ -9,26 +8,38 @@ const register = async (req, res) => {
     const { username, email, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      where: { 
-        [Op.or]: [
-          { email },
-          { username }
-        ]
-      }
-    });
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('*')
+      .or(`email.eq.${email},username.eq.${username}`)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw checkError;
+    }
 
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email or username already exists' });
     }
 
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     // Create new user
-    const user = await User.create({
-      username,
-      email,
-      password, 
-      profile_image_url: '/assets/default-avatar.png'
-    });
+    const { data: user, error: createError } = await supabase
+      .from('users')
+      .insert([{
+        username,
+        email,
+        password: hashedPassword,
+        profile_image_url: '/assets/default-avatar.png',
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (createError) throw createError;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -61,9 +72,13 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find the user by email
-    const user = await User.findOne({ where: { email } });
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
 
-    if (!user) {
+    if (userError) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -82,8 +97,12 @@ const login = async (req, res) => {
     }
 
     // Update last login time
-    user.last_login = new Date();
-    await user.save();
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+
+    if (updateError) throw updateError;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -134,10 +153,12 @@ const verify = async (req, res) => {
 const updateActivity = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    await User.update(
-      { last_active: new Date() },
-      { where: { user_id: userId } }
-    );
+    const { error } = await supabase
+      .from('users')
+      .update({ last_active: new Date().toISOString() })
+      .eq('user_id', userId);
+
+    if (error) throw error;
     
     res.status(200).json({ message: 'Activity updated' });
   } catch (error) {

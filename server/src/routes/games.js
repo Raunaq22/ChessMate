@@ -1,8 +1,6 @@
 const express = require('express');
 const passport = require('passport');
-const { Op } = require('sequelize');
-const Game = require('../models/Game');
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 const router = express.Router();
 
 // Generate a random 6-character code
@@ -21,22 +19,23 @@ router.get('/available', passport.authenticate('jwt', { session: false }), async
     console.log('Fetching available games for user:', req.user.user_id);
     
     // Get active games where current user isn't already a player
-    const availableGames = await Game.findAll({
-      where: {
-        status: 'waiting',
-        player2_id: null,
-        player1_id: {
-          [Op.ne]: req.user.user_id // Not created by current user
-        },
-        is_private: false // Only show public games in lobby
-      },
-      include: [{
-        model: User,
-        as: 'player1',
-        attributes: ['username', 'last_active', 'user_id']
-      }],
-      order: [['createdAt', 'DESC']]
-    });
+    const { data: availableGames, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (
+          username,
+          last_active,
+          user_id
+        )
+      `)
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .neq('player1_id', req.user.user_id)
+      .eq('is_private', false)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
 
     console.log(`Found ${availableGames.length} available games`);
     
@@ -58,17 +57,23 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
     
     console.log(`Creating new game with invite code: ${inviteCode} for user ${creator.user_id}`);
     
-    const game = await Game.create({
-      player1_id: creator.user_id,
-      status: 'waiting',
-      initial_time: initialTime,
-      increment: increment,
-      white_time: initialTime,
-      black_time: initialTime,
-      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      invite_code: inviteCode,
-      is_private: createFriendGame || false
-    });
+    const { data: game, error } = await supabase
+      .from('games')
+      .insert([{
+        player1_id: creator.user_id,
+        status: 'waiting',
+        initial_time: initialTime,
+        increment: increment,
+        white_time: initialTime,
+        black_time: initialTime,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        invite_code: inviteCode,
+        is_private: createFriendGame || false
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
 
     console.log(`Created game with ID ${game.game_id} and invite code ${inviteCode}`);
     res.status(201).json({ 
@@ -91,33 +96,28 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
 // Get user's game history
 router.get('/history', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const games = await Game.findAll({
-      where: {
-        [Op.or]: [
-          { player1_id: req.user.user_id },
-          { player2_id: req.user.user_id }
-        ],
-        status: 'completed'
-      },
-      include: [
-        {
-          model: User,
-          as: 'player1',
-          attributes: ['username', 'user_id']
-        },
-        {
-          model: User,
-          as: 'player2',
-          attributes: ['username', 'user_id']
-        },
-        {
-          model: User,
-          as: 'winner',
-          attributes: ['username', 'user_id']
-        }
-      ],
-      order: [['updatedAt', 'DESC']]
-    });
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (
+          username,
+          user_id
+        ),
+        player2:users!games_player2_id_fkey (
+          username,
+          user_id
+        ),
+        winner:users!games_winner_id_fkey (
+          username,
+          user_id
+        )
+      `)
+      .or(`player1_id.eq.${req.user.user_id},player2_id.eq.${req.user.user_id}`)
+      .eq('status', 'completed')
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
 
     res.json({ games });
   } catch (error) {
@@ -138,15 +138,15 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
     
     console.log(`User ${joiner.user_id} attempting to find game with invite code: ${code}`);
     
-    const game = await Game.findOne({
-      where: {
-        invite_code: code,
-        status: 'waiting',
-        player2_id: null
-      }
-    });
-    
-    if (!game) {
+    const { data: game, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('invite_code', code)
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .single();
+
+    if (error) {
       console.log(`Game with invite code ${code} not found or unavailable`);
       return res.status(404).json({ 
         message: 'Game not found or no longer available',
@@ -166,11 +166,19 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
     }
     
     // Update game status
-    game.player2_id = req.user.user_id;
-    game.status = 'playing';
-    await game.save();
+    const { data: updatedGame, error: updateError } = await supabase
+      .from('games')
+      .update({
+        player2_id: req.user.user_id,
+        status: 'playing'
+      })
+      .eq('game_id', game.game_id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
     
-    res.json({ game });
+    res.json({ game: updatedGame });
   } catch (error) {
     console.error('Error joining game by code:', error);
     res.status(400).json({ message: error.message });
@@ -180,15 +188,15 @@ router.post('/join-by-code', passport.authenticate('jwt', { session: false }), a
 // Join an existing game
 router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const game = await Game.findOne({
-      where: {
-        game_id: req.params.gameId,
-        status: 'waiting',
-        player2_id: null
-      }
-    });
-    
-    if (!game) {
+    const { data: game, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', req.params.gameId)
+      .eq('status', 'waiting')
+      .is('player2_id', null)
+      .single();
+
+    if (error) {
       return res.status(404).json({ message: 'Game not found or no longer available' });
     }
     
@@ -198,11 +206,19 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
     }
     
     // Update game status
-    game.player2_id = req.user.user_id;
-    game.status = 'playing';
-    await game.save();
+    const { data: updatedGame, error: updateError } = await supabase
+      .from('games')
+      .update({
+        player2_id: req.user.user_id,
+        status: 'playing'
+      })
+      .eq('game_id', game.game_id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
     
-    res.json({ game });
+    res.json({ game: updatedGame });
   } catch (error) {
     console.error('Error joining game:', error);
     res.status(400).json({ message: error.message });
@@ -212,11 +228,17 @@ router.post('/:gameId/join', passport.authenticate('jwt', { session: false }), a
 // Get game details
 router.get('/:gameId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const game = await Game.findByPk(req.params.gameId, {
-      include: ['player1', 'player2']
-    });
-    
-    if (!game) {
+    const { data: game, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (*),
+        player2:users!games_player2_id_fkey (*)
+      `)
+      .eq('game_id', req.params.gameId)
+      .single();
+
+    if (error) {
       return res.status(404).json({ message: 'Game not found' });
     }
     
@@ -230,20 +252,26 @@ router.get('/:gameId', passport.authenticate('jwt', { session: false }), async (
 // Cancel a game
 router.delete('/:gameId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const game = await Game.findOne({
-      where: {
-        game_id: req.params.gameId,
-        player1_id: req.user.user_id,
-        player2_id: null,
-        status: 'waiting'
-      }
-    });
+    const { data: game, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('game_id', req.params.gameId)
+      .eq('player1_id', req.user.user_id)
+      .is('player2_id', null)
+      .eq('status', 'waiting')
+      .single();
 
-    if (!game) {
+    if (error) {
       throw new Error('Game not found or cannot be cancelled');
     }
 
-    await game.destroy();
+    const { error: deleteError } = await supabase
+      .from('games')
+      .delete()
+      .eq('game_id', req.params.gameId);
+
+    if (deleteError) throw deleteError;
+
     res.json({ message: 'Game cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling game:', error);

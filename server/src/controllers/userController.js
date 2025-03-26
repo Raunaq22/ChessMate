@@ -1,9 +1,7 @@
-const User = require('../models/User');
-const Game = require('../models/Game');
-const { Op } = require('sequelize');
-const sequelize = require('../config/db');
+const supabase = require('../config/supabase');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 // Get user statistics
 const getUserStats = async (req, res) => {
@@ -11,36 +9,31 @@ const getUserStats = async (req, res) => {
     const userId = req.user.user_id;
     
     // Count active games (both waiting and playing)
-    const activeGamesCount = await Game.count({
-      where: {
-        [Op.or]: [
-          { player1_id: userId },
-          { player2_id: userId }
-        ],
-        status: {
-          [Op.in]: ['waiting', 'playing']
-        }
-      }
-    });
+    const { count: activeGamesCount, error: activeError } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+      .in('status', ['waiting', 'playing']);
+
+    if (activeError) throw activeError;
 
     // Count total completed games
-    const completedGamesCount = await Game.count({
-      where: {
-        [Op.or]: [
-          { player1_id: userId },
-          { player2_id: userId }
-        ],
-        status: 'completed'
-      }
-    });
+    const { count: completedGamesCount, error: completedError } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+      .eq('status', 'completed');
+
+    if (completedError) throw completedError;
     
     // Count wins (where user is the winner)
-    const winsCount = await Game.count({
-      where: {
-        winner_id: userId,
-        status: 'completed'
-      }
-    });
+    const { count: winsCount, error: winsError } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .eq('winner_id', userId)
+      .eq('status', 'completed');
+
+    if (winsError) throw winsError;
     
     // Calculate win rate
     const winRate = completedGamesCount > 0 ? Math.round((winsCount / completedGamesCount) * 100) : 0;
@@ -69,11 +62,13 @@ const getUserById = async (req, res) => {
     }
     
     // Find user by ID, only return public information
-    const user = await User.findByPk(parseInt(userId), {
-      attributes: ['user_id', 'username', 'created_at'] // Only return public fields
-    });
-    
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('user_id, username, created_at')
+      .eq('user_id', parseInt(userId))
+      .single();
+
+    if (error) {
       return res.status(404).json({ message: 'User not found' });
     }
     
@@ -91,28 +86,44 @@ const updateUser = async (req, res) => {
     const { username, email, profile_image_url, currentPassword, newPassword } = req.body;
     
     // Find the user
-    const user = await User.findByPk(userId);
-    if (!user) {
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (userError) {
       return res.status(404).json({ message: 'User not found' });
     }
     
     // Check for password change
     if (currentPassword && newPassword) {
       // Verify current password
-      const isPasswordValid = await user.verifyPassword(currentPassword);
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isPasswordValid) {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
       
-      // Set new password (will be hashed in the model hooks)
-      user.password = newPassword;
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
     }
     
     // Update fields
     if (username && username !== user.username) {
       // Check if username is already taken
-      const existingUser = await User.findOne({ where: { username } });
-      if (existingUser && existingUser.user_id !== userId) {
+      const { data: existingUser, error: usernameError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('username', username)
+        .neq('user_id', userId)
+        .single();
+
+      if (usernameError && usernameError.code !== 'PGRST116') { // PGRST116 is "not found"
+        throw usernameError;
+      }
+
+      if (existingUser) {
         return res.status(400).json({ message: 'Username is already taken' });
       }
       user.username = username;
@@ -120,8 +131,18 @@ const updateUser = async (req, res) => {
     
     if (email && email !== user.email) {
       // Check if email is already taken
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser && existingUser.user_id !== userId) {
+      const { data: existingUser, error: emailError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('email', email)
+        .neq('user_id', userId)
+        .single();
+
+      if (emailError && emailError.code !== 'PGRST116') { // PGRST116 is "not found"
+        throw emailError;
+      }
+
+      if (existingUser) {
         return res.status(400).json({ message: 'Email is already taken' });
       }
       user.email = email;
@@ -131,20 +152,32 @@ const updateUser = async (req, res) => {
       user.profile_image_url = profile_image_url;
     }
     
-    // Save the updated user
-    await user.save();
+    // Update the user
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update({
+        username: user.username,
+        email: user.email,
+        password: user.password,
+        profile_image_url: user.profile_image_url
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
     
     // Return the updated user (without password)
-    const updatedUser = {
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      profile_image_url: user.profile_image_url
+    const responseUser = {
+      user_id: updatedUser.user_id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      profile_image_url: updatedUser.profile_image_url
     };
     
     res.json({ 
       message: 'Profile updated successfully',
-      user: updatedUser
+      user: responseUser
     });
     
   } catch (error) {
@@ -173,9 +206,14 @@ const uploadProfileImage = async (req, res) => {
       absolutePath: path.resolve(req.file.path)
     });
     
-    // Update the user's profile image URL in the database
-    const user = await User.findByPk(userId);
-    if (!user) {
+    // Get the user's current profile image URL
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('profile_image_url')
+      .eq('user_id', userId)
+      .single();
+
+    if (userError) {
       return res.status(404).json({ message: 'User not found' });
     }
     
@@ -221,8 +259,12 @@ const uploadProfileImage = async (req, res) => {
     }
     
     // Update the user profile
-    user.profile_image_url = fileUrl;
-    await user.save();
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ profile_image_url: fileUrl })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
     
     // Return the new image URL
     res.json({
@@ -236,29 +278,27 @@ const uploadProfileImage = async (req, res) => {
   }
 };
 
-// Look for any getUserGames or similar functions that might reference firstPlayer
+// Get user's games
 const getUserGames = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const games = await Game.findAll({
-      where: {
-        [Op.or]: [
-          { player1_id: id },
-          { player2_id: id }
-        ]
-      },
-      include: [
-        { model: User, as: 'player1', attributes: ['username'] },  // Changed from 'firstPlayer' to 'player1'
-        { model: User, as: 'player2', attributes: ['username'] }   // Changed from 'secondPlayer' to 'player2'
-      ],
-      order: [['createdAt', 'DESC']]
-    });
-    
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:users!games_player1_id_fkey (*),
+        player2:users!games_player2_id_fkey (*)
+      `)
+      .or(`player1_id.eq.${id},player2_id.eq.${id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
     res.json(games);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching user games:', error);
+    res.status(500).json({ message: 'Failed to fetch user games' });
   }
 };
 

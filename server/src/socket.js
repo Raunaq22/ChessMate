@@ -1,7 +1,6 @@
-const Game = require('./models/Game');
+const supabase = require('./config/supabase');
 const { Chess } = require('chess.js');
-const { Op } = require('sequelize');
-const User = require('./models/User');
+
 
 const configureSocket = (io) => {
   const activeGames = new Map();
@@ -24,10 +23,12 @@ const configureSocket = (io) => {
         try {
           const now = new Date();
           console.log(`Updating activity for user ${userId} to ${now.toISOString()}`);
-          await User.update(
-            { last_active: now },
-            { where: { user_id: userId } }
-          );
+          const { error } = await supabase
+            .from('users')
+            .update({ last_active: now.toISOString() })
+            .eq('user_id', userId);
+          
+          if (error) throw error;
         } catch (error) {
           console.error('Error updating user activity:', error);
         }
@@ -62,9 +63,13 @@ const configureSocket = (io) => {
         
         // Get game data with detailed logging
         console.log(`Attempting to fetch game ${gameId} for user ${userId}`);
-        const game = await Game.findByPk(gameId);
+        const { data: game, error: gameError } = await supabase
+          .from('games')
+          .select('*')
+          .eq('game_id', gameId)
+          .single();
         
-        if (!game) {
+        if (gameError || !game) {
           console.error(`Game ${gameId} not found in database`);
           socket.emit('error', { message: 'Game not found' });
           return;
@@ -74,7 +79,7 @@ const configureSocket = (io) => {
         console.log(`GAME DATA FROM DATABASE:`, {
           game_id: game.game_id,
           initial_time: game.initial_time,
-          increment: game.getDataValue('increment'), // Fixed to use getDataValue instead of accessing increment directly
+          increment: game.increment,
           white_time: game.white_time,
           black_time: game.black_time
         });
@@ -90,24 +95,31 @@ const configureSocket = (io) => {
         currentUserId = userId;
 
         // Fetch the player information for both players
-        const [player1, player2] = await Promise.all([
-          User.findByPk(game.player1_id, {
-            attributes: ['user_id', 'username']
-          }),
-          game.player2_id ? User.findByPk(game.player2_id, {
-            attributes: ['user_id', 'username']
-          }) : null
+        const [player1Result, player2Result] = await Promise.all([
+          supabase
+            .from('users')
+            .select('user_id, username')
+            .eq('user_id', game.player1_id)
+            .single(),
+          game.player2_id ? supabase
+            .from('users')
+            .select('user_id, username')
+            .eq('user_id', game.player2_id)
+            .single() : { data: null, error: null }
         ]);
 
+        if (player1Result.error) throw player1Result.error;
+        if (player2Result.error && player2Result.error.code !== 'PGRST116') throw player2Result.error;
+
         // Prepare player profiles with real usernames
-        const whitePlayerProfile = player1 ? {
-          id: player1.user_id,
-          username: player1.username
+        const whitePlayerProfile = player1Result.data ? {
+          id: player1Result.data.user_id,
+          username: player1Result.data.username
         } : null;
         
-        const blackPlayerProfile = player2 ? {
-          id: player2.user_id,
-          username: player2.username
+        const blackPlayerProfile = player2Result.data ? {
+          id: player2Result.data.user_id,
+          username: player2Result.data.username
         } : null;
 
         console.log('Player profiles:', {
@@ -127,16 +139,14 @@ const configureSocket = (io) => {
           initialTime: game.initial_time,
           whiteTime: game.white_time,
           blackTime: game.black_time,
-          // Fix: Use getDataValue to bypass the method/property conflict
-          increment: game.getDataValue('increment')
+          increment: game.increment
         });
 
         // CRITICAL FIX: Use the EXACT values from the database without any defaults/overrides
         const initialTime = game.initial_time;
         const whiteTime = game.white_time !== null ? game.white_time : initialTime;
         const blackTime = game.black_time !== null ? game.black_time : initialTime;
-        // Always use getDataValue to access the increment property
-        const incrementValue = game.getDataValue('increment') || 0;
+        const incrementValue = game.increment || 0;
         
         console.log(`Sending time values to client:`, {
           initialTime,
@@ -175,7 +185,7 @@ const configureSocket = (io) => {
           fen: game.fen,
           playerColor,
           initialTime: initialTime,
-          increment: incrementValue,  // Use the fixed increment value
+          increment: incrementValue,
           whitePlayerId: game.player1_id,
           blackPlayerId: game.player2_id,
           whitePlayerProfile: whitePlayerProfile,
@@ -239,126 +249,109 @@ const configureSocket = (io) => {
     });
 
     // Inside your move event handler in configureSocket.js
-socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
-  try {
-    const game = await Game.findByPk(gameId);
-    if (!game) {
-      socket.emit('error', { message: 'Game not found' });
-      return;
-    }
-    
-    // Set start_time if this is the first move and start_time is not set yet
-    const moveHistory = game.move_history || [];
-    if (moveHistory.length === 0 && !game.start_time) {
-      game.start_time = new Date();
-      console.log(`Setting start time for game ${gameId} to ${game.start_time}`);
-    }
-    
-    // Safely extract increment value
-    const incrementValue = game.getDataValue('increment') || 0;
-    
-    // Determine which color just made a move from the FEN
-    const currentTurn = fen.split(' ')[1]; // 'w' or 'b'
-    const movingColor = currentTurn === 'w' ? 'black' : 'white'; // If it's white's turn now, black just moved
-    
-    console.log(`Received move: ${move.from} to ${move.to}, moving color: ${movingColor}`);
-    console.log(`Current time values - White: ${whiteTimeLeft}s, Black: ${blackTimeLeft}s`);
-    
-    // Get move count to determine if increment should be applied
-    const moveCount = moveHistory.length;
-    
-    // Apply increment to the player who just moved (skip the first move)
-    const shouldApplyIncrement = incrementValue > 0 && moveCount > 0;
-    
-    if (shouldApplyIncrement) {
-      if (movingColor === 'white') {
-        // Add increment to white's time
-        const oldWhiteTime = whiteTimeLeft;
-        whiteTimeLeft = Math.round(whiteTimeLeft + incrementValue);
-        console.log(`Applied increment to white: ${oldWhiteTime}s → ${whiteTimeLeft}s (+${incrementValue}s)`);
-      } else if (movingColor === 'black') {
-        // Add increment to black's time
-        const oldBlackTime = blackTimeLeft;
-        blackTimeLeft = Math.round(blackTimeLeft + incrementValue);
-        console.log(`Applied increment to black: ${oldBlackTime}s → ${blackTimeLeft}s (+${incrementValue}s)`);
+    socket.on('move', async ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
+      try {
+        const { data: game, error: gameError } = await supabase
+          .from('games')
+          .select('*')
+          .eq('game_id', gameId)
+          .single();
+
+        if (gameError || !game) {
+          socket.emit('error', { message: 'Game not found' });
+          return;
+        }
+        
+        // Set start_time if this is the first move and start_time is not set yet
+        if (!game.start_time && game.move_history && game.move_history.length === 0) {
+          const { error: updateError } = await supabase
+            .from('games')
+            .update({ start_time: new Date().toISOString() })
+            .eq('game_id', gameId);
+
+          if (updateError) throw updateError;
+        }
+        
+        // Update game state
+        const { error: updateError } = await supabase
+          .from('games')
+          .update({
+            fen,
+            move_history: [...(game.move_history || []), moveNotation],
+            white_time: whiteTimeLeft,
+            black_time: blackTimeLeft,
+            status: isCheckmate ? 'completed' : 'playing',
+            winner_id: isCheckmate ? winner : null
+          })
+          .eq('game_id', gameId);
+
+        if (updateError) throw updateError;
+        
+        // Broadcast the move to all players in the game
+        socket.to(`game-${gameId}`).emit('move', {
+          move,
+          fen,
+          moveNotation,
+          whiteTimeLeft,
+          blackTimeLeft,
+          isWhiteTimerRunning,
+          isBlackTimerRunning,
+          isCheckmate,
+          winner
+        });
+      } catch (error) {
+        console.error('Error handling move:', error);
+        socket.emit('error', { message: 'Failed to process move' });
       }
-    }
-
-    // Update game in database with rounded values for consistency
-    game.fen = fen;
-    game.white_time = Math.round(whiteTimeLeft);
-    game.black_time = Math.round(blackTimeLeft);
-    game.move_history = [...moveHistory, move];
-    await game.save();
-
-    // Log all values before sending to client
-    console.log(`Updated time values - White: ${game.white_time}s, Black: ${game.black_time}s`);
-    
-    // Broadcast the move to all clients with the updated times
-    io.to(`game-${gameId}`).emit('move', {
-      from: move.from,
-      to: move.to,
-      fen: fen,
-      moveNotation: moveNotation,
-      whiteTimeLeft: game.white_time,  // Use database values for consistency
-      blackTimeLeft: game.black_time,  // Use database values for consistency 
-      isWhiteTimerRunning,
-      isBlackTimerRunning
     });
 
-    // Handle checkmate
-    if (isCheckmate && winner) {
-      console.log(`Checkmate detected in game ${gameId}. Winner: ${winner}`);
+    // Enhance gameOver event handler with acknowledgment and cache cleanup
+    socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
+      console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
       
+      // Broadcast to all clients in the room (including sender to ensure everyone gets the message)
       io.to(`game-${gameId}`).emit('gameOver', {
-        reason: 'checkmate',
-        winner: winner
+        reason,
+        winner
       });
       
-      updateGameResult(gameId, 'checkmate', winner);
-    }
-  } catch (error) {
-    console.error('Error processing move:', error);
-    socket.emit('error', { message: 'Failed to process move' });
-  }
-});
-
-// Enhance gameOver event handler with acknowledgment and cache cleanup
-socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
-  console.log(`Game over event: ${gameId}, winner: ${winner}, reason: ${reason}`);
-  
-  // Broadcast to all clients in the room (including sender to ensure everyone gets the message)
-  io.to(`game-${gameId}`).emit('gameOver', {
-    reason,
-    winner
-  });
-  
-  // Update game result in database
-  updateGameResult(gameId, reason, winner);
-  
-  // Clean up message cache for completed games
-  if (gameMessageCache.has(gameId)) {
-    console.log(`Cleaning up message cache for game ${gameId}`);
-    gameMessageCache.delete(gameId);
-  }
-  
-  // Send acknowledgment if callback exists
-  if (typeof callback === 'function') {
-    callback({ received: true });
-  }
-});
+      // Clean up message cache for completed games
+      if (gameMessageCache.has(gameId)) {
+        console.log(`Cleaning up message cache for game ${gameId}`);
+        gameMessageCache.delete(gameId);
+      }
+      
+      // Send acknowledgment if callback exists
+      if (typeof callback === 'function') {
+        callback({ received: true });
+      }
+    });
 
     socket.on('timeUpdate', async ({ gameId, color, timeLeft }) => {
       try {
-        const game = await Game.findByPk(gameId);
-        if (!game) return;
+        const { data: game, error: gameError } = await supabase
+          .from('games')
+          .select('*')
+          .eq('game_id', gameId)
+          .single();
+
+        if (gameError || !game) return;
 
         if (color === 'white') {
-          game.white_time = timeLeft;
+          const { error: updateError } = await supabase
+            .from('games')
+            .update({ white_time: timeLeft })
+            .eq('game_id', gameId);
+
+          if (updateError) throw updateError;
         } else {
-          game.black_time = timeLeft;
+          const { error: updateError } = await supabase
+            .from('games')
+            .update({ black_time: timeLeft })
+            .eq('game_id', gameId);
+
+          if (updateError) throw updateError;
         }
-        await game.save();
 
         // Broadcast time update to other player
         socket.to(`game-${gameId}`).emit('timeUpdate', { color, timeLeft });
@@ -375,9 +368,6 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
     
     socket.on('acceptDraw', ({ gameId }) => {
       io.to(`game-${gameId}`).emit('gameOver', { reason: 'draw', winner: null });
-      // Update game result in the database
-      updateGameResult(gameId, 'draw');
-      
       // Clean up message cache for completed games
       if (gameMessageCache.has(gameId)) {
         gameMessageCache.delete(gameId);
@@ -397,9 +387,6 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
         winner,
         message: `${color === 'white' ? 'White' : 'Black'} resigned. ${winner === 'white' ? 'White' : 'Black'} wins!`
       });
-      
-      // Update game result in the database
-      updateGameResult(gameId, 'resignation', winner);
       
       // Clean up message cache for completed games
       if (gameMessageCache.has(gameId)) {
@@ -423,20 +410,26 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
           
           if (cleanupParam === 'true') {
             // Find and delete all waiting games created by this user
-            const waitingGames = await Game.findAll({
-              where: {
-                player1_id: userId,
-                status: 'waiting',
-                player2_id: null
-              }
-            });
+            const { data: waitingGames, error: waitingGamesError } = await supabase
+              .from('games')
+              .select('*')
+              .eq('player1_id', userId)
+              .eq('status', 'waiting')
+              .eq('player2_id', null);
+            
+            if (waitingGamesError) throw waitingGamesError;
             
             // Log the games we're about to delete
             console.log(`Cleaning up ${waitingGames.length} waiting games for user ${userId}`);
             
             // Delete each game
             for (const game of waitingGames) {
-              await game.destroy();
+              const { error: deleteError } = await supabase
+                .from('games')
+                .delete()
+                .eq('game_id', game.game_id);
+
+              if (deleteError) throw deleteError;
               console.log(`Deleted waiting game ${game.game_id}`);
             }
           } else {
@@ -454,9 +447,18 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
           
           try {
             // Check if the game has already ended
-            const game = await Game.findByPk(currentGameId);
+            const { data: game, error: gameError } = await supabase
+              .from('games')
+              .select('*')
+              .eq('game_id', currentGameId)
+              .single();
             
-            if (game && game.status !== 'completed') {
+            if (gameError || !game) {
+              console.error('Error fetching game data:', gameError);
+              return;
+            }
+            
+            if (game.status !== 'completed') {
               // Start reconnection grace period instead of immediately ending the game
               const disconnectKey = `${currentUserId}_${currentGameId}`;
               
@@ -470,9 +472,18 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
               const reconnectionTimer = setTimeout(async () => {
                 try {
                   // Double check game status before forfeiting
-                  const currentGame = await Game.findByPk(currentGameId);
+                  const { data: currentGame, error: currentGameError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('game_id', currentGameId)
+                    .single();
                   
-                  if (currentGame && currentGame.status !== 'completed') {
+                  if (currentGameError || !currentGame) {
+                    console.error('Error fetching game data:', currentGameError);
+                    return;
+                  }
+                  
+                  if (currentGame.status !== 'completed') {
                     console.log(`Player ${currentUserId} did not reconnect to game ${currentGameId} - forfeiting`);
                     
                     // Determine the winner (the player who didn't disconnect)
@@ -481,12 +492,17 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
                     const winnerId = isWhiteDisconnected ? currentGame.player2_id : currentGame.player1_id;
                     
                     // Update game in database
-                    await currentGame.update({
-                      status: 'completed',
-                      end_time: new Date(),
-                      winner_id: winnerId,
-                      result: `${winner}_win_by_abandonment`
-                    });
+                    const { error: updateError } = await supabase
+                      .from('games')
+                      .update({
+                        status: 'completed',
+                        end_time: new Date().toISOString(),
+                        winner_id: winnerId,
+                        result: `${winner}_win_by_abandonment`
+                      })
+                      .eq('game_id', currentGameId);
+
+                    if (updateError) throw updateError;
                     
                     // Notify remaining player of forfeit win
                     io.to(`game-${currentGameId}`).emit('gameOver', {
@@ -540,7 +556,16 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
             
             try {
               // Check if the game has already ended before notifying about disconnection
-              const game = await Game.findByPk(roomId);
+              const { data: game, error: gameError } = await supabase
+                .from('games')
+                .select('*')
+                .eq('game_id', roomId)
+                .single();
+              
+              if (gameError || !game) {
+                console.error('Error fetching game data:', gameError);
+                return;
+              }
               
               // If there are still players in the room, notify them based on game status
               if (users.size > 0) {
@@ -574,13 +599,16 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
     // Look for any socket handlers that fetch game information
     socket.on('join-game', async (gameId) => {
       try {
-        const game = await Game.findOne({
-          where: { game_id: gameId },
-          include: [
-            { model: User, as: 'player1', attributes: ['user_id', 'username'] }, // Changed from 'firstPlayer' to 'player1'
-            { model: User, as: 'player2', attributes: ['user_id', 'username'] }  // Changed from 'secondPlayer' to 'player2'
-          ]
-        });
+        const { data: game, error: gameError } = await supabase
+          .from('games')
+          .select('*')
+          .eq('game_id', gameId)
+          .single();
+        
+        if (gameError || !game) {
+          console.error('Error fetching game data:', gameError);
+          return;
+        }
         
         // Rest of the handler...
       } catch (error) {
@@ -588,48 +616,6 @@ socket.on('gameOver', ({ gameId, winner, reason }, callback) => {
       }
     });
   });
-  
-  // Helper function to update game result in the database
-  async function updateGameResult(gameId, reason, winner = null) {
-    try {
-      console.log(`Updating game result in database: ${gameId}, reason: ${reason}, winner: ${winner}`);
-      const game = await Game.findByPk(gameId);
-      if (!game) {
-        console.log(`Game ${gameId} not found in database`);
-        return;
-      }
-      
-      let winnerId = null;
-      let resultValue = null;
-      
-      if (winner === 'white') {
-        winnerId = game.player1_id;
-        resultValue = `white_win_by_${reason}`;
-      } else if (winner === 'black') {
-        winnerId = game.player2_id;
-        resultValue = `black_win_by_${reason}`;
-      } else if (reason === 'draw') {
-        resultValue = 'draw';
-      }
-      
-      // Update game in database
-      await game.update({
-        status: 'completed',
-        end_time: new Date(),
-        winner_id: winnerId,
-        result: resultValue
-      });
-      
-      // Clean up message cache for completed games
-      if (gameMessageCache.has(gameId)) {
-        gameMessageCache.delete(gameId);
-      }
-      
-      console.log(`Game ${gameId} result updated: ${reason}, winner: ${winner || 'draw'}, result: ${resultValue}`);
-    } catch (error) {
-      console.error('Error updating game result:', error);
-    }
-  }
 };
 
 module.exports = configureSocket;

@@ -1,16 +1,18 @@
 const express = require('express');
 const passport = require('passport');
-const { Op } = require('sequelize');
-const User = require('../models/User');
-const Game = require('../models/Game');
+const supabase = require('../config/supabase');
 const router = express.Router();
 
 // Get user profile
 router.get('/profile', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.user_id, {
-      attributes: { exclude: ['password'] }
-    });
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('user_id, username, email, avatar_url, last_active, created_at, updated_at')
+      .eq('user_id', req.user.user_id)
+      .single();
+    
+    if (error) throw error;
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -27,27 +29,27 @@ router.get('/profile', passport.authenticate('jwt', { session: false }), async (
 router.put('/profile', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const { username, avatar_url } = req.body;
-    const user = await User.findByPk(req.user.user_id);
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .update({
+        username: username || undefined,
+        avatar_url: avatar_url || undefined,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', req.user.user_id)
+      .select('user_id, username, email, avatar_url, last_active, created_at, updated_at')
+      .single();
+    
+    if (error) throw error;
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Update allowed fields
-    if (username) user.username = username;
-    if (avatar_url) user.avatar_url = avatar_url;
-    
-    await user.save();
-    
     res.json({ 
       message: 'Profile updated successfully',
-      user: {
-        user_id: user.user_id,
-        username: user.username,
-        email: user.email,
-        avatar_url: user.avatar_url,
-        last_active: user.last_active
-      }
+      user
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -61,21 +63,20 @@ router.get('/stats', passport.authenticate('jwt', { session: false }), async (re
     const userId = req.user.user_id;
     
     // Get total games played
-    const totalGames = await Game.count({
-      where: {
-        [Op.or]: [
-          { player1_id: userId },
-          { player2_id: userId }
-        ]
-      }
-    });
+    const { count: totalGames, error: totalGamesError } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`);
+    
+    if (totalGamesError) throw totalGamesError;
     
     // Get games won
-    const gamesWon = await Game.count({
-      where: {
-        winner_id: userId
-      }
-    });
+    const { count: gamesWon, error: gamesWonError } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .eq('winner_id', userId);
+    
+    if (gamesWonError) throw gamesWonError;
     
     // Get win rate
     const winRate = totalGames > 0 ? (gamesWon / totalGames) * 100 : 0;
@@ -94,27 +95,17 @@ router.get('/stats', passport.authenticate('jwt', { session: false }), async (re
 // Get user's active games
 router.get('/active-games', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const activeGames = await Game.findAll({
-      where: {
-        [Op.or]: [
-          { player1_id: req.user.user_id },
-          { player2_id: req.user.user_id }
-        ],
-        status: 'playing'
-      },
-      include: [
-        {
-          model: User,
-          as: 'player1',
-          attributes: ['username', 'user_id']
-        },
-        {
-          model: User,
-          as: 'player2',
-          attributes: ['username', 'user_id']
-        }
-      ]
-    });
+    const { data: activeGames, error } = await supabase
+      .from('games')
+      .select(`
+        *,
+        player1:player1_id (username, user_id),
+        player2:player2_id (username, user_id)
+      `)
+      .or(`player1_id.eq.${req.user.user_id},player2_id.eq.${req.user.user_id}`)
+      .eq('status', 'playing');
+    
+    if (error) throw error;
     
     res.json({ activeGames });
   } catch (error) {

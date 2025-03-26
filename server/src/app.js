@@ -3,9 +3,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const passport = require('passport');
-const { Op } = require('sequelize');
-const Game = require('./models/Game');
-const User = require('./models/User');
 const supabase = require('./config/supabase');
 require('./config/passport')(passport);
 require('dotenv').config();
@@ -71,38 +68,31 @@ const cleanupAbandonedGames = async () => {
   try {
     console.log("Running cleanup for abandoned games...");
     // Get users who haven't been active in the last 2 minutes
-    const inactiveUsers = await User.findAll({
-      where: {
-        last_active: {
-          [Op.lt]: new Date(Date.now() - 2 * 60 * 1000) // 2 minutes ago
-        }
-      },
-      attributes: ['user_id']
-    });
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    
+    const { data: inactiveUsers, error: inactiveError } = await supabase
+      .from('users')
+      .select('user_id')
+      .lt('last_active', twoMinutesAgo);
+
+    if (inactiveError) throw inactiveError;
     
     const inactiveUserIds = inactiveUsers.map(user => user.user_id);
     
     if (inactiveUserIds.length > 0) {
       console.log(`Found ${inactiveUserIds.length} inactive users`);
       // Close any waiting games from inactive users
-      const result = await Game.update(
-        { status: 'completed' },
-        {
-          where: {
-            player1_id: { [Op.in]: inactiveUserIds },
-            status: 'waiting'
-          }
-        }
-      );
+      const { data: result, error: updateError } = await supabase
+        .from('games')
+        .update({ status: 'completed' })
+        .in('player1_id', inactiveUserIds)
+        .eq('status', 'waiting')
+        .select();
+
+      if (updateError) throw updateError;
       
-      if (result[0] > 0) {
-        console.log(`Cleaned up ${result[0]} abandoned games from inactive users`);
-        // Update Supabase real-time
-        await supabase
-          .from('games')
-          .update({ status: 'completed' })
-          .in('player1_id', inactiveUserIds)
-          .eq('status', 'waiting');
+      if (result && result.length > 0) {
+        console.log(`Cleaned up ${result.length} abandoned games from inactive users`);
       }
     }
   } catch (error) {

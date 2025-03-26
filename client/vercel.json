@@ -1,0 +1,15 @@
+{
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "build",
+  "framework": "create-react-app"
+}

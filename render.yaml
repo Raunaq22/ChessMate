@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: chessmate-backend
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+  
+  - type: web
+    name: chessmate-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: chessmate-backend
+          type: web
+          property: url
+
+  - type: postgres
+    name: chessmate-db
+    ipAllowList: []

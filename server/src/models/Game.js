@@ -66,25 +66,9 @@ const Game = sequelize.define('Game', {
   }
 }, {
   tableName: 'games',
-  timestamps: true
+  timestamps: true,
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 });
-
-// Define associations
-Game.associate = (models) => {
-  Game.belongsTo(models.User, {
-    foreignKey: 'player1_id',
-    as: 'player1'
-  });
-  
-  Game.belongsTo(models.User, {
-    foreignKey: 'player2_id',
-    as: 'player2'
-  });
-  
-  Game.belongsTo(models.User, {
-    foreignKey: 'winner_id',
-    as: 'winner'
-  });
-};
 
 module.exports = Game;

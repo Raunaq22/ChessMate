@@ -1,6 +1,8 @@
 const express = require('express');
 const passport = require('passport');
+const { Op } = require('sequelize');
 const User = require('../models/User');
+const Game = require('../models/Game');
 const router = express.Router();
 
 // Get user profile
@@ -56,33 +58,32 @@ router.put('/profile', passport.authenticate('jwt', { session: false }), async (
 // Get user statistics
 router.get('/stats', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.user_id, {
-      include: [{
-        model: Game,
-        as: 'games_as_player1',
-        where: { status: 'completed' },
-        required: false
-      }, {
-        model: Game,
-        as: 'games_as_player2',
-        where: { status: 'completed' },
-        required: false
-      }]
+    const userId = req.user.user_id;
+    
+    // Get total games played
+    const totalGames = await Game.count({
+      where: {
+        [Op.or]: [
+          { player1_id: userId },
+          { player2_id: userId }
+        ]
+      }
     });
     
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    // Get games won
+    const gamesWon = await Game.count({
+      where: {
+        winner_id: userId
+      }
+    });
     
-    const totalGames = user.games_as_player1.length + user.games_as_player2.length;
-    const wins = user.games_as_player1.filter(game => game.winner_id === user.user_id).length +
-                user.games_as_player2.filter(game => game.winner_id === user.user_id).length;
+    // Get win rate
+    const winRate = totalGames > 0 ? (gamesWon / totalGames) * 100 : 0;
     
     res.json({
-      total_games: totalGames,
-      wins: wins,
-      losses: totalGames - wins,
-      win_rate: totalGames > 0 ? (wins / totalGames) * 100 : 0
+      totalGames,
+      gamesWon,
+      winRate: Math.round(winRate * 100) / 100
     });
   } catch (error) {
     console.error('Error fetching user statistics:', error);

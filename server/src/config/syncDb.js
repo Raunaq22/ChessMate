@@ -7,9 +7,8 @@ const Game = require('../models/Game');
 
 async function syncDatabase() {
   try {
-    // Force sync will drop existing tables and recreate them
-    // In production, you should use { alter: true } instead of { force: true }
-    await sequelize.sync({ force: true });
+    // Use alter: true instead of force: true to preserve data
+    await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
     
     // Create associations

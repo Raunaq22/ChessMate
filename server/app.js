@@ -1,10 +1,23 @@
 const express = require('express');
+const cors = require('cors');
 const passport = require('passport');
 const { Op } = require('sequelize');
 const Game = require('../../models/Game');
 const User = require('../../models/User');
 const gameController = require('../../controllers/gameController');
 const router = express.Router();
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+
+// Apply CORS middleware
+router.use(cors(corsOptions));
 
 // Generate a random 6-character code
 const generateInviteCode = () => {

@@ -1,31 +1,15 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-console.log('Database configuration:', {
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  hasPassword: !!process.env.DB_PASSWORD
+const sequelize = new Sequelize({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'chessmate',
+  username: process.env.DB_USER || 'raunaq',
+  password: process.env.DB_PASSWORD || '',
+  dialect: 'postgres',
+  logging: false
 });
-
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'postgres',
-    logging: console.log,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  }
-);
 
 // Test the connection
 sequelize.authenticate()

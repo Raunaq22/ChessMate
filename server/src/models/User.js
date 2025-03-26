@@ -72,22 +72,4 @@ User.prototype.verifyPassword = async function(password) {
   return await bcrypt.compare(password, this.password);
 };
 
-// Define User associations
-User.associate = (models) => {
-  User.hasMany(models.Game, {
-    foreignKey: 'player1_id',
-    as: 'games_as_player1'
-  });
-  
-  User.hasMany(models.Game, {
-    foreignKey: 'player2_id',
-    as: 'games_as_player2'
-  });
-  
-  User.hasMany(models.Game, {
-    foreignKey: 'winner_id',
-    as: 'games_won'
-  });
-};
-
 module.exports = User;

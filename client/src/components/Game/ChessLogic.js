@@ -76,8 +76,45 @@ const useChessLogic = (gameId, navigate) => {
           navigate(`/game-replay/${gameId}`);
           return;
         }
+
+        // Initialize game state with server data
+        const newGame = new Chess(gameData.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        setGame(newGame);
+        setPosition(gameData.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        
+        // Set player information
+        const isPlayer1 = currentUser.user_id === gameData.player1_id;
+        const isPlayer2 = currentUser.user_id === gameData.player2_id;
+        setPlayerColor(isPlayer1 ? 'white' : 'black');
+        
+        // Set player IDs and profiles
+        setPlayerIds({
+          white: gameData.player1_id,
+          black: gameData.player2_id
+        });
+        
+        setPlayerProfiles({
+          white: gameData.player1 || null,
+          black: gameData.player2 || null
+        });
+        
+        // Set time controls
+        setWhiteTime(gameData.white_time || gameData.initial_time || 600);
+        setBlackTime(gameData.black_time || gameData.initial_time || 600);
+        setTimeIncrement(gameData.increment || 0);
+        
+        // Set game status
+        setGameStarted(gameData.status === 'playing');
+        setFirstMoveMade(gameData.move_history && gameData.move_history.length > 0);
+        
+        // Set move history if available
+        if (gameData.move_history && Array.isArray(gameData.move_history)) {
+          setMoveHistory(gameData.move_history);
+        }
         
         setInitialLoading(false);
+        gameInitialized.current = true;
+        
       } catch (error) {
         console.error('Error checking game status:', error);
         setInitialLoading(false);
@@ -111,143 +148,101 @@ const useChessLogic = (gameId, navigate) => {
     // Subscribe to game updates
     const gameSubscription = supabase
       .channel(`game:${gameId}`)
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'games',
-          filter: `game_id=eq.${gameId}`
-        }, 
-        (payload) => {
-          console.log('Game update received:', payload);
-          handleGameUpdate(payload);
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'games',
+        filter: `game_id=eq.${gameId}`
+      }, (payload) => {
+        const gameData = payload.new;
+        if (gameData.status === 'completed') {
+          setGameEnded(true);
+          setGameStatus(`Game ended - ${gameData.result}`);
+          if (gameData.winner) {
+            setGameStatus(prevStatus => `${prevStatus} - ${gameData.winner} wins!`);
+          }
         }
-      )
+      })
       .subscribe();
 
-    // Subscribe to player updates
-    const playerSubscription = supabase
-      .channel(`players:${gameId}`)
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_players',
-          filter: `game_id=eq.${gameId}`
-        },
-        (payload) => {
-          console.log('Player update received:', payload);
-          handlePlayerUpdate(payload);
+    // Subscribe to moves
+    const movesSubscription = supabase
+      .channel(`game_moves:${gameId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'game_moves',
+        filter: `game_id=eq.${gameId}`
+      }, (payload) => {
+        const moveData = payload.new;
+        if (moveData.fen) {
+          game.load(moveData.fen);
+          setPosition(moveData.fen);
         }
-      )
-      .subscribe();
-
-    // Subscribe to move updates
-    const moveSubscription = supabase
-      .channel(`moves:${gameId}`)
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_moves',
-          filter: `game_id=eq.${gameId}`
-        },
-        (payload) => {
-          console.log('Move update received:', payload);
-          handleMoveUpdate(payload);
+        if (moveData.move_notation) {
+          setMoveHistory(prev => [...prev, moveData.move_notation]);
         }
-      )
+        // Update timers
+        if (moveData.white_time !== undefined) {
+          setWhiteTime(moveData.white_time);
+        }
+        if (moveData.black_time !== undefined) {
+          setBlackTime(moveData.black_time);
+        }
+        setIsWhiteTimerRunning(moveData.is_white_timer_running);
+        setIsBlackTimerRunning(moveData.is_black_timer_running);
+      })
       .subscribe();
 
     // Subscribe to chat messages
     const chatSubscription = supabase
-      .channel(`chat:${gameId}`)
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_chat',
-          filter: `game_id=eq.${gameId}`
-        },
-        (payload) => {
-          console.log('Chat message received:', payload);
-          handleChatUpdate(payload);
+      .channel(`game_chat:${gameId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'game_chat',
+        filter: `game_id=eq.${gameId}`
+      }, (payload) => {
+        const messageData = payload.new;
+        // Only add message if it's not from current user (to avoid duplicates)
+        if (messageData.user_id !== currentUser?.user_id) {
+          setChatMessages(prev => [...prev, messageData]);
         }
-      )
+      })
       .subscribe();
 
-    // Cleanup subscriptions on unmount
+    // Subscribe to draw offers
+    const drawOffersSubscription = supabase
+      .channel(`game_draw_offers:${gameId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'game_draw_offers',
+        filter: `game_id=eq.${gameId}`
+      }, (payload) => {
+        const offerData = payload.new;
+        if (offerData.status === 'pending' && offerData.from_player_id !== currentUser?.user_id) {
+          setDrawOfferReceived(true);
+        } else if (offerData.status === 'declined') {
+          setOfferingDraw(false);
+          setDrawOfferReceived(false);
+          setNotification({
+            message: 'Draw offer declined',
+            type: 'info'
+          });
+          setTimeout(() => setNotification(null), 3000);
+        }
+      })
+      .subscribe();
+
+    // Cleanup subscriptions
     return () => {
       gameSubscription.unsubscribe();
-      playerSubscription.unsubscribe();
-      moveSubscription.unsubscribe();
+      movesSubscription.unsubscribe();
       chatSubscription.unsubscribe();
+      drawOffersSubscription.unsubscribe();
     };
-  }, [gameId, currentUser]);
-
-  // Handler functions for different types of updates
-  const handleGameUpdate = useCallback((payload) => {
-    const { new: gameData } = payload;
-    if (!gameData) return;
-
-    // Update game state based on the new data
-    if (gameData.fen) {
-      const newGame = new Chess(gameData.fen);
-      setGame(newGame);
-      setPosition(gameData.fen);
-    }
-
-    if (gameData.status === 'completed') {
-          setGameEnded(true);
-      setGameStatus(`Game ended: ${gameData.result}`);
-    }
-
-    // Update time controls
-    if (gameData.white_time !== undefined) setWhiteTime(gameData.white_time);
-    if (gameData.black_time !== undefined) setBlackTime(gameData.black_time);
-    if (gameData.increment !== undefined) setTimeIncrement(gameData.increment);
-  }, []);
-
-  const handlePlayerUpdate = useCallback((payload) => {
-    const { new: playerData } = payload;
-    if (!playerData) return;
-
-    // Update player information
-    if (playerData.player_id === playerIds.white) {
-      setPlayerProfiles(prev => ({ ...prev, white: playerData }));
-    } else if (playerData.player_id === playerIds.black) {
-      setPlayerProfiles(prev => ({ ...prev, black: playerData }));
-    }
-  }, [playerIds]);
-
-  const handleMoveUpdate = useCallback((payload) => {
-    const { new: moveData } = payload;
-    if (!moveData) return;
-
-    // Update game state with new move
-    if (moveData.fen) {
-      const newGame = new Chess(moveData.fen);
-      setGame(newGame);
-      setPosition(moveData.fen);
-    }
-
-    // Update move history
-    if (moveData.move_notation) {
-      setMoveHistory(prev => [...prev, moveData.move_notation]);
-    }
-  }, []);
-
-  const handleChatUpdate = useCallback((payload) => {
-    const { new: chatData } = payload;
-    if (!chatData) return;
-
-    // Add new chat message
-    setChatMessages(prev => [...prev, {
-      userId: chatData.user_id,
-      text: chatData.message,
-      timestamp: chatData.created_at
-    }]);
-  }, []);
+  }, [gameId, currentUser, supabase]);
 
   // Properly initialize game state
   useEffect(() => {
@@ -502,25 +497,32 @@ const useChessLogic = (gameId, navigate) => {
     const currentWhiteTime = whiteTime;
     const currentBlackTime = blackTime;
     
-    // Include explicit checkmate information in move event
-    socket.emit('move', {
-      gameId,
-      move: { 
-        from: sourceSquare, 
-        to: targetSquare,
-        promotion: validMove.promotion || 'q'
-      },
-      fen: gameCopy.fen(),
-      moveNotation: move.san,
-      whiteTimeLeft: currentWhiteTime,
-      blackTimeLeft: currentBlackTime,
-      isWhiteTimerRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
-      isBlackTimerRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove),
-      isCheckmate: isCheckmate,  // Explicit flag for checkmate
-      winner: winner             // Include winner information 
-    });
+    // Send move update through Supabase
+    supabase
+      .from('game_moves')
+      .insert([{
+        game_id: gameId,
+        move: { 
+          from: sourceSquare, 
+          to: targetSquare,
+          promotion: validMove.promotion || 'q'
+        },
+        fen: gameCopy.fen(),
+        move_notation: move.san,
+        white_time: currentWhiteTime,
+        black_time: currentBlackTime,
+        is_white_timer_running: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
+        is_black_timer_running: !isWhiteTurnAfter && (firstMoveMade || isFirstMove),
+        is_checkmate: isCheckmate,
+        winner: winner
+      }])
+      .then(response => {
+        if (response.error) {
+          console.error('Error sending move:', response.error);
+        }
+      });
     
-    // Call checkGameStatus after emitting move
+    // Call checkGameStatus after sending move
     checkGameStatus(gameCopy);
     
     setPossibleMoves([]);
@@ -531,37 +533,48 @@ const useChessLogic = (gameId, navigate) => {
   const handleTimeUp = (color) => {
     if (gameEnded) return; // Prevent duplicate calls
     
-    socket?.emit('gameOver', {
-      gameId,
-      winner: color === 'w' ? 'black' : 'white',
-      reason: 'timeout'
-    });
+    supabase
+      .from('games')
+      .update({
+        status: 'completed',
+        winner: color === 'w' ? 'black' : 'white',
+        result: 'timeout'
+      })
+      .eq('game_id', gameId)
+      .then(response => {
+        if (response.error) {
+          console.error('Error updating game on timeout:', response.error);
+        }
+      });
   };
 
   // Fix the handleSendMessage function to properly structure the message
   const handleSendMessage = (text) => {
-    if (!socket || !text || !currentUser) {
-      console.error('Cannot send message: missing socket, text, or user');
+    if (!text || !currentUser) {
+      console.error('Cannot send message: missing text or user');
       return;
     }
     
     const message = {
-      text, // The message text
-      userId: currentUser.user_id,
+      text,
+      user_id: currentUser.user_id,
       username: currentUser.username,
-      timestamp: new Date().toISOString()
+      game_id: gameId,
+      created_at: new Date().toISOString()
     };
-    
-    console.log('Sending message:', message);
     
     // Add to local state immediately for UI responsiveness
     setChatMessages(prevMessages => [...prevMessages, message]);
     
-    // Send to server in the expected format
-    socket.emit('chat', { 
-      gameId, 
-      message // Send the complete message object
-    });
+    // Send to Supabase
+    supabase
+      .from('game_chat')
+      .insert([message])
+      .then(response => {
+        if (response.error) {
+          console.error('Error sending chat message:', response.error);
+        }
+      });
   };
 
   // Fix handleResign to show confirmation dialog
@@ -574,13 +587,20 @@ const useChessLogic = (gameId, navigate) => {
 
   // Simplify confirmResign to just emit the event
   const confirmResign = () => {
-    socket?.emit('resign', { 
-      gameId,
-      playerId: currentUser.user_id,
-      color: playerColor
-    });
+    supabase
+      .from('games')
+      .update({
+        status: 'completed',
+        winner: playerColor === 'white' ? 'black' : 'white',
+        result: 'resignation'
+      })
+      .eq('game_id', gameId)
+      .then(response => {
+        if (response.error) {
+          console.error('Error updating game on resignation:', response.error);
+        }
+      });
     
-    // Let the socket event handler set the game status
     setShowResignConfirm(false);
   };
 
@@ -589,13 +609,20 @@ const useChessLogic = (gameId, navigate) => {
   };
 
   const handleOfferDraw = () => {
-    if (!socket) return;
-    
     setOfferingDraw(true);
-    socket.emit('offerDraw', {
-      gameId,
-      fromPlayerId: currentUser.user_id
-    });
+    
+    supabase
+      .from('game_draw_offers')
+      .insert([{
+        game_id: gameId,
+        from_player_id: currentUser.user_id,
+        status: 'pending'
+      }])
+      .then(response => {
+        if (response.error) {
+          console.error('Error sending draw offer:', response.error);
+        }
+      });
     
     // Add temporary notification
     setNotification({
@@ -609,17 +636,38 @@ const useChessLogic = (gameId, navigate) => {
 
   // Also update handleAcceptDraw
   const handleAcceptDraw = () => {
-    socket?.emit('acceptDraw', { gameId });
+    supabase
+      .from('games')
+      .update({
+        status: 'completed',
+        result: 'draw_agreement'
+      })
+      .eq('game_id', gameId)
+      .then(response => {
+        if (response.error) {
+          console.error('Error updating game on draw acceptance:', response.error);
+        }
+      });
+    
     setGameStatus('Game ended in a draw by agreement');
-    setGameEnded(true); // Set game ended state
+    setGameEnded(true);
     setDrawOfferReceived(false);
   };
 
   const handleDeclineDraw = () => {
-    socket?.emit('declineDraw', { 
-      gameId,
-      fromPlayerId: currentUser.user_id
-    });
+    supabase
+      .from('game_draw_offers')
+      .update({
+        status: 'declined'
+      })
+      .eq('game_id', gameId)
+      .eq('from_player_id', currentUser.user_id)
+      .then(response => {
+        if (response.error) {
+          console.error('Error declining draw offer:', response.error);
+        }
+      });
+    
     setDrawOfferReceived(false);
   };
 

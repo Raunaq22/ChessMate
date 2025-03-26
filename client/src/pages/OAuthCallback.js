@@ -1,35 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { processOAuthCallback } from '../services/oauth/oauthService';
+import { AuthContext } from '../context/AuthContext';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { updateUser } = React.useContext(AuthContext);
   
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        const result = await processOAuthCallback(location.search);
+        // Get token and user data from URL
+        const params = new URLSearchParams(location.search);
+        const token = params.get('token');
+        const userStr = params.get('user');
         
-        if (result.success) {
-          // If you have an auth context, update it here
-          // updateUser(result.user);
-          navigate('/');
-        } else {
-          setError(result.error);
+        if (!token || !userStr) {
+          throw new Error('Missing authentication data');
         }
+        
+        // Parse user data
+        const user = JSON.parse(decodeURIComponent(userStr));
+        
+        // Store token
+        localStorage.setItem('token', token);
+        
+        // Update auth context
+        updateUser(user);
+        
+        // Redirect to home page
+        navigate('/');
       } catch (err) {
-        setError('Failed to complete authentication');
-        console.error(err);
+        console.error('OAuth callback error:', err);
+        setError(err.message || 'Authentication failed');
       } finally {
         setLoading(false);
       }
     };
     
     handleOAuthCallback();
-  }, [location, navigate]);
+  }, [location, navigate, updateUser]);
   
   if (loading) {
     return (

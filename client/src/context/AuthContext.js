@@ -115,10 +115,10 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  // Add updateUser function
+  // Update user function
   const updateUser = (userData) => {
-    // Update the current user in state
     setCurrentUser(userData);
+    setIsAuthenticated(true);
   };
 
   return (
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
-        updateUser // Add this to the context value
+        updateUser
       }}
     >
       {children}

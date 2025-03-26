@@ -10,3 +10,6 @@ const uploadDir = path.join(__dirname, 'public/uploads/profile');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// Export the Express app as a serverless function
+module.exports = app;

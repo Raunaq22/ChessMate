@@ -13,30 +13,45 @@ const OAuthCallback = () => {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
+        console.log('Starting OAuth callback handling');
         const result = await processOAuthCallback(location.search);
         
-        if (result.success) {
+        if (result.success && result.user) {
+          console.log('OAuth successful, updating user state');
           setCurrentUser(result.user);
           setIsAuthenticated(true);
-          navigate('/');
+          
+          // Force navigation to home page
+          window.location.href = '/';
+          return;
         } else {
-          setError(result.error);
+          console.error('OAuth failed:', result.error);
+          setError(result.error || 'Authentication failed');
         }
       } catch (err) {
+        console.error('OAuth callback error:', err);
         setError('Failed to complete authentication');
-        console.error(err);
       } finally {
         setLoading(false);
       }
     };
     
     handleOAuthCallback();
-  }, [location, navigate, setCurrentUser, setIsAuthenticated]);
+  }, [location, setCurrentUser, setIsAuthenticated]);
+  
+  // Redirect to home if we somehow get stuck here after successful auth
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !loading && !error) {
+      window.location.href = '/';
+    }
+  }, [loading, error]);
   
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div>
+        <div className="ml-4 text-gray-600">Completing authentication...</div>
       </div>
     );
   }
@@ -49,7 +64,7 @@ const OAuthCallback = () => {
           <p>{error}</p>
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => window.location.href = '/login'}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Return to Login
@@ -58,7 +73,11 @@ const OAuthCallback = () => {
     );
   }
   
-  return null;
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-gray-600">Redirecting to home page...</div>
+    </div>
+  );
 };
 
 export default OAuthCallback;

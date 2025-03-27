@@ -61,7 +61,9 @@ passport.use(new GoogleStrategy({
             username: profile.displayName,
             profile_image_url: profile.photos[0].value,
             last_login: new Date(),
-            last_active: new Date()
+            last_active: new Date(),
+            created_at: new Date(),
+            updated_at: new Date()
           });
         }
       } else {

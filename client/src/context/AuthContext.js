@@ -89,6 +89,22 @@ export const AuthProvider = ({ children }) => {
     window.location.replace('/login');
   };
 
+  // Add register function
+  const register = async (username, email, password) => {
+    try {
+      const res = await api.post('/api/auth/register', { username, email, password });
+      
+      if (!res.data || !res.data.token) {
+        throw new Error('Invalid response from server');
+      }
+      
+      return res.data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  };
+
   const value = {
     currentUser,
     setCurrentUser,
@@ -97,6 +113,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    register,
     updateActivity
   };
 

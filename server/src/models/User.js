@@ -18,7 +18,7 @@ const User = sequelize.define('User', {
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: true, // Allow null for OAuth users who don't provide email
+    allowNull: false,
     unique: true,
     validate: {
       isEmail: true
@@ -95,6 +95,20 @@ User.associateModels = function(models) {
     foreignKey: 'winner_id',
     sourceKey: 'user_id',
     as: 'gamesWon'
+  });
+};
+
+// Instance method to validate password
+User.prototype.validatePassword = async function(password) {
+  if (!this.password) return false; // For OAuth users
+  return await bcrypt.compare(password, this.password);
+};
+
+// Class method to find by email with select fields
+User.findByEmail = async function(email) {
+  return await this.findOne({
+    where: { email },
+    attributes: ['user_id', 'username', 'email', 'password', 'profile_image_url', 'last_active', 'last_login']
   });
 };
 

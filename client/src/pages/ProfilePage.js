@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import UserAvatar, { formatImageUrl } from '../components/common/UserAvatar';
 import {
@@ -33,7 +33,7 @@ import {
 import { FaTrophy, FaGamepad, FaCalendarAlt, FaChessKing } from 'react-icons/fa';
 
 const ProfilePage = () => {
-  const { currentUser, isAuthenticated } = useContext(AuthContext);
+  const { currentUser, isAuthenticated, setCurrentUser } = useContext(AuthContext);
   const navigate = useNavigate();
   
   const [gameHistory, setGameHistory] = useState([]);
@@ -41,7 +41,7 @@ const ProfilePage = () => {
     activeGames: 0,
     gamesPlayed: 0,
     winRate: '0%',
-    joined: ''
+    joined: 'Loading...'
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -120,30 +120,52 @@ const ProfilePage = () => {
         
         // Fetch user statistics and game history in parallel
         const [statsRes, historyRes] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/api/users/stats`),
-          axios.get(`${process.env.REACT_APP_API_URL}/api/games/history`)
+          api.get('/api/users/stats'),
+          api.get('/api/games/history')
         ]);
+
+        console.log('Stats response:', statsRes.data);
+
+        // Format the join date with proper error handling
+        let joinDate = 'Not available';
+        const createdAt = statsRes.data?.created_at;
+        
+        console.log('Created at date from stats:', createdAt);
+        
+        if (createdAt) {
+          try {
+            const date = new Date(createdAt);
+            if (!isNaN(date.getTime())) {
+              joinDate = date.toLocaleDateString();
+            } else {
+              console.error('Invalid date value:', createdAt);
+            }
+          } catch (dateError) {
+            console.error('Error formatting date:', dateError);
+          }
+        }
         
         // Set user statistics
         setUserStats({
           activeGames: statsRes.data.activeGames || 0,
           gamesPlayed: statsRes.data.gamesPlayed || 0,
           winRate: statsRes.data.winRate ? `${statsRes.data.winRate}%` : '0%',
-          joined: new Date(currentUser.created_at).toLocaleDateString()
+          joined: joinDate
         }); 
         
         // Set game history
         setGameHistory(historyRes.data || []);
-        setLoading(false);
+        setError(null);
       } catch (err) {
         console.error('Error fetching user data:', err);
         setError('Failed to load user data');
+      } finally {
         setLoading(false);
       }
     };
     
     fetchUserData();
-  }, [isAuthenticated, navigate, currentUser]);
+  }, [isAuthenticated, navigate]);
   
   if (!isAuthenticated || !currentUser) return null;
   

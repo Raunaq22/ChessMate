@@ -42,11 +42,37 @@ const User = sequelize.define('User', {
   },
   last_active: {
     type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    defaultValue: DataTypes.NOW,
+    get() {
+      const value = this.getDataValue('last_active');
+      return value ? value : new Date();
+    }
   },
   last_login: {
     type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    defaultValue: DataTypes.NOW,
+    get() {
+      const value = this.getDataValue('last_login');
+      return value ? value : new Date();
+    }
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    get() {
+      const value = this.getDataValue('created_at');
+      return value ? value : new Date();
+    }
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    get() {
+      const value = this.getDataValue('updated_at');
+      return value ? value : new Date();
+    }
   }
 }, {
   timestamps: true,
@@ -58,12 +84,19 @@ const User = sequelize.define('User', {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }
+      // Ensure timestamps are set
+      const now = new Date();
+      user.setDataValue('created_at', now);
+      user.setDataValue('updated_at', now);
+      user.setDataValue('last_login', now);
+      user.setDataValue('last_active', now);
     },
     beforeUpdate: async (user) => {
       if (user.changed('password')) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }
+      user.setDataValue('updated_at', new Date());
     }
   },
   tableName: 'Users' 

@@ -60,8 +60,20 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find the user by email
-    const user = await User.findOne({ where: { email } });
+    // Find the user by email with all fields
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: [
+        'user_id', 
+        'username', 
+        'email', 
+        'password', 
+        'profile_image_url',
+        'created_at',
+        'updated_at',
+        'google_id'
+      ]
+    });
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -99,7 +111,8 @@ const login = async (req, res) => {
         username: user.username,
         email: user.email,
         profile_image_url: user.profile_image_url,
-        created_at: user.created_at
+        created_at: user.created_at,
+        updated_at: user.updated_at
       },
       token
     });
@@ -122,12 +135,41 @@ const verify = async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Get the full user data including timestamps
+    const fullUser = await User.findByPk(user.user_id, {
+      attributes: [
+        'user_id',
+        'username',
+        'email',
+        'profile_image_url',
+        'created_at',
+        'updated_at',
+        'last_login',
+        'last_active'
+      ]
+    });
+
+    if (!fullUser) {
+      return res.status(404).json({ message: 'User data not found' });
+    }
+
+    // Log the timestamps for debugging
+    console.log('User timestamps:', {
+      created_at: fullUser.created_at,
+      updated_at: fullUser.updated_at,
+      last_login: fullUser.last_login,
+      last_active: fullUser.last_active
+    });
+
     const userData = {
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      profile_image_url: user.profile_image_url,
-      created_at: user.created_at
+      user_id: fullUser.user_id,
+      username: fullUser.username,
+      email: fullUser.email,
+      profile_image_url: fullUser.profile_image_url,
+      created_at: fullUser.created_at,
+      updated_at: fullUser.updated_at,
+      last_login: fullUser.last_login,
+      last_active: fullUser.last_active
     };
     
     console.log('Sending user data:', userData);

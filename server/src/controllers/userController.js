@@ -10,6 +10,21 @@ const getUserStats = async (req, res) => {
   try {
     const userId = req.user.user_id;
     
+    // Get user data including created_at
+    const user = await User.findByPk(userId, {
+      attributes: ['user_id', 'username', 'email', 'created_at']
+    });
+
+    if (!user) {
+      console.error('User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log('User data from database:', {
+      userId: user.user_id,
+      created_at: user.created_at
+    });
+
     // Count active games (both waiting and playing)
     const activeGamesCount = await Game.count({
       where: {
@@ -45,13 +60,18 @@ const getUserStats = async (req, res) => {
     // Calculate win rate
     const winRate = completedGamesCount > 0 ? Math.round((winsCount / completedGamesCount) * 100) : 0;
     
-    // Return the statistics
-    res.json({
+    const response = {
       activeGames: activeGamesCount,
       gamesPlayed: completedGamesCount,
       wins: winsCount,
-      winRate: winRate
-    });
+      winRate: winRate,
+      created_at: user.created_at ? user.created_at.toISOString() : null,
+      username: user.username
+    };
+
+    console.log('Sending stats response:', response);
+    
+    res.json(response);
   } catch (error) {
     console.error('Error fetching user stats:', error);
     res.status(500).json({ message: 'Failed to fetch user statistics' });

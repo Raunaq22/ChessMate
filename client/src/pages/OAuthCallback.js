@@ -1,68 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
+import { processOAuthCallback } from '../services/oauth/oauthService';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { updateUser, setIsAuthenticated } = React.useContext(AuthContext);
   
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        console.log('Starting OAuth callback handling...');
+        const result = await processOAuthCallback(location.search);
         
-        // Get token from URL hash
-        const hash = location.hash.substring(1); // Remove the # symbol
-        console.log('Hash from URL:', hash);
-        
-        const params = new URLSearchParams(hash);
-        const token = params.get('token');
-        console.log('Token received:', token ? 'Yes' : 'No');
-        
-        if (!token) {
-          throw new Error('No authentication token received');
+        if (result.success) {
+          // If you have an auth context, update it here
+          // updateUser(result.user);
+          navigate('/');
+        } else {
+          setError(result.error);
         }
-        
-        // Store token
-        localStorage.setItem('token', token);
-        console.log('Token stored in localStorage');
-        
-        // Set axios default header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        console.log('Axios header set with token');
-        
-        // Get user data
-        console.log('Fetching user data from:', `${process.env.REACT_APP_API_URL}/api/auth/verify`);
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
-        console.log('User data received:', response.data);
-        
-        if (!response.data || !response.data.user) {
-          throw new Error('Invalid user data received');
-        }
-        
-        // Update user context
-        updateUser(response.data.user);
-        setIsAuthenticated(true);
-        console.log('User context updated');
-        
-        // Redirect to home page
-        console.log('Redirecting to home page...');
-        navigate('/');
       } catch (err) {
-        console.error('OAuth callback error:', err);
-        console.error('Error details:', err.response?.data || err.message);
-        setError(err.message || 'Authentication failed');
+        setError('Failed to complete authentication');
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
     
     handleOAuthCallback();
-  }, [location, navigate, updateUser, setIsAuthenticated]);
+  }, [location, navigate]);
   
   if (loading) {
     return (

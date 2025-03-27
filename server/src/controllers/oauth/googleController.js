@@ -13,8 +13,8 @@ exports.googleCallback = (req, res) => {
       { expiresIn: process.env.JWT_EXPIRATION }
     );
 
-    // Redirect to frontend with token in hash fragment
-    res.redirect(`${process.env.CLIENT_URL}/oauth-callback#token=${token}`);
+    // Redirect to frontend with token
+    res.redirect(`${process.env.CLIENT_URL}/oauth-callback?token=${token}`);
   } catch (error) {
     console.error('Google OAuth callback error:', error);
     res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_failed`);

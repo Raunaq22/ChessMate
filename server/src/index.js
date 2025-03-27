@@ -2,7 +2,9 @@ const app = require('./app');
 const http = require('http');
 const syncDatabase = require('./config/syncDb');
 const db = require('./config/db');
-const express = require('express'); // Add this line to import express
+const express = require('express');
+const cors = require('cors');
+const corsOptions = require('./config/cors');
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
@@ -11,6 +13,9 @@ const fs = require('fs');
 require('./models/index'); // This sets up all associations
 
 const PORT = process.env.PORT || 5001;
+
+// Apply CORS configuration
+app.use(cors(corsOptions));
 
 // Set up static file serving
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
@@ -30,10 +35,10 @@ console.log("Upload directory:", uploadDir);
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.IO
+// Initialize Socket.IO with the same CORS configuration
 const io = require('socket.io')(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: ['https://chess-mate-frontend.vercel.app', 'http://localhost:3000'],
     methods: ["GET", "POST"],
     credentials: true
   }

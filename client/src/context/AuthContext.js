@@ -17,16 +17,11 @@ export const AuthProvider = ({ children }) => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         try {
           const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
-          if (res.data && res.data.user) {
-            setCurrentUser(res.data.user);
-            setIsAuthenticated(true);
-          }
+          setCurrentUser(res.data.user);
+          setIsAuthenticated(true);
         } catch (error) {
-          console.error('Token verification error:', error);
           localStorage.removeItem('token');
           delete axios.defaults.headers.common['Authorization'];
-          setCurrentUser(null);
-          setIsAuthenticated(false);
         }
       }
       setLoading(false);
@@ -66,21 +61,31 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       return res.data;
     } catch (error) {
-      throw error.response?.data || error;
+      throw error.response.data;
     }
   };
 
   const register = async (username, email, password) => {
     try {
+      console.log('Attempting registration with:', { username, email }); // Debug log
+      
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/auth/register`,
-        { username, email, password }
+        { username, email, password },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
+      
+      console.log('Server response:', res.data); // Debug log
       
       if (!res.data || !res.data.token) {
         throw new Error('Invalid response from server');
       }
       
+      // Set auth state after successful registration
       localStorage.setItem('token', res.data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setCurrentUser(res.data.user);
@@ -89,7 +94,16 @@ export const AuthProvider = ({ children }) => {
       return res.data;
     } catch (error) {
       console.error('Registration error:', error);
-      throw error.response?.data || error;
+      if (error.response) {
+        // The server responded with a status code outside the 2xx range
+        throw new Error(error.response.data.message || 'Registration failed');
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new Error('Network error - Cannot connect to server');
+      } else {
+        // Something happened in setting up the request
+        throw new Error('Error setting up request');
+      }
     }
   };
 
@@ -101,9 +115,9 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  // Update user function
+  // Add updateUser function
   const updateUser = (userData) => {
-    console.log('Updating user data:', userData);
+    // Update the current user in state
     setCurrentUser(userData);
   };
 
@@ -116,8 +130,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
-        updateUser,
-        setIsAuthenticated
+        updateUser // Add this to the context value
       }}
     >
       {children}

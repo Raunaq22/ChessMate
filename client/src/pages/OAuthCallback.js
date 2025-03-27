@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { processOAuthCallback } from '../services/oauth/oauthService';
+import { AuthContext } from '../context/AuthContext';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { setCurrentUser, setIsAuthenticated } = useContext(AuthContext);
   
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -14,8 +16,8 @@ const OAuthCallback = () => {
         const result = await processOAuthCallback(location.search);
         
         if (result.success) {
-          // If you have an auth context, update it here
-          // updateUser(result.user);
+          setCurrentUser(result.user);
+          setIsAuthenticated(true);
           navigate('/');
         } else {
           setError(result.error);
@@ -29,7 +31,7 @@ const OAuthCallback = () => {
     };
     
     handleOAuthCallback();
-  }, [location, navigate]);
+  }, [location, navigate, setCurrentUser, setIsAuthenticated]);
   
   if (loading) {
     return (

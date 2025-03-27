@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '../api';
 
 // Handle OAuth callback and token processing
 export const processOAuthCallback = async (queryParams) => {
@@ -14,11 +14,11 @@ export const processOAuthCallback = async (queryParams) => {
     // Store token
     localStorage.setItem('token', token);
     
-    // Set axios default headers
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // Set token in api instance
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     // Get user data
-    const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
+    const response = await api.get('/api/auth/verify');
     
     return {
       success: true,

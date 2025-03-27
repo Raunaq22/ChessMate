@@ -82,7 +82,7 @@ function App() {
                 <Box as="main" flexGrow="1" p={{ base: 4, md: 8 }}>
                   <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/oauth-callback" element={<OAuthCallback />} />
+                    <Route path="/oauth/callback" element={<OAuthCallback />} />
                     <Route path="/lobby" element={<PrivateRoute><GameLobby /></PrivateRoute>} />
                     <Route path="/play-friend" element={<PrivateRoute><PlayWithFriendPage /></PrivateRoute>} />
                     <Route path="/play-computer" element={<PrivateRoute><ComputerGamePage /></PrivateRoute>} />

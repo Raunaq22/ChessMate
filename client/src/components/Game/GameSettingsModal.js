@@ -1,4 +1,4 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, memo, useCallback, useMemo } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -127,8 +127,10 @@ const GameSettingsModal = ({
   modalType = 'create', // 'create' or 'computer'
   title = modalType === 'create' ? 'Create New Game' : 'Play Against Computer'
 }) => {
-  // Find the 10+5 option as default
-  const defaultTimeIndex = timeControls.findIndex(control => control.id === 'rapid10inc5');
+  // Find the 10+0 option as default for computer games, 10+5 for regular games
+  const defaultTimeIndex = modalType === 'computer' 
+    ? timeControls.findIndex(control => control.id === 'rapid10')
+    : timeControls.findIndex(control => control.id === 'rapid10inc5');
   const [selectedTime, setSelectedTime] = useState(
     timeControls[defaultTimeIndex !== -1 ? defaultTimeIndex : 0]
   );
@@ -139,6 +141,15 @@ const GameSettingsModal = ({
   const selectedBg = useColorModeValue('chess-hover', 'blue.700');
   const selectedColor = useColorModeValue('white', 'white');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+
+  // Filter time controls based on modal type
+  const availableTimeControls = useMemo(() => {
+    if (modalType === 'computer') {
+      // For computer games, only show options without increment
+      return timeControls.filter(control => control.increment === 0);
+    }
+    return timeControls;
+  }, [modalType]);
 
   // Memoized handlers for better performance
   const handleSelectTime = useCallback((timeControl) => {
@@ -255,7 +266,7 @@ const GameSettingsModal = ({
               <Text fontWeight="bold" color="chess-dark">Time Control</Text>
             </Flex>
             <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-              {timeControls.map(control => (
+              {availableTimeControls.map(control => (
                 <TimeOption
                   key={control.id}
                   control={control}

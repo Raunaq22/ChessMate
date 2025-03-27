@@ -156,10 +156,13 @@ const ComputerGamePage = () => {
     
     // Initialize timers based on selected time control
     if (selectedTimeControl.time !== null) {
-      setWhiteTime(selectedTimeControl.time);
-      setBlackTime(selectedTimeControl.time);
-      setTimeIncrement(selectedTimeControl.increment || 0);
-      console.log(`Setting time to ${selectedTimeControl.time}s with increment ${selectedTimeControl.increment || 0}s`);
+      // Only set initial times if they haven't been set yet
+      if (whiteTime === 600 && blackTime === 600) { // Check if using default values
+        setWhiteTime(selectedTimeControl.time);
+        setBlackTime(selectedTimeControl.time);
+      }
+      setTimeIncrement(0); // Always set to 0 for computer games
+      console.log(`Setting time to ${selectedTimeControl.time}s`);
     } else {
       // Unlimited time
       setWhiteTime(null);
@@ -183,6 +186,7 @@ const ComputerGamePage = () => {
   useEffect(() => {
     if (!gameInitialized || gameOver) return;
 
+    // Only update timer running state, don't modify the actual time values
     if (currentTurn === 'white') {
       setIsWhiteTimerRunning(true);
       setIsBlackTimerRunning(false);
@@ -195,9 +199,17 @@ const ComputerGamePage = () => {
   // Handle timer updates
   const handleTimeUpdate = useCallback((color, timeLeft) => {
     if (color === 'white') {
-      setWhiteTime(timeLeft);
+      setWhiteTime(prev => {
+        // Only update if the new time is less than or equal to the previous time
+        // This prevents the timer from resetting to a higher value
+        return timeLeft <= prev ? timeLeft : prev;
+      });
     } else {
-      setBlackTime(timeLeft);
+      setBlackTime(prev => {
+        // Only update if the new time is less than or equal to the previous time
+        // This prevents the timer from resetting to a higher value
+        return timeLeft <= prev ? timeLeft : prev;
+      });
     }
   }, []);
 
@@ -323,16 +335,6 @@ const ComputerGamePage = () => {
             return;
           }
           
-          // Add increment to computer's time if applicable
-          if (timeIncrement > 0) {
-            console.log(`Adding increment ${timeIncrement}s to ${playerColor === 'white' ? 'black' : 'white'}'s time`);
-            if (playerColor === 'white') {
-              setBlackTime(prev => prev + timeIncrement);
-            } else {
-              setWhiteTime(prev => prev + timeIncrement);
-            }
-          }
-          
           // Update state
           const newPosition = gameRef.current.fen();
           setPosition(newPosition);
@@ -361,7 +363,7 @@ const ComputerGamePage = () => {
       setLoading(false);
       setComputerThinking(false);
     }
-  }, [difficulty, gameOver, handleGameOver, playerColor, timeIncrement]);
+  }, [difficulty, gameOver, handleGameOver, playerColor]);
 
   // Make computer move if it's the computer's turn
   useEffect(() => {
@@ -427,16 +429,6 @@ const ComputerGamePage = () => {
       // If the move is invalid, return false to snap piece back
       if (!move) return false;
       
-      // Add increment to player's time if applicable
-      if (timeIncrement > 0) {
-        console.log(`Adding increment ${timeIncrement}s to ${playerColor}'s time`);
-        if (playerColor === 'white') {
-          setWhiteTime(prev => prev + timeIncrement);
-        } else {
-          setBlackTime(prev => prev + timeIncrement);
-        }
-      }
-      
       // Update state
       const newPosition = gameRef.current.fen();
       setPosition(newPosition);
@@ -459,7 +451,7 @@ const ComputerGamePage = () => {
       console.error('Error making move:', error);
       return false;
     }
-  }, [gameOver, loading, playerColor, timeIncrement, handleGameOver]);
+  }, [gameOver, loading, playerColor, handleGameOver]);
 
   // Start a new game
   const handleStartGame = useCallback(({ timeControl, difficulty: selectedDifficulty, playerColor: selectedColor }) => {
@@ -477,12 +469,12 @@ const ComputerGamePage = () => {
     setSelectedTimeControl(timeControl);
     setShowConfetti(false);
     
-    // Initialize timers
+    // Initialize timers only if they haven't been set yet
     if (timeControl && timeControl.time !== null) {
-      console.log(`Setting initial times: ${timeControl.time}s with ${timeControl.increment || 0}s increment`);
+      console.log(`Setting initial times: ${timeControl.time}s`);
       setWhiteTime(timeControl.time);
       setBlackTime(timeControl.time);
-      setTimeIncrement(timeControl.increment || 0);
+      setTimeIncrement(0);
     } else {
       setWhiteTime(null);
       setBlackTime(null);
@@ -533,8 +525,8 @@ const ComputerGamePage = () => {
       setIsWhiteTimerRunning(true);
       setIsBlackTimerRunning(false);
     } else {
-            setIsWhiteTimerRunning(false);
-            setIsBlackTimerRunning(true);
+      setIsWhiteTimerRunning(false);
+      setIsBlackTimerRunning(true);
     }
     
     toast({

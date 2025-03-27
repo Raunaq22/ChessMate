@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -14,14 +14,13 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       
       if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         try {
-          const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/verify`);
+          const res = await api.get('/api/auth/verify');
           setCurrentUser(res.data.user);
           setIsAuthenticated(true);
         } catch (error) {
+          console.error('Verification error:', error);
           localStorage.removeItem('token');
-          delete axios.defaults.headers.common['Authorization'];
         }
       }
       setLoading(false);
@@ -33,7 +32,7 @@ export const AuthProvider = ({ children }) => {
   // Function to update activity
   const updateActivity = async () => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/activity`);
+      await api.post('/api/auth/activity');
     } catch (error) {
       console.error('Error updating activity:', error);
     }
@@ -51,66 +50,55 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (email, password) => {
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
-        email,
-        password
-      });
+      console.log('Attempting login with:', { email });
+      const res = await api.post('/api/auth/login', { email, password });
+      
+      if (!res.data || !res.data.token) {
+        throw new Error('Invalid response from server');
+      }
+
       localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setCurrentUser(res.data.user);
       setIsAuthenticated(true);
       return res.data;
     } catch (error) {
-      throw error.response.data;
+      console.error('Login error:', error);
+      throw {
+        message: error.response?.data?.message || 'Login failed',
+        status: error.response?.status || 500
+      };
     }
   };
 
   const register = async (username, email, password) => {
     try {
-      console.log('Attempting registration with:', { username, email }); // Debug log
-      
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/register`,
-        { username, email, password },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      console.log('Server response:', res.data); // Debug log
+      const res = await api.post('/api/auth/register', { 
+        username, 
+        email, 
+        password 
+      });
       
       if (!res.data || !res.data.token) {
         throw new Error('Invalid response from server');
       }
       
-      // Set auth state after successful registration
       localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setCurrentUser(res.data.user);
       setIsAuthenticated(true);
       
       return res.data;
     } catch (error) {
       console.error('Registration error:', error);
-      if (error.response) {
-        // The server responded with a status code outside the 2xx range
-        throw new Error(error.response.data.message || 'Registration failed');
-      } else if (error.request) {
-        // The request was made but no response was received
-        throw new Error('Network error - Cannot connect to server');
-      } else {
-        // Something happened in setting up the request
-        throw new Error('Error setting up request');
-      }
+      throw {
+        message: error.response?.data?.message || 'Registration failed',
+        status: error.response?.status || 500
+      };
     }
   };
 
   // Logout function
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
     setCurrentUser(null);
     setIsAuthenticated(false);
   };

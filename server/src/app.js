@@ -6,11 +6,11 @@ const passport = require('passport');
 const { Op } = require('sequelize');
 const Game = require('./models/Game');
 const User = require('./models/User');
-require('./config/passport')(passport);
+require('./config/passport'); // Make sure this exists
 require('dotenv').config();
 
 // Import routes
-const authRoutes = require('./api/routes/auth');
+const authRoutes = require('./routes/auth');
 const gamesRoutes = require('./api/routes/games');
 const usersRoutes = require('./api/routes/users'); 
 
@@ -19,23 +19,16 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
+  origin: ['https://chess-mate-frontend.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(passport.initialize());
-
-// Update CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-  exposedHeaders: ['Content-Disposition']  // Add any needed headers
-}));
 
 // Additional CORS headers specifically for image requests
 app.use('/uploads', (req, res, next) => {
@@ -113,6 +106,11 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal Server Error',
     error: process.env.NODE_ENV === 'development' ? err : {}
   });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: `Cannot ${req.method} ${req.url}` });
 });
 
 module.exports = app;

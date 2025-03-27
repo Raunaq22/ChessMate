@@ -6,6 +6,7 @@ import ComputerGameModal from '../components/Game/ComputerGameModal';
 import useWindowSize from '../hooks/useWindowSize';
 import Confetti from 'react-confetti';
 import Timer from '../components/Game/Timer';
+import chessEngineService from '../utils/chessEngineService';
 import {
   Box,
   Flex,
@@ -225,6 +226,58 @@ const ComputerGamePage = () => {
     });
   }, [playerColor, toast, gameInitialized, gameStarted]);
 
+  // Handle game over conditions
+  const handleGameOver = useCallback((currentGame) => {
+    // Only process game over if game is properly initialized
+    if (!gameInitialized) return;
+    
+    setGameOver(true);
+    setIsWhiteTimerRunning(false);
+    setIsBlackTimerRunning(false);
+    
+    let resultMessage = "";
+    
+    if (currentGame.isCheckmate()) {
+      const winner = currentGame.turn() === 'w' ? 'Black' : 'White';
+      resultMessage = `${winner} wins by checkmate`;
+      
+      // Show confetti if player wins
+      if ((winner === 'White' && playerColor === 'white') || 
+          (winner === 'Black' && playerColor === 'black')) {
+        setShowConfetti(true);
+      }
+      
+      toast({
+        title: "Checkmate!",
+        description: `${winner} wins the game!`,
+        status: (winner === 'White' && playerColor === 'white') || 
+                (winner === 'Black' && playerColor === 'black') ? "success" : "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } else if (currentGame.isDraw()) {
+      if (currentGame.isStalemate()) {
+        resultMessage = "Draw by stalemate";
+      } else if (currentGame.isInsufficientMaterial()) {
+        resultMessage = "Draw by insufficient material";
+      } else if (currentGame.isThreefoldRepetition()) {
+        resultMessage = "Draw by threefold repetition";
+          } else {
+        resultMessage = "Draw";
+      }
+      
+      toast({
+        title: "Game Drawn",
+        description: resultMessage,
+        status: "info",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+    
+    setResult(resultMessage);
+  }, [playerColor, toast, gameInitialized]);
+
   // Make computer move
   const makeComputerMove = useCallback(async () => {
     try {
@@ -233,80 +286,72 @@ const ComputerGamePage = () => {
       setComputerThinking(true);
       setLoading(true);
       
-      // Simulate computer "thinking" time based on difficulty
+      // Simulate thinking time based on difficulty
       const thinkingTime = 500 + (difficultyToDepthMapping[difficulty] * 200);
       await new Promise(resolve => setTimeout(resolve, thinkingTime));
       
-      // Get best move from JS Chess Engine
-      const engineDepth = difficultyToDepthMapping[difficulty] || 3;
-      const currentGame = gameRef.current;
+      // Set current position and difficulty
+      chessEngineService.setBoardPosition(gameRef.current.fen());
+      chessEngineService.setDifficulty(difficulty);
       
-      // Generate best move (simulating stockfish - replace with actual engine later)
-      const legalMoves = currentGame.moves();
-      if (legalMoves.length === 0) return;
-      
-      // For simplicity, we'll use a random move selector with weight based on difficulty
-      // In a real implementation, you would use an actual chess engine evaluation
-      let selectedMove;
-      
-      // For very easy and easy, occasionally make a "blunder"
-      if (difficulty === 'very_easy' && Math.random() < 0.4) {
-        // Pick a completely random move 40% of the time
-        selectedMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-      } else if (difficulty === 'easy' && Math.random() < 0.25) {
-        // Pick a completely random move 25% of the time
-        selectedMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-      } else {
-        // Otherwise pick from top 3 moves (this is a simplification - 
-        // in a real implementation you would rank moves based on evaluation)
-        // Simulate top moves by picking the first few in the list
-        const potentialMoves = legalMoves.slice(0, Math.min(3, legalMoves.length));
-        selectedMove = potentialMoves[Math.floor(Math.random() * potentialMoves.length)];
-      }
-      
-      if (!selectedMove) {
-        selectedMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-      }
-      
-      // Make the selected move
-      const move = currentGame.move(selectedMove);
-      
-      // Add increment to player's time if applicable
-      if (timeIncrement > 0) {
-        if (currentGame.turn() === 'w') {
-          setBlackTime(prev => prev + timeIncrement);
-        } else {
-          setWhiteTime(prev => prev + timeIncrement);
+      // Get the next move
+      chessEngineService.getNextMove((move) => {
+        if (!move) {
+          console.error('No valid move returned from engine');
+          setLoading(false);
+          setComputerThinking(false);
+          return;
         }
-      }
-      
-      // Update state
-      const newPosition = currentGame.fen();
-      setPosition(newPosition);
-      setGame(new Chess(newPosition));
-      
-      // Add the move to the history
-      const newMoveHistory = [...moveHistory, move];
-      setMoveHistory(newMoveHistory);
-      
-      // Check if game is over after computer move
-      if (currentGame.isGameOver()) {
-        handleGameOver(currentGame);
-      }
-    } catch (error) {
-      console.error('Error making computer move:', error);
-      toast({
-        title: "Error",
-        description: "There was an error processing the computer's move.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        
+        try {
+          // Make the move
+          const chessMove = gameRef.current.move({
+            from: move.from,
+            to: move.to,
+            promotion: 'q' // Always promote to queen for simplicity
+          });
+          
+          if (!chessMove) {
+            console.error('Invalid move returned by engine:', move);
+            setLoading(false);
+            setComputerThinking(false);
+            return;
+          }
+          
+          // Add increment to computer's time if applicable
+          if (timeIncrement > 0) {
+            if (playerColor === 'white') {
+              setBlackTime(prev => prev + timeIncrement);
+            } else {
+              setWhiteTime(prev => prev + timeIncrement);
+            }
+          }
+          
+          // Update state
+          const newPosition = gameRef.current.fen();
+          setPosition(newPosition);
+          setGame(new Chess(newPosition));
+          
+          // Add the move to history
+          setMoveHistory(prev => [...prev, chessMove]);
+          
+          // Check if game is over after computer move
+          if (gameRef.current.isGameOver()) {
+            handleGameOver(gameRef.current);
+          }
+        } catch (error) {
+          console.error('Error applying computer move:', error);
+        } finally {
+          setLoading(false);
+          setComputerThinking(false);
+        }
       });
-    } finally {
+    } catch (error) {
+      console.error('Error in makeComputerMove:', error);
       setLoading(false);
       setComputerThinking(false);
     }
-  }, [difficulty, gameOver, moveHistory, timeIncrement, toast]);
+  }, [difficulty, gameOver, handleGameOver, playerColor, timeIncrement]);
 
   // Make computer move if it's the computer's turn
   useEffect(() => {
@@ -401,58 +446,6 @@ const ComputerGamePage = () => {
       return false;
     }
   }, [gameOver, loading, moveHistory, playerColor, timeIncrement]);
-
-  // Handle game over conditions
-  const handleGameOver = useCallback((currentGame) => {
-    // Only process game over if game is properly initialized
-    if (!gameInitialized) return;
-    
-    setGameOver(true);
-    setIsWhiteTimerRunning(false);
-    setIsBlackTimerRunning(false);
-    
-    let resultMessage = "";
-    
-    if (currentGame.isCheckmate()) {
-      const winner = currentGame.turn() === 'w' ? 'Black' : 'White';
-      resultMessage = `${winner} wins by checkmate`;
-      
-      // Show confetti if player wins
-      if ((winner === 'White' && playerColor === 'white') || 
-          (winner === 'Black' && playerColor === 'black')) {
-        setShowConfetti(true);
-      }
-      
-      toast({
-        title: "Checkmate!",
-        description: `${winner} wins the game!`,
-        status: (winner === 'White' && playerColor === 'white') || 
-                (winner === 'Black' && playerColor === 'black') ? "success" : "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } else if (currentGame.isDraw()) {
-      if (currentGame.isStalemate()) {
-        resultMessage = "Draw by stalemate";
-      } else if (currentGame.isInsufficientMaterial()) {
-        resultMessage = "Draw by insufficient material";
-      } else if (currentGame.isThreefoldRepetition()) {
-        resultMessage = "Draw by threefold repetition";
-          } else {
-        resultMessage = "Draw";
-      }
-      
-      toast({
-        title: "Game Drawn",
-        description: resultMessage,
-        status: "info",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-    
-    setResult(resultMessage);
-  }, [playerColor, toast, gameInitialized]);
 
   // Start a new game
   const handleStartGame = useCallback(({ timeControl, difficulty: selectedDifficulty, playerColor: selectedColor }) => {

@@ -21,8 +21,10 @@ const OAuthCallback = () => {
           setCurrentUser(result.user);
           setIsAuthenticated(true);
           
-          // Force navigation to home page
-          window.location.href = '/';
+          // Small delay to ensure state is updated
+          setTimeout(() => {
+            window.location.replace('/');
+          }, 100);
           return;
         } else {
           console.error('OAuth failed:', result.error);
@@ -36,15 +38,24 @@ const OAuthCallback = () => {
       }
     };
     
-    handleOAuthCallback();
+    if (location.search.includes('token=')) {
+      handleOAuthCallback();
+    } else {
+      setError('No authentication token received');
+      setLoading(false);
+    }
   }, [location, setCurrentUser, setIsAuthenticated]);
   
-  // Redirect to home if we somehow get stuck here after successful auth
+  // Backup redirect if we get stuck
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token && !loading && !error) {
-      window.location.href = '/';
-    }
+    const redirectTimeout = setTimeout(() => {
+      if (token && !loading && !error) {
+        window.location.replace('/');
+      }
+    }, 2000); // 2 second backup timeout
+
+    return () => clearTimeout(redirectTimeout);
   }, [loading, error]);
   
   if (loading) {
@@ -64,7 +75,7 @@ const OAuthCallback = () => {
           <p>{error}</p>
         </div>
         <button
-          onClick={() => window.location.href = '/login'}
+          onClick={() => window.location.replace('/login')}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Return to Login

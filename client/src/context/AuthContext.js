@@ -15,12 +15,25 @@ export const AuthProvider = ({ children }) => {
       
       if (token) {
         try {
+          // Set token in api instance
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          console.log('Verifying stored token');
           const res = await api.get('/api/auth/verify');
-          setCurrentUser(res.data.user);
-          setIsAuthenticated(true);
+          
+          if (res.data && res.data.user) {
+            console.log('Token verified, user:', res.data.user.username);
+            setCurrentUser(res.data.user);
+            setIsAuthenticated(true);
+          } else {
+            console.log('Invalid user data received');
+            localStorage.removeItem('token');
+            delete api.defaults.headers.common['Authorization'];
+          }
         } catch (error) {
-          console.error('Verification error:', error);
+          console.error('Token verification error:', error);
           localStorage.removeItem('token');
+          delete api.defaults.headers.common['Authorization'];
         }
       }
       setLoading(false);
@@ -31,14 +44,16 @@ export const AuthProvider = ({ children }) => {
 
   // Function to update activity
   const updateActivity = async () => {
-    try {
-      await api.post('/api/auth/activity');
-    } catch (error) {
-      console.error('Error updating activity:', error);
+    if (isAuthenticated) {
+      try {
+        await api.post('/api/auth/activity');
+      } catch (error) {
+        console.error('Error updating activity:', error);
+      }
     }
   };
 
-  // Call it on successful login and setup an interval
+  // Call updateActivity on mount and set up interval
   useEffect(() => {
     if (isAuthenticated) {
       updateActivity();
@@ -47,10 +62,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  // Login function
   const login = async (email, password) => {
     try {
-      console.log('Attempting login with:', { email });
       const res = await api.post('/api/auth/login', { email, password });
       
       if (!res.data || !res.data.token) {
@@ -58,70 +71,38 @@ export const AuthProvider = ({ children }) => {
       }
 
       localStorage.setItem('token', res.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setCurrentUser(res.data.user);
       setIsAuthenticated(true);
       return res.data;
     } catch (error) {
       console.error('Login error:', error);
-      throw {
-        message: error.response?.data?.message || 'Login failed',
-        status: error.response?.status || 500
-      };
+      throw error;
     }
   };
 
-  const register = async (username, email, password) => {
-    try {
-      const res = await api.post('/api/auth/register', { 
-        username, 
-        email, 
-        password 
-      });
-      
-      if (!res.data || !res.data.token) {
-        throw new Error('Invalid response from server');
-      }
-      
-      localStorage.setItem('token', res.data.token);
-      setCurrentUser(res.data.user);
-      setIsAuthenticated(true);
-      
-      return res.data;
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw {
-        message: error.response?.data?.message || 'Registration failed',
-        status: error.response?.status || 500
-      };
-    }
-  };
-
-  // Logout function
   const logout = () => {
     localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
     setCurrentUser(null);
     setIsAuthenticated(false);
+    window.location.replace('/login');
   };
 
-  // Add updateUser function
-  const updateUser = (userData) => {
-    // Update the current user in state
-    setCurrentUser(userData);
+  const value = {
+    currentUser,
+    setCurrentUser,
+    isAuthenticated,
+    setIsAuthenticated,
+    loading,
+    login,
+    logout,
+    updateActivity
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        isAuthenticated,
-        loading,
-        login,
-        register,
-        logout,
-        updateUser // Add this to the context value
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

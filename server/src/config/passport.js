@@ -31,6 +31,8 @@ passport.use(new GoogleStrategy({
   },
   async (req, accessToken, refreshToken, profile, done) => {
     try {
+      console.log('Processing Google OAuth login for:', profile.emails[0].value);
+      
       // Check if user already exists
       let user = await User.findOne({ 
         where: { 
@@ -48,28 +50,37 @@ passport.use(new GoogleStrategy({
 
         if (user) {
           // Link Google account to existing user
+          console.log('Linking Google account to existing user:', user.username);
           user.google_id = profile.id;
           if (!user.profile_image_url) {
             user.profile_image_url = profile.photos[0].value;
           }
+          user.last_login = new Date();
+          user.last_active = new Date();
           await user.save();
         } else {
           // Create new user
+          console.log('Creating new user for Google account');
+          const now = new Date();
           user = await User.create({
             google_id: profile.id,
             email: profile.emails[0].value,
             username: profile.displayName,
             profile_image_url: profile.photos[0].value,
-            last_login: new Date(),
-            last_active: new Date(),
-            created_at: new Date(),
-            updated_at: new Date()
+            last_login: now,
+            last_active: now,
+            created_at: now,
+            updated_at: now
           });
+          console.log('Created new user:', user.username, 'with ID:', user.user_id);
         }
       } else {
-        // Update existing user's last login
-        user.last_login = new Date();
-        user.last_active = new Date();
+        // Update existing user's timestamps
+        console.log('Updating existing Google user:', user.username);
+        const now = new Date();
+        user.last_login = now;
+        user.last_active = now;
+        user.updated_at = now;
         await user.save();
       }
 

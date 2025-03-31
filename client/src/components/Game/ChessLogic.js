@@ -313,12 +313,38 @@ const useChessLogic = (gameId, navigate) => {
       }
     });
 
-    newSocket.on('move', ({ fen, move, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
+    newSocket.on('move', ({ 
+      fen, 
+      move, 
+      moveNotation, 
+      isWhiteTimerRunning, 
+      isBlackTimerRunning, 
+      whiteTimeLeft, 
+      blackTimeLeft, 
+      timeIncrement, 
+      isIncrementApplied,
+      isCheckmate, 
+      winner 
+    }) => {
       const newGame = new Chess(fen);
       setGame(newGame);
       setPosition(fen);
+      
+      // Update timer states
       setIsWhiteTimerRunning(isWhiteTimerRunning);
       setIsBlackTimerRunning(isBlackTimerRunning);
+      
+      // Always trust the server's time values when provided
+      // The server has applied the increment already if isIncrementApplied is true
+      if (whiteTimeLeft !== undefined && whiteTimeLeft !== null) {
+        setWhiteTime(whiteTimeLeft);
+        console.log(`[CLIENT] Setting white time to server value: ${whiteTimeLeft}s`);
+      }
+      
+      if (blackTimeLeft !== undefined && blackTimeLeft !== null) {
+        setBlackTime(blackTimeLeft);
+        console.log(`[CLIENT] Setting black time to server value: ${blackTimeLeft}s`);
+      }
 
       // Add move to history
       setMoveHistory(prev => [...prev, { notation: moveNotation, fen }]);
@@ -765,7 +791,12 @@ const useChessLogic = (gameId, navigate) => {
     setGame(gameCopy);
     setPosition(gameCopy.fen());
     
-    // Add increment to the player whose turn just ended (FIXED)
+    // Client doesn't apply increment anymore - server will handle it
+    // Just prepare the current time values to send
+    const currentWhiteTime = whiteTime;
+    const currentBlackTime = blackTime;
+    
+    // Update timer running states
     if (firstMoveMade || isFirstMove) {
       setIsWhiteTimerRunning(isWhiteTurnAfter);
       setIsBlackTimerRunning(!isWhiteTurnAfter);
@@ -785,10 +816,6 @@ const useChessLogic = (gameId, navigate) => {
     const winner = isCheckmate ? 
       (gameCopy.turn() === 'w' ? 'black' : 'white') : null;
     
-    // Use the current timer values
-    const currentWhiteTime = whiteTime;
-    const currentBlackTime = blackTime;
-    
     // Include explicit checkmate information in move event
     socket.emit('move', {
       gameId,
@@ -804,7 +831,9 @@ const useChessLogic = (gameId, navigate) => {
       isWhiteTimerRunning: isWhiteTurnAfter && (firstMoveMade || isFirstMove),
       isBlackTimerRunning: !isWhiteTurnAfter && (firstMoveMade || isFirstMove),
       isCheckmate: isCheckmate,  // Explicit flag for checkmate
-      winner: winner             // Include winner information 
+      winner: winner,            // Include winner information
+      timeIncrement: timeIncrement, // Send increment info to server
+      firstMoveMade: true        // Indicate first move is made
     });
     
     // Call checkGameStatus after emitting move

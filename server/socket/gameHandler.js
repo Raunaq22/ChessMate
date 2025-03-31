@@ -122,13 +122,32 @@ module.exports = (io) => {
     });
     
     // Handle game moves
-    socket.on('move', ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isGameOver, firstMoveMade }) => {
+    socket.on('move', ({ gameId, move, fen, moveNotation, whiteTimeLeft, blackTimeLeft, isWhiteTimerRunning, isBlackTimerRunning, isGameOver, firstMoveMade, timeIncrement }) => {
       const game = games.get(gameId);
       
       if (!game) return;
       
       // Update game state
       game.chess = new Chess(fen);
+      
+      // Apply increment server-side to ensure consistency
+      // Determine which player just made the move based on whose timer should start
+      if (game.timeIncrement > 0 && firstMoveMade) {
+        // If white timer will run, black just moved
+        if (isWhiteTimerRunning) {
+          // Add increment to black's time (they just moved)
+          blackTimeLeft += game.timeIncrement;
+          console.log(`[SERVER] Adding increment: ${game.timeIncrement}s to black, now: ${blackTimeLeft}s`);
+        } 
+        // If black timer will run, white just moved
+        else if (isBlackTimerRunning) {
+          // Add increment to white's time (they just moved)
+          whiteTimeLeft += game.timeIncrement;
+          console.log(`[SERVER] Adding increment: ${game.timeIncrement}s to white, now: ${whiteTimeLeft}s`);
+        }
+      }
+      
+      // Update stored times
       game.whiteTimeLeft = whiteTimeLeft;
       game.blackTimeLeft = blackTimeLeft;
       game.isWhiteTimerRunning = isWhiteTimerRunning;
@@ -157,15 +176,18 @@ module.exports = (io) => {
         })();
       }
       
-      // Broadcast move to all clients in the room
+      // Broadcast move to all clients in the room, include time increment information
       io.to(gameId).emit('move', {
         fen,
+        move,
         moveNotation,
         isWhiteTimerRunning,
         isBlackTimerRunning,
         whiteTimeLeft,
         blackTimeLeft,
-        firstMoveMade: game.firstMoveMade
+        firstMoveMade: game.firstMoveMade,
+        timeIncrement: game.timeIncrement,
+        isIncrementApplied: true // Flag to tell clients the increment has been applied by server
       });
       
       // Update game in database if it's over

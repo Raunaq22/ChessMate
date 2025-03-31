@@ -54,34 +54,21 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
 
       // Store the last known server time to detect future changes
       if (providedTime !== lastKnownTimeRef.current) {
-        log(`Time changed from ${lastKnownTimeRef.current.toFixed(1)}s to ${providedTime.toFixed(1)}s`);
+        log(`Time changed from ${lastKnownTimeRef.current.toFixed(1)}s to ${providedTime.toFixed(1)}s (diff: ${diff.toFixed(1)}s)`);
         lastKnownTimeRef.current = providedTime;
       }
 
-      // CRITICAL: Handle increments properly
-      // If we get a time larger than previous and we're paused (after move), 
-      // it's likely an increment
-      if (diff > 0 && !isRunning) {
-        // More permissive increment check - doesn't have to be exact increment value
-        // Sometimes network delays or server rounding can make it slightly off
-        const isIncrementPlausible = (diff > 0 && diff <= increment * 1.5) || 
-                                    (Math.abs(diff - increment) < 1.5);
+      // Always accept server time values immediately
+      if (Math.abs(diff) > 0.1) { // Only update if difference is significant (> 0.1s)
+        log(`Accepting server time update: ${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s`);
         
-        if (isIncrementPlausible) {
-          log(`✓ Increment detected: +${diff.toFixed(1)}s (${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s)`);
+        // If time increased, mark as increment for UI feedback
+        if (diff > 0) {
           justReceivedIncrementRef.current = true;
-          
-          // Always accept increments immediately
-          actualTimeRef.current = providedTime;
-          setDisplayTime(providedTime);
-          return; // Exit early - no other checks needed
+          log(`✓ Increment detected via server: +${diff.toFixed(1)}s`);
         }
-      }
-      
-      // Not an increment. Only update time if significant difference exists,
-      // or if we're not currently running (to avoid disrupting countdown)
-      if (!isRunning || Math.abs(prevTime - providedTime) >= 2) {
-        log(`Server time sync: ${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s (diff: ${diff.toFixed(1)}s)`);
+        
+        // Always update the time
         actualTimeRef.current = providedTime;
         setDisplayTime(providedTime);
       }

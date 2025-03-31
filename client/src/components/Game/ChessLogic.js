@@ -55,6 +55,9 @@ const useChessLogic = (gameId, navigate) => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [reconnectionCountdown, setReconnectionCountdown] = useState(0);
   const [waitingForReconnection, setWaitingForReconnection] = useState(false);
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [premoves, setPremoves] = useState([]);
+  const [hasPremoves, setHasPremoves] = useState(false);
   
   const gameInitialized = useRef(false);
   const loadedFromStorage = useRef(false);
@@ -310,56 +313,37 @@ const useChessLogic = (gameId, navigate) => {
       }
     });
 
-    newSocket.on('move', ({ fen, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, whiteTimeLeft, blackTimeLeft, firstMoveMade: serverFirstMoveMade, gameOverInfo }) => {
-      try {
-        const newGame = new Chess(fen);
-        setGame(newGame);
-        setPosition(fen);
-        
-        if (serverFirstMoveMade !== undefined) {
-          setFirstMoveMade(serverFirstMoveMade);
-        } else {
-          setFirstMoveMade(true);
-        }
-        
-        if (firstMoveMade || serverFirstMoveMade) {
-          setIsWhiteTimerRunning(isWhiteTimerRunning);
-          setIsBlackTimerRunning(isBlackTimerRunning);
-        }
-        
-        if (whiteTimeLeft !== undefined) setWhiteTime(whiteTimeLeft);
-        if (blackTimeLeft !== undefined) setBlackTime(blackTimeLeft);
-        
-        setMoveHistory(prev => {
-          if (prev.length > 0 && prev[prev.length - 1].notation === moveNotation && prev[prev.length - 1].fen === fen) {
-            return prev;
-          }
-          return [...prev, { notation: moveNotation, fen }];
-        });
+    newSocket.on('move', ({ fen, move, moveNotation, isWhiteTimerRunning, isBlackTimerRunning, isCheckmate, winner }) => {
+      const newGame = new Chess(fen);
+      setGame(newGame);
+      setPosition(fen);
+      setIsWhiteTimerRunning(isWhiteTimerRunning);
+      setIsBlackTimerRunning(isBlackTimerRunning);
 
-        // Check if this move resulted in checkmate (sent by opponent)
-        if (gameOverInfo && gameOverInfo.reason === 'checkmate') {
-          console.log("CHECKMATE detected from received move!");
-          console.log("Winner according to move data:", gameOverInfo.winner);
-          
-          const winnerColor = gameOverInfo.winner === 'white' ? 'White' : 'Black';
-          const isCurrentPlayerWinner = 
-            (gameOverInfo.winner === 'white' && playerIds.white === currentUser.user_id) || 
-            (gameOverInfo.winner === 'black' && playerIds.black === currentUser.user_id);
-          
-          if (isCurrentPlayerWinner) {
-            console.log("Setting winner UI for checkmate from move");
-            setGameStatus(`Checkmate! You win!`);
-            setShowConfetti(true);
-          } else {
-            console.log("Setting loser UI for checkmate from move");
-            setGameStatus(`Checkmate! ${winnerColor} wins!`);
-          }
-          
-          setGameEnded(true);
+      // Add move to history
+      setMoveHistory(prev => [...prev, { notation: moveNotation, fen }]);
+      
+      // If there are premoves, try to execute the first one
+      if (hasPremoves && premoves.length > 0) {
+        const [fromSquare, toSquare] = premoves[0];
+        // Try to make the premove
+        const success = executePremove(fromSquare, toSquare);
+        // Remove this premove regardless of success
+        setPremoves(prev => prev.slice(1));
+        if (premoves.length <= 1) {
+          setHasPremoves(false);
         }
-      } catch (error) {
-        console.error('Error processing received move:', error);
+      }
+      
+      // Check if the game is over
+      if (isCheckmate) {
+        setGameStatus(`Checkmate! ${winner === playerColor ? 'You win!' : winner === 'white' ? 'White wins!' : 'Black wins!'}`);
+        setGameEnded(true);
+        if (winner === playerColor) {
+          setShowConfetti(true);
+        }
+      } else {
+        checkGameStatus(newGame);
       }
     });
 
@@ -930,6 +914,134 @@ const useChessLogic = (gameId, navigate) => {
     setShowAnalysis(true);
   };
 
+  // Handle square click for click-to-move functionality
+  const onSquareClick = useCallback((square) => {
+    // If game ended, do nothing
+    if (gameEnded) return;
+    
+    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+    
+    // Handle premoves if it's not our turn
+    if (currentTurn !== playerColor && gameInitialized.current) {
+      // If no square is selected, check if we're selecting a valid piece for premove
+      if (!selectedSquare) {
+        const piece = game.get(square);
+        // Only allow selecting own pieces for premoves
+        if (piece && 
+            ((piece.color === 'w' && playerColor === 'white') || 
+             (piece.color === 'b' && playerColor === 'black'))) {
+          setSelectedSquare(square);
+          
+          // Show possible moves for visual feedback
+          // We use the same UI for premoves, even though not all moves might be valid later
+          const gameCopy = new Chess(game.fen());
+          // Temporarily change the turn to calculate possible moves
+          const oppositeColor = playerColor === 'white' ? 'b' : 'w';
+          gameCopy.load(game.fen().replace(/ [wb] /, ` ${oppositeColor} `));
+          try {
+            const moves = gameCopy.moves({ square, verbose: true });
+            const targetSquares = moves.map(move => move.to);
+            setPossibleMoves(targetSquares);
+          } catch (error) {
+            console.error('Error calculating premove possibilities:', error);
+            setPossibleMoves([]);
+          }
+        }
+      } 
+      // If a square is already selected for premove
+      else {
+        // Add the premove
+        setPremoves(prev => [...prev, [selectedSquare, square]]);
+        setHasPremoves(true);
+        
+        // Clear selection and possible moves
+        setSelectedSquare(null);
+        setPossibleMoves([]);
+      }
+      return;
+    }
+    
+    // Below here is regular move handling (when it's our turn)
+    if (!gameInitialized.current) return;
+    
+    // Get piece at square if any
+    const piece = game.get(square);
+    
+    // If no square is selected and clicked on own piece, select it
+    if (!selectedSquare) {
+      if (piece && 
+          ((piece.color === 'w' && playerColor === 'white') || 
+           (piece.color === 'b' && playerColor === 'black'))) {
+        // Select the square
+        setSelectedSquare(square);
+        
+        // Show possible moves
+        const moves = game.moves({ square, verbose: true });
+        const targetSquares = moves.map(move => move.to);
+        setPossibleMoves(targetSquares);
+      }
+    } 
+    // If a square is already selected
+    else {
+      // If clicking on own piece again, update selection
+      if (piece && 
+          ((piece.color === 'w' && playerColor === 'white') || 
+           (piece.color === 'b' && playerColor === 'black'))) {
+        // Update selection to new square
+        setSelectedSquare(square);
+        
+        // Show new possible moves
+        const moves = game.moves({ square, verbose: true });
+        const targetSquares = moves.map(move => move.to);
+        setPossibleMoves(targetSquares);
+      }
+      // If clicking on valid destination square, make the move
+      else if (possibleMoves.includes(square)) {
+        // Make the move
+        onDrop(selectedSquare, square);
+        
+        // Clear selection and possible moves
+        setSelectedSquare(null);
+        setPossibleMoves([]);
+      }
+      // If clicking on invalid square, clear selection
+      else {
+        setSelectedSquare(null);
+        setPossibleMoves([]);
+      }
+    }
+  }, [game, playerColor, selectedSquare, possibleMoves, gameEnded, gameInitialized, onDrop]);
+
+  // Helper function to execute a premove
+  const executePremove = useCallback((sourceSquare, targetSquare) => {
+    // Only execute premove if it's our turn now
+    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+    if (currentTurn !== playerColor) return false;
+    
+    // Try to make the move
+    try {
+      const moves = game.moves({ verbose: true });
+      const validMove = moves.find(m => 
+        m.from === sourceSquare && 
+        m.to === targetSquare
+      );
+      
+      if (!validMove) return false;
+      
+      // If valid, use onDrop to make the move
+      return onDrop(sourceSquare, targetSquare);
+    } catch (error) {
+      console.error('Error executing premove:', error);
+      return false;
+    }
+  }, [game, playerColor, onDrop]);
+  
+  // Function to clear all premoves
+  const clearPremoves = useCallback(() => {
+    setPremoves([]);
+    setHasPremoves(false);
+  }, []);
+
   return {
     // Game state
     initialLoading,
@@ -966,11 +1078,15 @@ const useChessLogic = (gameId, navigate) => {
     reconnectionCountdown,
     waitingForReconnection,
     currentUser,
+    selectedSquare,
+    hasPremoves,
+    premoves,
     
     // Functions
     onPieceDragStart,
     onDrop,
     highlightSquares,
+    onSquareClick,
     handleTimeUpdate,
     checkGameStatus,
     handleTimeUp,
@@ -983,7 +1099,8 @@ const useChessLogic = (gameId, navigate) => {
     handleDeclineDraw,
     handleStartAnalysis,
     setShowAnalysis,
-    setShowResignConfirm
+    setShowResignConfirm,
+    clearPremoves
   };
 };
 

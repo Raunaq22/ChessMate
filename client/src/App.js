@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ChakraProvider, CSSReset, Box, Flex, Avatar, Tooltip } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
@@ -67,20 +67,6 @@ const ProfileAvatar = () => {
 };
 
 function App() {
-  const [sidebarWidth, setSidebarWidth] = useState("60px");
-  
-  // Listen for sidebar width changes
-  useEffect(() => {
-    const handleSidebarChange = (e) => {
-      if (e.detail && e.detail.width) {
-        setSidebarWidth(e.detail.width);
-      }
-    };
-    
-    window.addEventListener('sidebarWidthChange', handleSidebarChange);
-    return () => window.removeEventListener('sidebarWidthChange', handleSidebarChange);
-  }, []);
-
   return (
     <ChakraProvider theme={theme}>
       <CSSReset />
@@ -88,12 +74,12 @@ function App() {
         <ThemeProvider>
           <Router>
             <Box display="flex" minH="100vh">
-              <Sidebar onWidthChange={width => setSidebarWidth(width)} />
+              <Sidebar />
               <Box 
                 flex="1" 
                 display="flex" 
                 flexDir="column"
-                marginLeft={{ base: 0, md: sidebarWidth }}
+                marginLeft={{ base: 0, md: "60px" }}
                 transition="margin-left 0.3s ease-in-out"
                 width="100%"
                 maxW="100vw"
@@ -105,7 +91,7 @@ function App() {
                   as="main" 
                   flexGrow="1" 
                   p={{ base: 4, md: 8 }} 
-                  pt={{ base: 16, md: 8 }}
+                  pt={{ base: 16, md: 8 }} /* Added top padding for mobile */
                   width="100%"
                 >
                   <Routes>

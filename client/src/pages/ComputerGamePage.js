@@ -453,6 +453,76 @@ const ComputerGamePage = () => {
     }
   }, [gameOver, loading, playerColor, handleGameOver]);
 
+  // State for click-to-move
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [squaresToHighlight, setSquaresToHighlight] = useState([]);
+
+  // Handle square click for click-to-move
+  const onSquareClick = useCallback((square) => {
+    // Exit if game is over or it's not player's turn
+    if (gameOver || loading) return;
+    
+    const turn = gameRef.current.turn() === 'w' ? 'white' : 'black';
+    if (turn !== playerColor) return;
+    
+    // Get piece at clicked square
+    const piece = gameRef.current.get(square);
+    
+    // If no square is selected and the clicked square has the player's piece
+    if (!selectedSquare) {
+      if (piece && 
+          ((piece.color === 'w' && playerColor === 'white') || 
+           (piece.color === 'b' && playerColor === 'black'))) {
+        // Select the square
+        setSelectedSquare(square);
+        
+        // Show possible moves
+        const moves = gameRef.current.moves({ 
+          square, 
+          verbose: true 
+        });
+        const destinations = moves.map(move => move.to);
+        possibleMoves.current = destinations;
+        setSquaresToHighlight(destinations);
+      }
+    } 
+    // If a square is already selected
+    else {
+      // If clicking on own piece again, update selection
+      if (piece && 
+          ((piece.color === 'w' && playerColor === 'white') || 
+           (piece.color === 'b' && playerColor === 'black'))) {
+        // Update selection to new square
+        setSelectedSquare(square);
+        
+        // Show new possible moves
+        const moves = gameRef.current.moves({ 
+          square, 
+          verbose: true 
+        });
+        const destinations = moves.map(move => move.to);
+        possibleMoves.current = destinations;
+        setSquaresToHighlight(destinations);
+      }
+      // If clicking on a valid destination, make the move
+      else if (possibleMoves.current.includes(square)) {
+        // Make the move
+        onDrop(selectedSquare, square);
+        
+        // Clear selection and possible moves
+        setSelectedSquare(null);
+        possibleMoves.current = [];
+        setSquaresToHighlight([]);
+      }
+      // If clicking on an invalid square, clear selection
+      else {
+        setSelectedSquare(null);
+        possibleMoves.current = [];
+        setSquaresToHighlight([]);
+      }
+    }
+  }, [gameOver, loading, onDrop, playerColor, selectedSquare]);
+
   // Start a new game
   const handleStartGame = useCallback(({ timeControl, difficulty: selectedDifficulty, playerColor: selectedColor }) => {
     console.log("Starting new game with time control:", timeControl);
@@ -613,25 +683,27 @@ const ComputerGamePage = () => {
                 position={position}
                 onPieceDrop={onDrop}
                 onPieceDragBegin={onPieceDragBegin}
+                onSquareClick={onSquareClick}
                 boardOrientation={playerColor}
                 boardWidth={boardSize}
-      customSquareStyles={Array.isArray(possibleMoves.current) ? 
+                customSquareStyles={Array.isArray(possibleMoves.current) ? 
                   possibleMoves.current.reduce((obj, square) => {
                     obj[square] = {
                       background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
                       borderRadius: '50%'
                     };
                     return obj;
-        }, {}) : {}}
+                  }, {}) : {}}
                 areArrowsAllowed={true}
+                arePremovesAllowed={true}
                 showBoardNotation={true}
                 allowDrag={({ piece }) => {
-        if (gameOver || loading) return false;
+                  if (gameOver || loading) return false;
                   return (piece[0] === 'w' && playerColor === 'white') || 
                          (piece[0] === 'b' && playerColor === 'black');
                 }}
               />
-  ), [position, boardSize, playerColor, gameOver, loading, onDrop, onPieceDragBegin]);
+  ), [position, boardSize, playerColor, gameOver, loading, onDrop, onPieceDragBegin, onSquareClick, possibleMoves]);
 
   // Handle resignation
   const handleResign = useCallback(() => {

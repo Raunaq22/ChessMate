@@ -75,6 +75,7 @@ const GamePage = () => {
     // Functions
     onPieceDragStart,
     onDrop,
+    onSquareClick,
     handleTimeUpdate,
     handleTimeUp,
     handleSendMessage,
@@ -350,6 +351,7 @@ const GamePage = () => {
                     position={position}
                     onPieceDrop={onDrop}
                     onPieceDragBegin={onPieceDragStart}
+                    onSquareClick={onSquareClick}
                     boardOrientation={playerColor}
                     boardWidth={boardSize}
                     customSquareStyles={possibleMoves.reduce((obj, square) => {
@@ -360,6 +362,7 @@ const GamePage = () => {
                       return obj;
                     }, {})}
                     areArrowsAllowed={true}
+                    arePremovesAllowed={true}
                     showBoardNotation={true}
                     customPieces={customPieces}
                     ref={boardRef}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input, Button, Flex, FormControl } from '@chakra-ui/react';
 
-const ChatInput = ({ onSendMessage, disabled }) => {
+const ChatInput = ({ onSendMessage, disabled, size = "md" }) => {
   const [inputText, setInputText] = useState('');
 
   const handleSubmit = (e) => {
@@ -22,6 +22,9 @@ const ChatInput = ({ onSendMessage, disabled }) => {
           isDisabled={disabled}
           borderRightRadius={0}
           bg="white"
+          size={size}
+          fontSize={size === "sm" ? "xs" : "md"}
+          height={size === "sm" ? "32px" : "40px"}
           _focus={{
             borderColor: 'primary',
             boxShadow: '0 0 0 1px var(--chakra-colors-primary)'
@@ -36,6 +39,9 @@ const ChatInput = ({ onSendMessage, disabled }) => {
             bg: !inputText.trim() || disabled ? 'gray.300' : 'blue.600'
           }}
           borderLeftRadius={0}
+          size={size}
+          fontSize={size === "sm" ? "xs" : "md"}
+          height={size === "sm" ? "32px" : "40px"}
         >
           Send
         </Button>

@@ -158,8 +158,8 @@ const Home = () => {
                 height={buttonHeight}
                 variant="outline"
                 borderColor="primary"
-                color="primary"
-                _hover={{ bg: "gray.100" }}
+                color="#ffffff"
+                _hover={{ bg: "gray.100", color: "primary" }}
                 borderRadius="md"
                 fontSize={{ base: "sm", md: "md" }}
               >

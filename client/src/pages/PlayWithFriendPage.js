@@ -211,7 +211,7 @@ const PlayWithFriendPage = () => {
         <CardHeader pb={2}>
           <Flex align="center" justify="center">
             <Icon as={FaUserFriends} boxSize={6} color="primary" mr={3} />
-            <Heading size="lg" color="chess-dark">Play with a Friend</Heading>
+            <Heading size="lg" color="#ffffff">Play with a Friend</Heading>
           </Flex>
         </CardHeader>
         
@@ -296,7 +296,7 @@ const PlayWithFriendPage = () => {
             ) : (
               <>
                 <Box>
-                  <Heading size="sm" mb={3} color="chess-dark">Create a Game</Heading>
+                  <Heading size="sm" mb={3} color="#dedede">Create a Game</Heading>
                   <Button
                     onClick={onOpen}
                     isLoading={loading && !gameCode}
@@ -315,10 +315,11 @@ const PlayWithFriendPage = () => {
                 <Divider my={4} />
                 
                 <Box>
-                  <Heading size="sm" mb={3} color="chess-dark">Join with Code</Heading>
+                  <Heading size="sm" mb={3} color="#dedede">Join with Code</Heading>
                   <HStack>
                     <Input
                       value={joinCode}
+                      bg="#ffffff"
                       onChange={(e) => setJoinCode(e.target.value)}
                       placeholder="Enter game code"
                       borderColor="gray.300"
@@ -349,7 +350,11 @@ const PlayWithFriendPage = () => {
             leftIcon={<Icon as={FaArrowLeft} />}
             onClick={() => navigate('/lobby')}
             variant="ghost"
-            color="primary"
+            color="#ffffff"
+            _hover={{ 
+              color: "primary",
+              bg: "#FFFFFF" 
+            }}
           >
             Back to Game Lobby
           </Button>

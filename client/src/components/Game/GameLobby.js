@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import gameService from '../../services/gameService';
 import CreateGameModal from './CreateGameModal';
 import io from 'socket.io-client';
+import { AuthContext } from '../../context/AuthContext';
 import {
   Box,
   Container,
@@ -44,6 +45,8 @@ const GameLobby = () => {
   const [createdGameId, setCreatedGameId] = useState(null);
   const [socket, setSocket] = useState(null);
   const [gameJoined, setGameJoined] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const { isAuthenticated, currentUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -56,8 +59,19 @@ const GameLobby = () => {
     return Date.now() - createdTime > GAME_EXPIRY_TIME;
   };
 
+  // Check authentication status before fetching games
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthChecked(true);
+    }
+  }, [isAuthenticated]);
+
   const fetchGames = useCallback(async () => {
+    // Don't fetch games if authentication hasn't been confirmed
+    if (!authChecked) return;
+    
     try {
+      setLoading(true);
       const { availableGames } = await gameService.getAvailableGames();
       console.log("Fetched games:", availableGames);
       
@@ -85,10 +99,12 @@ const GameLobby = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, authChecked]);
 
   // Initialize socket connection for real-time updates
   useEffect(() => {
+    if (!authChecked) return;
+    
     const newSocket = io(process.env.REACT_APP_API_URL);
     
     newSocket.on('connect', () => {
@@ -126,10 +142,12 @@ const GameLobby = () => {
       console.log('Disconnecting from lobby socket');
       newSocket.disconnect();
     };
-  }, [toast]);
+  }, [toast, authChecked]);
 
   // Fetch games initially and then every 10 seconds as a fallback
   useEffect(() => {
+    if (!authChecked) return;
+    
     console.log("Initial game fetch");
     fetchGames();
     
@@ -141,7 +159,7 @@ const GameLobby = () => {
     return () => {
       clearInterval(interval);
     };
-  }, [fetchGames]);
+  }, [fetchGames, authChecked]);
 
 const handleCreateGame = async (timeControl) => {
   try {

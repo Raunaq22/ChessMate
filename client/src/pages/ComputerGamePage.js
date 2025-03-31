@@ -1008,8 +1008,8 @@ const ComputerGamePage = () => {
           p={8}
           borderRadius="lg"
         >
-          <Heading size="lg" mb={6} color="chess-dark">Play Against Computer</Heading>
-          <Text mb={6} color="chess-dark" textAlign="center">
+          <Heading size="lg" mb={6} color="#ffffff">Play Against Computer</Heading>
+          <Text mb={6} color="#ffffff" textAlign="center">
             Challenge the computer to a game of chess. Choose your difficulty level and preferred color.
           </Text>
           <Button

@@ -52,7 +52,7 @@ const TimeOption = memo(({ control, isSelected, onClick, bgHover, selectedBg, se
     borderWidth="1px"
     borderColor={isSelected ? selectedBg : borderColor}
     bg={isSelected ? selectedBg : 'transparent'}
-    color={isSelected ? selectedColor : 'chess-dark'}
+    color={isSelected ? selectedColor : '#ffffff'}
     onClick={onClick}
     sx={{
       transition: 'background 0.1s ease, transform 0.1s ease',
@@ -60,7 +60,8 @@ const TimeOption = memo(({ control, isSelected, onClick, bgHover, selectedBg, se
       transform: isSelected ? 'scale(1.02)' : 'scale(1)',
       '&:hover': {
         bg: !isSelected ? bgHover : undefined,
-        transform: 'scale(1.02)'
+        transform: 'scale(1.02)',
+        color: 'primary'
       }
     }}
   >
@@ -77,7 +78,7 @@ const DifficultyOption = memo(({ level, isSelected, onClick, bgHover, selectedBg
     borderWidth="1px"
     borderColor={isSelected ? selectedBg : borderColor}
     bg={isSelected ? selectedBg : 'transparent'}
-    color={isSelected ? selectedColor : 'chess-dark'}
+    color={isSelected ? selectedColor : '#ffffff'}
     onClick={onClick}
     sx={{
       transition: 'background 0.1s ease, transform 0.1s ease',
@@ -85,7 +86,8 @@ const DifficultyOption = memo(({ level, isSelected, onClick, bgHover, selectedBg
       transform: isSelected ? 'scale(1.02)' : 'scale(1)',
       '&:hover': {
         bg: !isSelected ? bgHover : undefined,
-        transform: 'scale(1.02)'
+        transform: 'scale(1.02)',
+        color: 'primary'
       }
     }}
   >
@@ -102,7 +104,7 @@ const ColorOption = memo(({ color, label, description, isSelected, onClick, bgHo
     borderWidth="1px"
     borderColor={isSelected ? selectedBg : borderColor}
     bg={isSelected ? selectedBg : 'transparent'}
-    color={isSelected ? selectedColor : 'chess-dark'}
+    color={isSelected ? selectedColor : '#ffffff'}
     onClick={onClick}
     sx={{
       transition: 'background 0.1s ease, transform 0.1s ease',
@@ -110,7 +112,8 @@ const ColorOption = memo(({ color, label, description, isSelected, onClick, bgHo
       transform: isSelected ? 'scale(1.02)' : 'scale(1)',
       '&:hover': {
         bg: !isSelected ? bgHover : undefined,
-        transform: 'scale(1.02)'
+        transform: 'scale(1.02)',
+        color: 'primary'
       }
     }}
   >
@@ -198,7 +201,7 @@ const GameSettingsModal = ({
           transition: 'all 150ms ease-in-out' // Faster transition
         }}
       >
-        <ModalHeader color="chess-dark">{title}</ModalHeader>
+        <ModalHeader color="#ffffff">{title}</ModalHeader>
         <ModalCloseButton color="chess-dark" />
         <ModalBody pb={6}>
           {/* Computer game specific settings */}
@@ -207,7 +210,7 @@ const GameSettingsModal = ({
               <Box mb={6}>
                 <Flex align="center" mb={3}>
                   <Icon as={FaRobot} mr={2} color="primary" />
-                  <Text fontWeight="bold" color="chess-dark">Difficulty</Text>
+                  <Text fontWeight="bold" color="#ffffff">Difficulty</Text>
                 </Flex>
                 <SimpleGrid columns={{ base: 2, md: 3 }} spacing={3}>
                   {difficultyLevels.map(level => (
@@ -228,7 +231,7 @@ const GameSettingsModal = ({
               <Box mb={6}>
                 <Flex align="center" mb={3}>
                   <Icon as={FaChess} mr={2} color="primary" />
-                  <Text fontWeight="bold" color="chess-dark">Your Color</Text>
+                  <Text fontWeight="bold" color="#ffffff">Your Color</Text>
                 </Flex>
                 <Grid templateColumns="repeat(2, 1fr)" gap={3}>
                   <ColorOption
@@ -263,7 +266,7 @@ const GameSettingsModal = ({
           <Box>
             <Flex align="center" mb={3}>
               <Icon as={FaClock} mr={2} color="primary" />
-              <Text fontWeight="bold" color="chess-dark">Time Control</Text>
+              <Text fontWeight="bold" color="#ffffff">Time Control</Text>
             </Flex>
             <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
               {availableTimeControls.map(control => (

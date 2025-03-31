@@ -135,13 +135,38 @@ const ComputerGamePage = () => {
 
   // Responsive board size
   useEffect(() => {
+    const calculateBoardSize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // Calculate board size based on container width
+        const newSize = Math.min(containerWidth, windowHeight * 0.7);
+        setBoardSize(newSize);
+      }
+    };
+
+    // Calculate immediately if container exists
+    calculateBoardSize();
+
+    // Also recalculate after a brief delay to ensure DOM is fully rendered
+    const resizeTimeout = setTimeout(() => {
+      calculateBoardSize();
+    }, 100);
+
+    // Set up a MutationObserver to detect changes in container dimensions
     if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      // Calculate board size based on container width
-      const newSize = Math.min(containerWidth, windowHeight * 0.7);
-      setBoardSize(newSize);
+      const observer = new ResizeObserver(() => {
+        calculateBoardSize();
+      });
+      observer.observe(containerRef.current);
+      
+      return () => {
+        observer.disconnect();
+        clearTimeout(resizeTimeout);
+      };
     }
-  }, [windowWidth, windowHeight, containerRef]);
+    
+    return () => clearTimeout(resizeTimeout);
+  }, [windowWidth, windowHeight]);
 
   // Update the game reference when game state changes
   useEffect(() => {
@@ -418,6 +443,11 @@ const ComputerGamePage = () => {
     const turn = gameRef.current.turn() === 'w' ? 'white' : 'black';
     if (turn !== playerColor) return false;
     
+    // Check if player's timer has reached zero
+    const playerIsWhite = playerColor === 'white';
+    const playerTime = playerIsWhite ? whiteTime : blackTime;
+    if (playerTime <= 0) return false;
+    
     try {
       // Try to make the move
       const move = gameRef.current.move({
@@ -451,7 +481,7 @@ const ComputerGamePage = () => {
       console.error('Error making move:', error);
       return false;
     }
-  }, [gameOver, loading, playerColor, handleGameOver]);
+  }, [gameOver, loading, playerColor, handleGameOver, whiteTime, blackTime]);
 
   // State for click-to-move
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -464,6 +494,11 @@ const ComputerGamePage = () => {
     
     const turn = gameRef.current.turn() === 'w' ? 'white' : 'black';
     if (turn !== playerColor) return;
+    
+    // Check if player's timer has reached zero
+    const playerIsWhite = playerColor === 'white';
+    const playerTime = playerIsWhite ? whiteTime : blackTime;
+    if (playerTime <= 0) return;
     
     // Get piece at clicked square
     const piece = gameRef.current.get(square);
@@ -485,7 +520,7 @@ const ComputerGamePage = () => {
         possibleMoves.current = destinations;
         setSquaresToHighlight(destinations);
       }
-    } 
+    }
     // If a square is already selected
     else {
       // If clicking on own piece again, update selection
@@ -521,7 +556,7 @@ const ComputerGamePage = () => {
         setSquaresToHighlight([]);
       }
     }
-  }, [gameOver, loading, onDrop, playerColor, selectedSquare]);
+  }, [gameOver, loading, onDrop, playerColor, selectedSquare, whiteTime, blackTime]);
 
   // Start a new game
   const handleStartGame = useCallback(({ timeControl, difficulty: selectedDifficulty, playerColor: selectedColor }) => {
@@ -698,7 +733,14 @@ const ComputerGamePage = () => {
                 arePremovesAllowed={true}
                 showBoardNotation={true}
                 allowDrag={({ piece }) => {
+                  // Prevent moves if game is over, loading, or player's timer is at 0
                   if (gameOver || loading) return false;
+                  
+                  // Check if player's timer has reached zero
+                  const playerIsWhite = playerColor === 'white';
+                  const playerTime = playerIsWhite ? whiteTime : blackTime;
+                  if (playerTime <= 0) return false;
+                  
                   return (piece[0] === 'w' && playerColor === 'white') || 
                          (piece[0] === 'b' && playerColor === 'black');
                 }}

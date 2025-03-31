@@ -28,6 +28,7 @@ import {
   Container
 } from '@chakra-ui/react';
 import { FaHistory, FaComment, FaClock, FaUser } from 'react-icons/fa';
+import { HamburgerIcon, CloseIcon } from '@chakra-ui/icons';
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -37,6 +38,7 @@ const GamePage = () => {
   const { width: windowWidth, height: windowHeight } = useWindowSize();
   const [boardSize, setBoardSize] = useState(600);
   const toast = useToast();
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Use the chess logic hook to get game state and functions
   const {
@@ -94,8 +96,8 @@ const GamePage = () => {
   useEffect(() => {
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
-      // Calculate board size based on container width
-      const newSize = Math.min(containerWidth, windowHeight * 0.8);
+      // Calculate board size based on container width, ensuring it maintains aspect ratio
+      const newSize = Math.min(containerWidth - 16, windowHeight * 0.7);
       setBoardSize(newSize);
     }
   }, [windowWidth, windowHeight, containerRef]);
@@ -277,24 +279,46 @@ const GamePage = () => {
 
       {/* Main game layout */}
       <Flex direction={{ base: "column", md: "row" }} gap={4}>
-        {/* Left side - Chessboard and player info (60% width) */}
+        {/* Left side - Chessboard and player info (100% width on mobile, 60% on desktop) */}
         <Box w={{ base: "100%", md: "60%" }} ref={containerRef}>
           <VStack spacing={4} align="stretch">
+            {/* Menu button for mobile */}
+            <Box display={{ base: "block", md: "none" }} position="fixed" top={4} left={4} zIndex={10}>
+              <IconButton
+                aria-label="Menu"
+                icon={<HamburgerIcon />}
+                variant="solid"
+                color="white"
+                bg="chess-dark"
+                _hover={{ bg: "chess-hover" }}
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                size="md"
+              />
+            </Box>
+
             {/* Top player (opponent) */}
-            <Flex justify="space-between" align="center">
+            <Flex 
+              justify="space-between" 
+              align="center" 
+              px={{ base: 2, md: 4 }}
+              py={2}
+              bg="chess-light"
+              borderRadius="md"
+              shadow="sm"
+            >
               <Box flex="1" mr={2}>
                 <PlayerProfile color={playerColor === 'white' ? 'black' : 'white'} />
               </Box>
               <Flex 
-                bg="chess-light" 
+                bg="chess-dark" 
                 color="white" 
-                p={3} 
+                p={2} 
                 rounded="md" 
                 align="center" 
                 shadow="md"
                 minW="120px"
               >
-                <FaClock size={18} style={{ marginRight: '8px' }} />
+                <FaClock size={16} style={{ marginRight: '8px' }} />
                 <Timer
                   initialTime={playerColor === 'white' ? blackTime : whiteTime}
                   increment={timeIncrement}
@@ -306,52 +330,74 @@ const GamePage = () => {
               </Flex>
             </Flex>
 
-            {/* Chessboard */}
-            <Box w="100%" mx="auto">
-              <ThemedChessboard
-                id="responsive-board"
-                position={position}
-                onPieceDrop={onDrop}
-                onPieceDragBegin={onPieceDragStart}
-                boardOrientation={playerColor}
-                boardWidth={boardSize}
-                customSquareStyles={possibleMoves.reduce((obj, square) => {
-                  obj[square] = {
-                    background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
-                    borderRadius: '50%'
-                  };
-                  return obj;
-                }, {})}
-                areArrowsAllowed={true}
-                showBoardNotation={true}
-                customPieces={customPieces}
-                ref={boardRef}
-                allowDrag={({ piece }) => {
-                  // Only allow dragging player's pieces during the game
-                  // and only if both players have joined
-                  return !gameEnded && 
-                         ((piece[0] === 'w' && playerColor === 'white') || 
-                          (piece[0] === 'b' && playerColor === 'black')) &&
-                         playerIds && playerIds.white && playerIds.black; // Only allow moves if both players have joined
-                }}
-              />
+            {/* Chessboard with proper aspect ratio */}
+            <Box 
+              w="100%" 
+              mx="auto"
+              position="relative"
+              paddingBottom="100%"
+            >
+              <Box 
+                position="absolute"
+                top={0}
+                left={0}
+                right={0}
+                bottom={0}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <ThemedChessboard
+                  id="responsive-board"
+                  position={position}
+                  onPieceDrop={onDrop}
+                  onPieceDragBegin={onPieceDragStart}
+                  boardOrientation={playerColor}
+                  boardWidth={boardSize}
+                  customSquareStyles={possibleMoves.reduce((obj, square) => {
+                    obj[square] = {
+                      background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+                      borderRadius: '50%'
+                    };
+                    return obj;
+                  }, {})}
+                  areArrowsAllowed={true}
+                  showBoardNotation={true}
+                  customPieces={customPieces}
+                  ref={boardRef}
+                  allowDrag={({ piece }) => {
+                    return !gameEnded && 
+                           ((piece[0] === 'w' && playerColor === 'white') || 
+                            (piece[0] === 'b' && playerColor === 'black')) &&
+                           playerIds && playerIds.white && playerIds.black;
+                  }}
+                />
+              </Box>
             </Box>
 
             {/* Bottom player (user) */}
-            <Flex justify="space-between" align="center">
+            <Flex 
+              justify="space-between" 
+              align="center"
+              px={{ base: 2, md: 4 }}
+              py={2}
+              bg="chess-light"
+              borderRadius="md"
+              shadow="sm"
+            >
               <Box flex="1" mr={2}>
                 <PlayerProfile color={playerColor} />
               </Box>
               <Flex 
-                bg="chess-light" 
+                bg="chess-dark" 
                 color="white" 
-                p={3} 
+                p={2} 
                 rounded="md" 
-                align="center"
+                align="center" 
                 shadow="md"
                 minW="120px"
               >
-                <FaClock size={18} style={{ marginRight: '8px' }} />
+                <FaClock size={16} style={{ marginRight: '8px' }} />
                 <Timer
                   initialTime={playerColor === 'white' ? whiteTime : blackTime}
                   increment={timeIncrement}
@@ -363,31 +409,33 @@ const GamePage = () => {
               </Flex>
             </Flex>
 
-            {/* Game controls */}
-            <HStack spacing={4} justify="center" my={4}>
-              <Button
-                onClick={handleResign}
-                bg="red.500"
-                color="white"
-                _hover={{ bg: "red.600" }}
-                size="lg"
-                w="full"
-                isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
-              >
-                Resign
-              </Button>
-              <Button
-                onClick={handleOfferDraw}
-                bg="primary"
-                color="white"
-                _hover={{ bg: "blue.600" }}
-                size="lg"
-                w="full"
-                isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
-              >
-                {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
-              </Button>
-            </HStack>
+            {/* Game controls for mobile */}
+            <Box display={{ base: "block", md: "none" }} pt={2}>
+              <HStack spacing={4} justify="center" w="100%">
+                <Button
+                  onClick={handleResign}
+                  bg="red.500"
+                  color="white"
+                  _hover={{ bg: "red.600" }}
+                  size="md"
+                  w="50%"
+                  isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                >
+                  Resign
+                </Button>
+                <Button
+                  onClick={handleOfferDraw}
+                  bg="primary"
+                  color="white"
+                  _hover={{ bg: "blue.600" }}
+                  size="md"
+                  w="50%"
+                  isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                >
+                  {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
+                </Button>
+              </HStack>
+            </Box>
 
             {/* Draw offer dialog */}
             {drawOfferReceived && (
@@ -416,9 +464,36 @@ const GamePage = () => {
           </VStack>
         </Box>
 
-        {/* Right side - Game history and chat (40% width) */}
-        <Box w={{ base: "100%", md: "40%" }}>
-          <VStack spacing={6} align="stretch" h="100%">
+        {/* Right side - Game info and controls (100% width on mobile, 40% on desktop) */}
+        <Box 
+          w={{ base: "100%", md: "40%" }}
+          display={{ base: showMobileMenu ? "block" : "none", md: "block" }}
+          bg="white"
+          p={4}
+          borderRadius="md"
+          shadow="md"
+          position={{ base: "fixed", md: "relative" }}
+          top={{ base: 0, md: "auto" }}
+          left={{ base: 0, md: "auto" }}
+          right={{ base: 0, md: "auto" }}
+          bottom={{ base: 0, md: "auto" }}
+          zIndex={{ base: 9, md: 1 }}
+          overflowY={{ base: "auto", md: "visible" }}
+          height={{ base: "100vh", md: "auto" }}
+        >
+          {/* Close menu button for mobile */}
+          <Box display={{ base: "block", md: "none" }} position="absolute" top={4} right={4}>
+            <IconButton
+              aria-label="Close Menu"
+              icon={<CloseIcon />}
+              variant="ghost"
+              onClick={() => setShowMobileMenu(false)}
+              size="md"
+            />
+          </Box>
+
+          {/* Game controls and info content */}
+          <VStack spacing={6} align="stretch" h="100%" pt={{ base: 12, md: 0 }}>
             {/* Game history */}
             <Box bg="chess-hover" rounded="lg" shadow="md" p={4} flex="1">
               <Flex align="center" mb={4}>
@@ -482,6 +557,34 @@ const GamePage = () => {
                 onSendMessage={handleSendMessage}
                 disabled={false}
               />
+            </Box>
+
+            {/* Game controls for desktop */}
+            <Box display={{ base: "none", md: "block" }}>
+              <HStack spacing={4} justify="center" w="100%">
+                <Button
+                  onClick={handleResign}
+                  bg="red.500"
+                  color="white"
+                  _hover={{ bg: "red.600" }}
+                  size="lg"
+                  w="full"
+                  isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                >
+                  Resign
+                </Button>
+                <Button
+                  onClick={handleOfferDraw}
+                  bg="primary"
+                  color="white"
+                  _hover={{ bg: "blue.600" }}
+                  size="lg"
+                  w="full"
+                  isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                >
+                  {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
+                </Button>
+              </HStack>
             </Box>
           </VStack>
         </Box>

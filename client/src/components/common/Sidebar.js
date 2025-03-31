@@ -432,10 +432,11 @@ const Sidebar = () => {
         position="fixed"
         top="4"
         left="4"
-        zIndex={999}
+        zIndex={9999}
         bg="primary"
         color="white"
         borderRadius="md"
+        boxShadow="md"
       />
       
       {/* Mobile Sidebar */}
@@ -449,7 +450,7 @@ const Sidebar = () => {
             right="0" 
             bottom="0"
             bg="blackAlpha.600"
-            zIndex={998}
+            zIndex={9998}
             onClick={toggleMobileSidebar}
           />
           
@@ -461,7 +462,7 @@ const Sidebar = () => {
             h="100vh"
             w="250px"
             bg={bgColor}
-            zIndex={999}
+            zIndex={9999}
             boxShadow="lg"
           >
             <Box p={4}>
@@ -494,7 +495,7 @@ const Sidebar = () => {
         borderRight="1px"
         borderRightColor={bgColor}
         display={{ base: 'none', md: 'block' }}
-        zIndex={1}
+        zIndex={100}
         transition="width 0.3s ease-in-out"
         overflow="hidden"
         style={{ width: shouldExpand ? "220px" : "60px" }} // Explicit inline style
@@ -515,16 +516,6 @@ const Sidebar = () => {
           <BottomIcons />
         </Flex>
       </Box>
-      
-      {/* Content padding for desktop view - match the sidebar width */}
-      <Box 
-        display={{ base: 'none', md: 'block' }} 
-        w={shouldExpand ? "220px" : "60px"}
-        style={{ width: shouldExpand ? "220px" : "60px" }} // Match inline style
-        transition="width 0.3s ease-in-out"
-        flexShrink={0}
-        className={isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
-      />
     </>
   );
 };

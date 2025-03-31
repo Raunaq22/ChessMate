@@ -1,25 +1,55 @@
 import React from 'react';
 import { Chessboard } from 'react-chessboard';
 import { useChessTheme } from '../../context/ThemeContext';
-import { Box } from '@chakra-ui/react';
+import { Box, useBreakpointValue } from '@chakra-ui/react';
 
 // A wrapper component that applies the current theme to any chessboard
 const ThemedChessboard = (props) => {
   const { currentTheme } = useChessTheme();
   
+  // For mobile screens, we need a fixed numeric value to maintain aspect ratio
+  const defaultBoardWidth = useBreakpointValue({ 
+    base: Math.min(props.boardWidth || 400, window.innerWidth - 32),
+    sm: props.boardWidth || 400 
+  });
+  
   return (
-    <Box>
-      <Chessboard
-        {...props}
-        customDarkSquareStyle={{ 
-          backgroundColor: currentTheme.darkSquare,
-          ...props.customDarkSquareStyle 
-        }}
-        customLightSquareStyle={{ 
-          backgroundColor: currentTheme.lightSquare,
-          ...props.customLightSquareStyle
-        }}
-      />
+    <Box 
+      width="100%" 
+      maxWidth={props.boardWidth || "100%"}
+      mx="auto"
+      aspectRatio="1/1"
+      position="relative"
+    >
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Chessboard
+          {...props}
+          boardWidth={defaultBoardWidth}
+          customDarkSquareStyle={{ 
+            backgroundColor: currentTheme.darkSquare,
+            ...props.customDarkSquareStyle 
+          }}
+          customLightSquareStyle={{ 
+            backgroundColor: currentTheme.lightSquare,
+            ...props.customLightSquareStyle
+          }}
+          customBoardStyle={{
+            borderRadius: "8px",
+            overflow: "hidden",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            ...props.customBoardStyle
+          }}
+        />
+      </Box>
     </Box>
   );
 };

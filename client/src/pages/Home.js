@@ -41,41 +41,43 @@ const Home = () => {
   };
 
   // Button sizing based on screen size
-  const buttonSize = useBreakpointValue({ base: 'lg', md: 'lg' });
-  const buttonSpacing = useBreakpointValue({ base: 6, md: 6 });
+  const buttonSize = useBreakpointValue({ base: 'md', md: 'lg' });
+  const buttonSpacing = useBreakpointValue({ base: 3, md: 4 });
+  const buttonHeight = useBreakpointValue({ base: "50px", md: "60px", lg: "70px" });
   
   // Responsive board size calculation
   useEffect(() => {
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
-      // Calculate board size based on container width
-      const newSize = Math.min(containerWidth * 0.9, height * 0.7);
+      // Set a size that ensures the board remains square
+      const newSize = Math.min(containerWidth - 32, width * 0.85);
       setBoardSize(newSize);
     }
   }, [width, height, containerRef]);
 
   return (
-    <Container maxW="container.xl" p={0}>
+    <Container maxW="container.xl" p={0} mt={{ base: 0, md: 0 }}>
       <Flex 
         direction={{ base: "column", md: "row" }} 
-        gap={{ base: 8, md: 12 }}
+        gap={{ base: 4, md: 12 }}
         justify="space-between" 
-        align="center"
-        py={{ base: 8, md: 12 }}
-        px={{ base: 4, md: 8 }}
+        align={{ base: "center", md: "flex-start" }}
+        py={{ base: 2, md: 6 }}
+        px={{ base: 3, md: 8 }}
       >
         {/* Chess board on left */}
         <Box 
           w={{ base: "100%", md: "55%" }} 
           mx="auto"
-          py={{ base: 4, md: 0 }}
+          pb={{ base: 2, md: 0 }}
         >
           <Box
             ref={containerRef}
             bg="chess-light" 
-            p={{ base: 4, md: 6 }}
+            p={{ base: 3, md: 6 }}
             rounded="xl" 
             shadow="xl"
+            width="100%"
           >
             <ThemedChessboard
               id="home-board"
@@ -92,84 +94,74 @@ const Home = () => {
         <Box 
           w={{ base: "100%", md: "40%" }}
           pl={{ base: 0, md: 8 }}
+          alignSelf="stretch"
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
         >
+
           <VStack
             spacing={buttonSpacing}
             align="stretch"
-            w={{ base: "100%", md: "100%" }}
+            w="100%"
           >
-            <Heading 
-              as="h1" 
-              size={{ base: "2xl", md: "2xl" }} 
-              mb={4}
-              textAlign={{ base: "center", md: "left" }}
-              color="chess-dark"
-            >
-              ChessMate
-            </Heading>
-            
-            <Text 
-              fontSize={{ base: "lg", md: "xl" }}
-              mb={4}
-              textAlign={{ base: "center", md: "left" }}
-              color="chess-dark"
-            >
-              Choose your game mode:
-            </Text>
-            
             <Button
-              leftIcon={<Icon as={FaChessKnight} boxSize={6} />}
+              leftIcon={<Icon as={FaChessKnight} boxSize={{ base: 4, md: 5 }} />}
               onClick={() => goToAuthPage('/lobby')}
               size={buttonSize}
-              height="70px"
+              height={buttonHeight}
               bg="primary"
               color="white"
               _hover={{ bg: "chess-hover" }}
-              mb={3}
+              mb={{ base: 1, md: 2 }}
               borderRadius="md"
+              fontSize={{ base: "sm", md: "md" }}
             >
               Play Lobby
             </Button>
             
             <Button
-              leftIcon={<Icon as={FaUserFriends} boxSize={6} />}
+              leftIcon={<Icon as={FaUserFriends} boxSize={{ base: 4, md: 5 }} />}
               onClick={() => goToAuthPage('/play-friend')}
               size={buttonSize}
-              height="70px"
+              height={buttonHeight}
               bg="primary"
               color="white"
               _hover={{ bg: "chess-hover" }}
-              mb={3}
+              mb={{ base: 1, md: 2 }}
               borderRadius="md"
+              fontSize={{ base: "sm", md: "md" }}
             >
               Play a Friend
             </Button>
             
             <Button
-              leftIcon={<Icon as={FaRobot} boxSize={6} />}
+              leftIcon={<Icon as={FaRobot} boxSize={{ base: 4, md: 5 }} />}
               onClick={() => goToAuthPage('/play-computer')}
               size={buttonSize}
-              height="70px"
+              height={buttonHeight}
               bg="primary"
               color="white"
               _hover={{ bg: "chess-hover" }}
-              mb={3}
+              mb={{ base: 1, md: 2 }}
               borderRadius="md"
+              fontSize={{ base: "sm", md: "md" }}
             >
               Play Computer
             </Button>
             
             {isAuthenticated && (
               <Button
-                leftIcon={<Icon as={FaTrophy} boxSize={6} />}
+                leftIcon={<Icon as={FaTrophy} boxSize={{ base: 4, md: 5 }} />}
                 onClick={() => navigate('/profile')}
                 size={buttonSize}
-                height="70px"
+                height={buttonHeight}
                 variant="outline"
                 borderColor="primary"
                 color="primary"
                 _hover={{ bg: "gray.100" }}
                 borderRadius="md"
+                fontSize={{ base: "sm", md: "md" }}
               >
                 My Profile
               </Button>

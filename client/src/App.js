@@ -75,11 +75,25 @@ function App() {
           <Router>
             <Box display="flex" minH="100vh">
               <Sidebar />
-              <Box flex="1" display="flex" flexDir="column">
+              <Box 
+                flex="1" 
+                display="flex" 
+                flexDir="column"
+                marginLeft={{ base: 0, md: "60px" }}
+                transition="margin-left 0.3s ease-in-out"
+                width="100%"
+                maxW="100vw"
+              >
                 {/* Global avatar in top-right corner */}
                 <ProfileAvatar />
                 
-                <Box as="main" flexGrow="1" p={{ base: 4, md: 8 }}>
+                <Box 
+                  as="main" 
+                  flexGrow="1" 
+                  p={{ base: 4, md: 8 }} 
+                  pt={{ base: 16, md: 8 }} /* Added top padding for mobile */
+                  width="100%"
+                >
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/oauth/callback" element={<OAuthCallback />} />
@@ -95,7 +109,6 @@ function App() {
                       <Route path="" element={<Navigate to="profile" />} />
                       <Route path="profile" element={<ProfileSettings />} />
                       <Route path="theme" element={<ThemeSettings />} />
-
                     </Route>
                   </Routes>
                 </Box>

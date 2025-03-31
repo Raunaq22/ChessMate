@@ -137,21 +137,45 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   
   // Handle responsive board sizing
   useEffect(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth;
-      // Set a bit smaller than container to leave room for controls
-      setBoardSize(Math.min(containerWidth - 32, 560));
-    }
-    
-    const handleResize = () => {
+    const calculateBoardSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
+        // Set a bit smaller than container to leave room for controls
         setBoardSize(Math.min(containerWidth - 32, 560));
       }
     };
     
+    // Calculate immediately if container exists
+    calculateBoardSize();
+    
+    // Also recalculate after a brief delay to ensure DOM is fully rendered
+    const resizeTimeout = setTimeout(() => {
+      calculateBoardSize();
+    }, 100);
+    
+    // Set up a MutationObserver to detect changes in container dimensions
+    if (containerRef.current) {
+      const observer = new ResizeObserver(() => {
+        calculateBoardSize();
+      });
+      observer.observe(containerRef.current);
+      
+      return () => {
+        observer.disconnect();
+        clearTimeout(resizeTimeout);
+      };
+    }
+    
+    // Legacy resize handler (as a backup)
+    const handleResize = () => {
+      calculateBoardSize();
+    };
+    
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimeout);
+    };
   }, []);
   
   // Set position when current move index changes or when exploring off-book moves

@@ -143,6 +143,45 @@ const GamePage = () => {
     }
   }, [notification, toast]);
 
+  // Display and update reconnection notification
+  useEffect(() => {
+    const reconnectionToastId = "reconnection-toast"; // Use a constant ID
+    
+    if (waitingForReconnection && reconnectionCountdown > 0) {
+      // Check if toast already exists
+      const existingToast = toast.isActive(reconnectionToastId);
+      
+      if (!existingToast) {
+        // Create new toast if it doesn't exist
+        toast({
+          id: reconnectionToastId,
+          title: "Warning",
+          description: `Opponent disconnected. Waiting for reconnection... (${reconnectionCountdown}s)`,
+          status: "warning",
+          duration: null, // Keep it until manually closed
+          isClosable: true,
+          position: "top",
+        });
+      } else {
+        // Update existing toast
+        toast.update(reconnectionToastId, {
+          description: `Opponent disconnected. Waiting for reconnection... (${reconnectionCountdown}s)`
+        });
+      }
+    } else {
+      // Close toast when no longer waiting
+      if (toast.isActive(reconnectionToastId)) {
+        toast.close(reconnectionToastId);
+      }
+    }
+    
+    return () => {
+      if (toast.isActive(reconnectionToastId)) {
+        toast.close(reconnectionToastId);
+      }
+    };
+  }, [waitingForReconnection, reconnectionCountdown, toast]);
+
   // PlayerProfile component - remove the onClick and cursor pointer
   const PlayerProfile = ({ color }) => {
     const isWhite = color === 'white';
@@ -639,39 +678,6 @@ const GamePage = () => {
           initialFen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
           onClose={() => setShowAnalysis(false)}
         />
-      )}
-
-      {/* Reconnection countdown banner */}
-      {waitingForReconnection && reconnectionCountdown > 0 && (
-        <Box 
-          position="fixed" 
-          top="4" 
-          left="50%" 
-          transform="translateX(-50%)" 
-          p={4} 
-          rounded="lg" 
-          bg="green.100" 
-          border="1px" 
-          borderColor="green.400" 
-          color="green.800" 
-          textAlign="center"
-          zIndex="banner"
-        >
-          <Flex align="center" justify="center">
-            <Box 
-              mr={3} 
-              className="animate-spin" 
-              h={5} 
-              w={5} 
-              borderTop="2px" 
-              borderColor="green.500" 
-              rounded="full"
-            />
-            <Heading as="h2" size="md">
-              Waiting for opponent to reconnect ({reconnectionCountdown}s)
-            </Heading>
-          </Flex>
-        </Box>
       )}
     </Container>
   );

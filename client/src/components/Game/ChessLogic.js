@@ -633,23 +633,13 @@ const useChessLogic = (gameId, navigate) => {
     };
   }, [gameId]);
 
-  // Track opponent joined status
+  // Update opponent joined status
   useEffect(() => {
     // If both players have IDs, set opponentJoined to true
     if (playerIds.white && playerIds.black) {
       setOpponentJoined(true);
     }
   }, [playerIds]);
-
-  // Update reconnection countdown notification
-  useEffect(() => {
-    if (waitingForReconnection && reconnectionCountdown > 0) {
-      setNotification({
-        message: `Opponent disconnected. Waiting for reconnection... (${reconnectionCountdown}s)`,
-        type: 'warning'
-      });
-    }
-  }, [reconnectionCountdown, waitingForReconnection]);
 
   // Game logic functions
   const onPieceDragStart = (piece, sourceSquare) => {

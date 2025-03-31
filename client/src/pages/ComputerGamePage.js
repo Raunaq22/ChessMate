@@ -137,9 +137,9 @@ const ComputerGamePage = () => {
   useEffect(() => {
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
-      // Calculate board size based on container width, ensuring it's square
-      const maxSize = Math.min(containerWidth - 16, windowHeight * 0.6);
-      setBoardSize(maxSize);
+      // Calculate board size based on container width
+      const newSize = Math.min(containerWidth, windowHeight * 0.7);
+      setBoardSize(newSize);
     }
   }, [windowWidth, windowHeight, containerRef]);
 
@@ -661,289 +661,334 @@ const ComputerGamePage = () => {
 
   // Main layout render
   return (
-    <Container maxW="container.xl" p={{ base: 2, md: 4 }}>
-      <Box position="relative" minH="100vh">
-        {/* Game header */}
-        <Flex 
-          justify="space-between" 
-          align="center" 
-          mb={4} 
-          wrap="wrap"
-          gap={2}
+    <Container maxW="100%" px={[2, 4]} py={4}>
+      {showConfetti && <Confetti 
+        width={windowWidth} 
+        height={windowHeight} 
+        recycle={false} 
+        numberOfPieces={200}
+        gravity={0.3}
+        tweenDuration={3000}
+      />}
+      
+      {/* Game status display */}
+      {gameStarted && (result || gameOver) && (
+        <Alert
+          status={
+            result?.includes('wins') ?
+              (result.toLowerCase().includes(playerColor) ? 'success' : 'error') :
+              'info'
+          }
+          variant="solid"
+          mb={4}
+          borderRadius="md"
         >
-          <HStack>
-            <IconButton
-              icon={<FaArrowLeft />}
-              onClick={() => navigate('/')}
-              aria-label="Back to home"
-              variant="ghost"
-              color="chess-dark"
-            />
-            <Heading size={{ base: "md", md: "lg" }} color="chess-dark">
-              Playing Against Computer
-            </Heading>
-          </HStack>
-          <Badge
-            colorScheme="blue"
-            p={2}
-            borderRadius="md"
-            fontSize={{ base: "xs", md: "sm" }}
-          >
-            {difficultyNames[difficulty]}
-          </Badge>
-        </Flex>
-
-        {/* Main game content */}
+          <AlertIcon />
+          <AlertTitle mr={2}>Game Over:</AlertTitle>
+          <Text>{result}</Text>
+        </Alert>
+      )}
+      
+      {/* Main game grid */}
+      {gameStarted ? (
         <Grid
-          templateColumns={{ base: "1fr", lg: "2fr 1fr" }}
-          gap={{ base: 4, lg: 6 }}
+          templateColumns={{ base: "1fr", lg: "60% 40%" }}
+          gap={6}
         >
-          {/* Left column - Chessboard */}
+          {/* Left column - Chessboard and player info */}
           <GridItem>
-            <VStack spacing={4} align="stretch">
+            <Flex direction="column" h="100%">
               {/* Top player (Computer) */}
-              <Flex 
-                justify="space-between" 
-                align="center"
-                p={{ base: 2, md: 3 }}
-                bg="chess-light"
-                borderRadius="md"
-                shadow="sm"
-              >
-                <HStack>
-                  <Avatar icon={<FaRobot />} bg="chess-dark" color="white" />
-                  <Text fontWeight="bold" color="chess-dark">Computer</Text>
-                </HStack>
-                <Flex 
-                  bg="chess-dark" 
-                  color="white" 
-                  p={2} 
-                  rounded="md" 
-                  align="center"
-                  shadow="md"
-                  minW="100px"
-                >
-                  <FaClock size={16} style={{ marginRight: '8px' }} />
-                  <Timer
-                    initialTime={playerColor === 'white' ? blackTime : whiteTime}
-                    increment={timeIncrement}
-                    isRunning={playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning}
-                    onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
-                    gameEnded={gameOver}
+              <Flex justifyContent="space-between" alignItems="center" bg="chess-light" p={3} borderRadius="lg" mb={4}>
+                <Flex align="center">
+                  <Avatar
+                    icon={<FaRobot />}
+                    bg={playerColor === 'white' ? "gray.800" : "white"}
+                    color={playerColor === 'white' ? "white" : "black"}
+                    mr={3}
+                    size="md"
                   />
+                  <Box>
+                    <Text fontWeight="bold" color="white">Computer</Text>
+                    <Badge colorScheme={playerColor === 'white' ? "gray" : "yellow"}>
+                      {playerColor === 'white' ? 'Black' : 'White'}
+                    </Badge>
+                  </Box>
                 </Flex>
+                <Timer
+                  initialTime={playerColor === 'white' ? blackTime : whiteTime}
+                  time={playerColor === 'white' ? blackTime : whiteTime}
+                  increment={timeIncrement}
+                  isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameOver}
+                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
+                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
+                  gameEnded={gameOver}
+                />
               </Flex>
-
-              {/* Chessboard container */}
+              
+              {/* Chess board */}
               <Box
                 ref={containerRef}
                 position="relative"
-                paddingBottom="100%"
-                bg="white"
-                borderRadius="lg"
-                shadow="md"
+                mb={4}
+                alignSelf="center"
+                w="100%"
+                maxW="800px"
+                mx="auto"
               >
-                <Box
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  right={0}
-                  bottom={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                >
+                <Box w="100%" mx="auto">
                   {chessBoard}
                 </Box>
+                
+                {/* Computer thinking indicator */}
+                {computerThinking && (
+                  <Flex
+                    position="absolute"
+                    top="50%"
+                    left="50%"
+                    transform="translate(-50%, -50%)"
+                    bg="blackAlpha.700"
+                    color="white"
+                    p={3}
+                    borderRadius="md"
+                    alignItems="center"
+                    shadow="md"
+                  >
+                    <Spinner size="sm" mr={2} />
+                    <Text>Computer thinking...</Text>
+                  </Flex>
+                )}
               </Box>
-
-              {/* Bottom player (User) */}
-              <Flex 
-                justify="space-between" 
-                align="center"
-                p={{ base: 2, md: 3 }}
-                bg="chess-light"
-                borderRadius="md"
-                shadow="sm"
-              >
-                <HStack>
-                  <Avatar icon={<FaUser />} bg="chess-dark" color="white" />
-                  <Text fontWeight="bold" color="chess-dark">You</Text>
-                </HStack>
-                <Flex 
-                  bg="chess-dark" 
-                  color="white" 
-                  p={2} 
-                  rounded="md" 
-                  align="center"
-                  shadow="md"
-                  minW="100px"
-                >
-                  <FaClock size={16} style={{ marginRight: '8px' }} />
-                  <Timer
-                    initialTime={playerColor === 'white' ? whiteTime : blackTime}
-                    increment={timeIncrement}
-                    isRunning={playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning}
-                    onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
-                    gameEnded={gameOver}
+              
+              {/* Bottom player (You) */}
+              <Flex justifyContent="space-between" alignItems="center" bg="chess-light" p={3} borderRadius="lg" mb={4}>
+                <Flex align="center">
+                  <Avatar
+                    icon={<FaUser />}
+                    bg={playerColor === 'white' ? "white" : "gray.800"}
+                    color={playerColor === 'white' ? "black" : "white"}
+                    mr={3}
+                    size="md"
                   />
+                  <Box>
+                    <Text fontWeight="bold" color="white">You</Text>
+                    <Badge colorScheme={playerColor === 'white' ? "yellow" : "gray"}>
+                      {playerColor}
+                    </Badge>
+                  </Box>
                 </Flex>
+                <Timer
+                  initialTime={playerColor === 'white' ? whiteTime : blackTime}
+                  time={playerColor === 'white' ? whiteTime : blackTime}
+                  increment={timeIncrement}
+                  isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameOver}
+                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
+                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
+                  gameEnded={gameOver}
+                />
               </Flex>
 
-              {/* Game controls for mobile */}
-              <Box display={{ base: "block", lg: "none" }}>
-                <Grid templateColumns="repeat(2, 1fr)" gap={3}>
-                  <Button
-                    leftIcon={<FaUndo />}
-                    onClick={handleRestartGame}
-                    isDisabled={moveHistory.length === 0 || loading}
-                    colorScheme="blue"
-                    size="lg"
-                  >
-                    Undo Move
-                  </Button>
-                  <Button
-                    leftIcon={<FaRedo />}
-                    onClick={handleResign}
-                    isDisabled={gameOver || loading}
-                    colorScheme="red"
-                    size="lg"
-                  >
-                    Resign
-                  </Button>
-                </Grid>
-              </Box>
-            </VStack>
-          </GridItem>
-
-          {/* Right column - Game info and controls */}
-          <GridItem display={{ base: "none", lg: "block" }}>
-            <VStack spacing={4} align="stretch">
-              {/* Game controls */}
-              <Card bg="chess-light" boxShadow="md">
-                <CardHeader bg="chess-hover" py={3}>
-                  <Flex align="center">
-                    <Icon as={FaChess} mr={2} color="white" />
-                    <Heading size="md" color="white">Game Controls</Heading>
-                  </Flex>
-                </CardHeader>
-                <CardBody>
-                  <VStack spacing={3}>
-                    <Button
-                      leftIcon={<FaUndo />}
-                      onClick={handleRestartGame}
-                      isDisabled={moveHistory.length === 0 || loading}
-                      colorScheme="blue"
-                      size="lg"
-                      width="100%"
+            {/* Game controls */}
+            <Flex justify="center" align="center" gap={4} mt={2}>
+              <Button
+                leftIcon={<Icon as={FaUndo} />}
+                onClick={handleRestartGame}
+                colorScheme="blue"
+                variant="outline"
+                size="md"
+              >
+                Restart
+              </Button>
+              <Button
+                onClick={handleResign}
+                colorScheme="red"
+                variant="solid"
+                size="md"
+                isDisabled={!gameStarted || gameOver}
+              >
+                Resign
+              </Button>
+              <Button
+                leftIcon={<Icon as={FaArrowLeft} />}
+                onClick={() => navigate("/home")}
+                colorScheme="gray"
+                variant="outline"
+                size="md"
+              >
+                Exit
+              </Button>
+            </Flex>
+          </Flex>
+        </GridItem>
+          
+          {/* Right column - Game info, timers, and history */}
+          <GridItem>
+            <Card bg="chess-light" mb={4} boxShadow="md">
+              <CardHeader bg="chess-hover" py={3}>
+                <Flex align="center">
+                  <Icon as={FaRobot} mr={2} color="white" />
+                  <Heading size="md" color="white">Game Info</Heading>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                <VStack align="stretch" spacing={3}>
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="chess-dark">Difficulty:</Text>
+                    <Badge colorScheme="blue" fontSize="0.9em" p={1}>
+                      {difficultyNames[difficulty]}
+                    </Badge>
+                  </HStack>
+                  
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="chess-dark">Your color:</Text>
+                    <Badge
+                      colorScheme={playerColor === 'white' ? "yellow" : "gray"}
+                      fontSize="0.9em"
+                      p={1}
                     >
-                      Undo Move
-                    </Button>
-                    <Button
-                      leftIcon={<FaRedo />}
-                      onClick={handleResign}
-                      isDisabled={gameOver || loading}
-                      colorScheme="red"
-                      size="lg"
-                      width="100%"
+                      {playerColor.charAt(0).toUpperCase() + playerColor.slice(1)}
+                    </Badge>
+                  </HStack>
+                  
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="chess-dark">Game status:</Text>
+                    <Badge
+                      colorScheme={gameOver ? "red" : "green"}
+                      fontSize="0.9em"
+                      p={1}
                     >
-                      Resign
-                    </Button>
-                  </VStack>
-                </CardBody>
-              </Card>
-
-              {/* Move history */}
-              <Card bg="chess-light" boxShadow="md">
-                <CardHeader bg="chess-hover" py={3}>
-                  <Flex align="center">
-                    <Icon as={FaHistory} mr={2} color="white" />
-                    <Heading size="md" color="white">Move History</Heading>
-                  </Flex>
-                </CardHeader>
-                <CardBody>
-                  {moveHistory.length > 0 ? (
-                    <Box
-                      maxH="300px"
-                      overflowY="auto"
-                      p={2}
-                      borderRadius="md"
-                      bg="white"
-                      fontSize="sm"
-                    >
-                      <Grid templateColumns="auto 1fr 1fr" gap={2}>
-                        {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
-                          const moveIdx = idx * 2;
-                          const whiteMove = moveHistory[moveIdx];
-                          const blackMove = moveHistory[moveIdx + 1];
-                          return (
-                            <React.Fragment key={`move-pair-${idx}`}>
-                              <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
-                              <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
-                              <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
-                            </React.Fragment>
-                          );
-                        })}
-                      </Grid>
-                    </Box>
-                  ) : (
-                    <Text color="chess-dark" textAlign="center" py={4}>
-                      No moves yet. Start playing!
-                    </Text>
+                      {gameOver ? "Game Over" : "In Progress"}
+                    </Badge>
+                  </HStack>
+                  
+                  {!gameOver && (
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" color="chess-dark">Current turn:</Text>
+                      <Badge
+                        colorScheme={currentTurn === playerColor ? "green" : "purple"}
+                        fontSize="0.9em"
+                        p={1}
+                      >
+                        {currentTurn === playerColor ? "Your Turn" : "Computer's Turn"}
+                      </Badge>
+                    </HStack>
                   )}
-                </CardBody>
-              </Card>
-            </VStack>
+                  
+                  {result && (
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" color="chess-dark">Result:</Text>
+                      <Text color="chess-dark" fontStyle="italic">{result}</Text>
+                    </HStack>
+                  )}
+                </VStack>
+              </CardBody>
+            </Card>
+            
+            {/* Move history */}
+            <Card bg="chess-light" boxShadow="md">
+              <CardHeader bg="chess-hover" py={3}>
+                <Flex align="center">
+                  <Icon as={FaHistory} mr={2} color="white" />
+                  <Heading size="md" color="white">Move History</Heading>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                {moveHistory.length > 0 ? (
+                  <Box
+                    maxH="300px"
+                    overflowY="auto"
+                    p={2}
+                    borderRadius="md"
+                    bg="white"
+                    fontSize="sm"
+                  >
+                    <Grid templateColumns="auto 1fr 1fr" gap={2}>
+                      {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
+                        const moveIdx = idx * 2;
+                        const whiteMove = moveHistory[moveIdx];
+                        const blackMove = moveHistory[moveIdx + 1];
+                        return (
+                          <React.Fragment key={`move-pair-${idx}`}>
+                            <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
+                            <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
+                            <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
+                          </React.Fragment>
+                        );
+                      })}
+                    </Grid>
+                  </Box>
+                ) : (
+                  <Text color="chess-dark" textAlign="center" py={4}>
+                    No moves yet. Start playing!
+                  </Text>
+                )}
+              </CardBody>
+            </Card>
           </GridItem>
         </Grid>
-
-        {/* Modals and overlays */}
-        <ComputerGameModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onStart={handleStartGame}
-          selectedColor={playerColor}
-          onSelectColor={setPlayerColor}
-          selectedDifficulty={difficulty}
-          onSelectDifficulty={setDifficulty}
-        />
-
-        {showResignConfirm && (
-          <Alert
-            status="warning"
-            variant="subtle"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            height="200px"
-            bg="white"
-            borderRadius="md"
-            shadow="lg"
-            position="absolute"
-            top="50%"
-            left="50%"
-            transform="translate(-50%, -50%)"
-            zIndex={2}
+      ) : (
+        <Flex 
+          direction="column" 
+          align="center" 
+          justify="center" 
+          minH="50vh"
+          bg="chess-light"
+          p={8}
+          borderRadius="lg"
+        >
+          <Heading size="lg" mb={6} color="chess-dark">Play Against Computer</Heading>
+          <Text mb={6} color="chess-dark" textAlign="center">
+            Challenge the computer to a game of chess. Choose your difficulty level and preferred color.
+          </Text>
+          <Button
+            leftIcon={<Icon as={FaRobot} />}
+            onClick={() => setShowModal(true)}
+            size="lg"
+            bg="primary"
+            color="white"
+            _hover={{ bg: "chess-hover" }}
           >
-            <AlertIcon boxSize="40px" mr={0} />
-            <AlertTitle mt={4} mb={1} fontSize="lg">
-              Confirm Resignation
-            </AlertTitle>
-            <Text mb={4}>Are you sure you want to resign?</Text>
-            <HStack spacing={3}>
-              <Button onClick={confirmResign} colorScheme="red">
-                Yes, Resign
-              </Button>
-              <Button onClick={cancelResign} variant="outline">
+            Start New Game
+          </Button>
+        </Flex>
+      )}
+      
+      {/* Resign confirmation dialog */}
+      {showResignConfirm && (
+        <Flex position="fixed" inset="0" bg="blackAlpha.500" align="center" justify="center" zIndex="50">
+          <Box bg="white" p={6} rounded="lg" shadow="xl" maxW="sm" w="full" mx={4}>
+            <Heading as="h3" size="md" mb={4} color="red.600">Confirm Resignation</Heading>
+            <Text mb={6}>Are you sure you want to resign this game?</Text>
+            <Flex justify="flex-end" gap={4}>
+              <Button 
+                onClick={cancelResign}
+                bg="gray.200"
+                _hover={{ bg: 'gray.300' }}
+              >
                 Cancel
               </Button>
-            </HStack>
-          </Alert>
-        )}
-
-        {showConfetti && <Confetti />}
-      </Box>
+              <Button 
+                onClick={confirmResign}
+                bg="red.600"
+                color="white"
+                _hover={{ bg: 'red.700' }}
+              >
+                Resign
+              </Button>
+            </Flex>
+          </Box>
+        </Flex>
+      )}
+      
+      {/* Game setup modal */}
+      {showModal && (
+        <ComputerGameModal
+          onClose={() => {
+            setShowModal(false);
+          }}
+          onStartGame={handleStartGame}
+        />
+      )}
     </Container>
   );
 };

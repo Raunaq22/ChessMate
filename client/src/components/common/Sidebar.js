@@ -144,7 +144,7 @@ const Sidebar = () => {
             w="100%" 
             h="42px"
             bg={isActive('/') ? activeBg : 'transparent'}
-            color={isActive('/') ? 'white' : textColor}
+            color={isActive('/') ? 'white' : '#dedede'}
             _hover={{ bg: isActive('/') ? activeBg : hoverBg, color: 'white' }}
             transition="all 0.2s"
             borderRadius="md"

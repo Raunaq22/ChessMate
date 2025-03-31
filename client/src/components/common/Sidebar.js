@@ -156,7 +156,7 @@ const Sidebar = () => {
             leftIcon={<Icon as={GoHome} boxSize="1.5rem" />} 
             variant={isActive('/') ? 'solid' : 'ghost'} 
             bg={isActive('/') ? activeBg : 'transparent'}
-            color={isActive('/') ? 'white' : textColor}
+            color={isActive('/') ? 'white' : '#dedede'}
             _hover={{ bg: hoverBg, color: 'white' }}
             justifyContent="flex-start"
             width="100%"
@@ -178,7 +178,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/lobby') ? activeBg : 'transparent'}
-                color={isActive('/lobby') ? 'white' : textColor}
+                color={isActive('/lobby') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/lobby') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -190,7 +190,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoPeople} boxSize="1.5rem" />} 
                 variant={isActive('/lobby') ? 'solid' : 'ghost'} 
                 bg={isActive('/lobby') ? activeBg : 'transparent'}
-                color={isActive('/lobby') ? 'white' : textColor}
+                color={isActive('/lobby') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -210,7 +210,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/play-friend') ? activeBg : 'transparent'}
-                color={isActive('/play-friend') ? 'white' : textColor}
+                color={isActive('/play-friend') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/play-friend') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -222,7 +222,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoDeviceDesktop} boxSize="1.5rem" />} 
                 variant={isActive('/play-friend') ? 'solid' : 'ghost'} 
                 bg={isActive('/play-friend') ? activeBg : 'transparent'}
-                color={isActive('/play-friend') ? 'white' : textColor}
+                color={isActive('/play-friend') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -242,7 +242,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/play-computer') ? activeBg : 'transparent'}
-                color={isActive('/play-computer') ? 'white' : textColor}
+                color={isActive('/play-computer') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/play-computer') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -254,7 +254,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoTerminal} boxSize="1.5rem" />} 
                 variant={isActive('/play-computer') ? 'solid' : 'ghost'} 
                 bg={isActive('/play-computer') ? activeBg : 'transparent'}
-                color={isActive('/play-computer') ? 'white' : textColor}
+                color={isActive('/play-computer') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -274,7 +274,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/profile') ? activeBg : 'transparent'}
-                color={isActive('/profile') ? 'white' : textColor}
+                color={isActive('/profile') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/profile') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -286,7 +286,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoPerson} boxSize="1.5rem" />} 
                 variant={isActive('/profile') ? 'solid' : 'ghost'} 
                 bg={isActive('/profile') ? activeBg : 'transparent'}
-                color={isActive('/profile') ? 'white' : textColor}
+                color={isActive('/profile') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -310,7 +310,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/login') ? activeBg : 'transparent'}
-                color={isActive('/login') ? 'white' : textColor}
+                color={isActive('/login') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/login') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -322,7 +322,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoSignIn} boxSize="1.5rem" />} 
                 variant={isActive('/login') ? 'solid' : 'ghost'} 
                 bg={isActive('/login') ? activeBg : 'transparent'}
-                color={isActive('/login') ? 'white' : textColor}
+                color={isActive('/login') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -342,7 +342,7 @@ const Sidebar = () => {
                 w="100%" 
                 h="42px"
                 bg={isActive('/register') ? activeBg : 'transparent'}
-                color={isActive('/register') ? 'white' : textColor}
+                color={isActive('/register') ? 'white' : '#dedede'}
                 _hover={{ bg: isActive('/register') ? activeBg : hoverBg, color: 'white' }}
                 transition="all 0.2s"
                 borderRadius="md"
@@ -354,7 +354,7 @@ const Sidebar = () => {
                 leftIcon={<Icon as={GoPersonAdd} boxSize="1.5rem" />} 
                 variant={isActive('/register') ? 'solid' : 'ghost'} 
                 bg={isActive('/register') ? activeBg : 'transparent'}
-                color={isActive('/register') ? 'white' : textColor}
+                color={isActive('/register') ? 'white' : '#dedede'}
                 _hover={{ bg: hoverBg, color: 'white' }}
                 justifyContent="flex-start"
                 width="100%"
@@ -383,7 +383,7 @@ const Sidebar = () => {
             h={10}
             borderRadius="md"
             bg={isActive('/settings') ? activeBg : 'transparent'}
-            color={isActive('/settings') ? 'white' : textColor}
+            color={isActive('/settings') ? 'white' : '#dedede'}
             _hover={{ bg: isActive('/settings') ? activeBg : hoverBg, color: 'white' }}
             transition="all 0.2s"
           >
@@ -400,7 +400,7 @@ const Sidebar = () => {
             w={10} 
             h={10}
             borderRadius="md"
-            color="chess-dark"
+            color="#dedede"
             _hover={{ bg: hoverBg, color: 'white' }}
             transition="all 0.2s"
             onClick={handleLogout}
@@ -434,7 +434,7 @@ const Sidebar = () => {
       >
         <Icon 
           as={isCollapsed ? HiMenuAlt2 : HiMenu} 
-          color="chess-dark" 
+          color="#dedede" 
           boxSize="1.5rem" 
           style={{ transition: 'transform 0.3s ease' }}
         />

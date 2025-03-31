@@ -13,7 +13,14 @@ import {
   Tooltip,
   Center,
   Spacer,
-  useColorModeValue
+  useColorModeValue,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure
 } from '@chakra-ui/react';
 // Import icons individually to avoid dependency issues
 import { GoHome, GoGear, GoPerson, GoSignOut, GoSignIn, 
@@ -35,10 +42,11 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const hoverTimeoutRef = useRef(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
   
   // Use Chakra UI color mode values (using theme colors)
   const bgColor = 'chess-light';
-  const textColor = '#dedede';
+  const textColor = 'chess-dark';
   const activeBg = 'primary';
   const hoverBg = 'chess-hover';
   
@@ -112,6 +120,19 @@ const Sidebar = () => {
     // Force a layout recalculation to ensure transitions work
     void document.body.offsetHeight; // Using void operator to indicate intentional side effect
   }, [isCollapsed]);
+
+  // Handle logout with confirmation
+  const handleLogout = () => {
+    // Open the modal and collapse the sidebar
+    onOpen();
+    setIsCollapsed(true);
+    setIsMobileOpen(false); // Also close mobile sidebar if open
+  };
+  
+  const confirmLogout = () => {
+    onClose();
+    logout();
+  };
 
   // Main navigation items
   const MainNavItems = () => (
@@ -382,7 +403,7 @@ const Sidebar = () => {
             color="chess-dark"
             _hover={{ bg: hoverBg, color: 'white' }}
             transition="all 0.2s"
-            onClick={logout}
+            onClick={handleLogout}
           >
             <Icon as={GoSignOut} boxSize="1.3rem" />
           </Center>
@@ -516,6 +537,40 @@ const Sidebar = () => {
           <BottomIcons />
         </Flex>
       </Box>
+
+      {/* Logout Confirmation Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(5px)" />
+        <ModalContent bg="chess-light" borderRadius="md" mx={4}>
+          <ModalHeader color="#ffffff" fontSize="lg" fontWeight="bold">
+            Confirm Logout
+          </ModalHeader>
+          <ModalBody pb={6}>
+            <Text color="#ffffff">
+              Are you sure you want to log out?
+            </Text>
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Button 
+              onClick={onClose} 
+              variant="outline" 
+              borderColor="chess-dark"
+              color="chess-dark"
+              _hover={{ bg: "gray.100" }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmLogout} 
+              bg="primary" 
+              color="white"
+              _hover={{ bg: "chess-hover" }}
+            >
+              Logout
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 };

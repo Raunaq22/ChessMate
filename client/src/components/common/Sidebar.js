@@ -38,7 +38,7 @@ const Sidebar = () => {
   
   // Use Chakra UI color mode values (using theme colors)
   const bgColor = 'chess-light';
-  const textColor = 'chess-dark';
+  const textColor = '#dedede';
   const activeBg = 'primary';
   const hoverBg = 'chess-hover';
   

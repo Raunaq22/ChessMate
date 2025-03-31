@@ -426,9 +426,6 @@ const handleCreateGame = async (timeControl) => {
     <Container maxW="7xl" py={8}>
       {/* Header Section */}
       <Flex direction={{ base: "column", md: "row" }} justify="space-between" align="center" mb={8}>
-        <Heading as="h1" size="xl" color="chess-dark" mb={{ base: 4, md: 0 }}>
-          Chess Lobby
-        </Heading>
         
         <Button
           leftIcon={<Icon as={FaPlus} />}
@@ -456,8 +453,8 @@ const handleCreateGame = async (timeControl) => {
             <HStack spacing={3} mb={{ base: 4, md: 0 }}>
               <Icon as={FaUserFriends} boxSize={6} color="primary" />
               <Box>
-                <Heading size="md" color="chess-dark" mb={1}>Play with a Friend</Heading>
-                <Text color="chess-dark">Challenge a specific person using our friend code system</Text>
+                <Heading size="md" color="#ffffff" mb={1}>Play with a Friend</Heading>
+                <Text color="#dedede">Challenge a specific person using our friend code system</Text>
               </Box>
             </HStack>
             
@@ -502,11 +499,11 @@ const handleCreateGame = async (timeControl) => {
       {loading && availableGames.length === 0 ? (
         <Flex direction="column" align="center" justify="center" my={12}>
           <Spinner size="xl" thickness="4px" speed="0.65s" color="primary" mb={4} />
-          <Text color="chess-dark" fontSize="lg">Loading games...</Text>
+          <Text color="#ffffff" fontSize="lg">Loading games...</Text>
         </Flex>
       ) : (
         <>
-          <Heading as="h2" size="md" color="chess-dark" mb={4}>Available Games</Heading>
+          <Heading as="h2" size="md" color="#ffffff" mb={4}>Available Games</Heading>
           
           {availableGames.length > 0 ? (
             <Grid 
@@ -597,8 +594,8 @@ const handleCreateGame = async (timeControl) => {
               borderColor="gray.200"
               borderStyle="dashed"
             >
-              <Heading size="md" color="chess-dark" mb={2}>No games available</Heading>
-              <Text color="chess-dark" mb={6}>Create a game to start playing!</Text>
+              <Heading size="md" color="#ffffff" mb={2}>No games available</Heading>
+              <Text color="#dedede" mb={6}>Create a game to start playing!</Text>
               <Button
                 onClick={onOpen}
                 bg="primary"

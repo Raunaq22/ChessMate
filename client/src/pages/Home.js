@@ -16,6 +16,8 @@ import {
 } from '@chakra-ui/react';
 import { FaChessKnight, FaUserFriends, FaRobot, FaTrophy } from 'react-icons/fa';
 import useWindowSize from '../hooks/useWindowSize';
+// Import Chess.js for chess logic
+import { Chess } from 'chess.js';
 
 // Format image URL helper function
 const formatImageUrl = (url) => {
@@ -30,6 +32,9 @@ const Home = () => {
   const containerRef = useRef(null);
   const { width, height } = useWindowSize();
   const [boardSize, setBoardSize] = useState(540);
+  // Add state for chess position and game
+  const [position, setPosition] = useState('start');
+  const [game, setGame] = useState(new Chess());
   
   // Handle authentication
   const goToAuthPage = (path) => {
@@ -54,6 +59,38 @@ const Home = () => {
       setBoardSize(newSize);
     }
   }, [width, height, containerRef]);
+
+  // Handle piece movement
+  const onDrop = (sourceSquare, targetSquare) => {
+    try {
+      // Get the piece at the source square
+      const piece = game.get(sourceSquare);
+      if (!piece) return false;
+      
+      // Check if we're trying to capture our own piece
+      const targetPiece = game.get(targetSquare);
+      if (targetPiece && targetPiece.color === piece.color) {
+        return false; // Can't capture own pieces
+      }
+      
+      // Try to make the move using chess.js built-in validation
+      const move = game.move({
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: 'q', // Always promote to queen for simplicity
+      });
+      
+      // If the move is invalid, return false
+      if (!move) return false;
+      
+      // Update the board
+      setPosition(game.fen());
+      return true;
+    } catch (error) {
+      console.error('Error making move:', error);
+      return false;
+    }
+  };
 
   return (
     <Container maxW="container.xl" p={0} mt={{ base: 0, md: 0 }}>
@@ -81,7 +118,8 @@ const Home = () => {
           >
             <ThemedChessboard
               id="home-board"
-              position="start"
+              position={position}
+              onPieceDrop={onDrop}
               boardWidth={boardSize}
               showBoardNotation={true}
               areArrowsAllowed={false}

@@ -340,11 +340,15 @@ const GamePage = () => {
       )}
 
       {/* Main game layout */}
-      <VStack spacing={4} align="stretch">
-        <Flex direction={{ base: "column", md: "row" }} gap={4}>
-          {/* Left side - Chessboard and player info (100% width on mobile, 60% on desktop) */}
-          <Box w={{ base: "100%", md: "60%" }} ref={containerRef}>
-            <VStack spacing={4} align="stretch">
+      <VStack spacing={2} align="stretch">
+        <Flex direction={{ base: "column", md: "row" }} gap={3}>
+          {/* Left side - Chessboard and player info (fixed max width on large screens) */}
+          <Box 
+            w={{ base: "100%", md: "60%", xl: "750px" }}
+            flexShrink={0}
+            ref={containerRef}
+          >
+            <VStack spacing={1} align="stretch">
               {/* Menu button for mobile */}
               <Box display={{ base: "none", md: "none" }} position="fixed" top={4} left={4} zIndex={10}>
                 <IconButton
@@ -474,15 +478,15 @@ const GamePage = () => {
                 </Flex>
               </Flex>
 
-              {/* Game controls for mobile and desktop */}
-              <Box pt={2}>
+              {/* Game controls for mobile only */}
+              <Box pt={2} display={{ base: "block", md: "none" }}>
                 <HStack spacing={4} justify="center" w="100%">
                   <Button
                     onClick={handleResign}
                     bg="red.500"
                     color="white"
                     _hover={{ bg: "red.600" }}
-                    size={{ base: "md", md: "lg" }}
+                    size="md"
                     w="50%"
                     isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
                   >
@@ -493,7 +497,7 @@ const GamePage = () => {
                     bg="primary"
                     color="white"
                     _hover={{ bg: "blue.600" }}
-                    size={{ base: "md", md: "lg" }}
+                    size="md"
                     w="50%"
                     isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
                   >
@@ -501,56 +505,35 @@ const GamePage = () => {
                   </Button>
                 </HStack>
               </Box>
-
-              {/* Draw offer dialog */}
-              {drawOfferReceived && (
-                <Box p={4} bg="green.100" color="green.800" rounded="md" border="1px" borderColor="green.300">
-                  <Text mb={2}>Your opponent offers a draw</Text>
-                  <Flex gap={4}>
-                    <Button 
-                      onClick={handleAcceptDraw}
-                      bg="primary"
-                      color="white"
-                      _hover={{ bg: "blue.600" }}
-                    >
-                      Accept
-                    </Button>
-                    <Button 
-                      onClick={handleDeclineDraw}
-                      bg="red.500"
-                      color="white"
-                      _hover={{ bg: "red.600" }}
-                    >
-                      Decline
-                    </Button>
-                  </Flex>
-                </Box>
-              )}
             </VStack>
           </Box>
 
           {/* Right side - Game info and controls (Desktop only) */}
           <Box 
-            w={{ base: "0", md: "40%" }}
+            w={{ base: "0", md: "40%", xl: "1fr" }}
+            flexGrow={1}
             display={{ base: "none", md: "block" }}
             bg="white"
-            p={4}
+            p={3}
             borderRadius="md"
             shadow="md"
+            height="100%"
+            minH={{ lg: "700px" }}
+            position="relative"
           >
             {/* Game controls and info content */}
-            <VStack spacing={6} align="stretch" h="100%">
+            <VStack spacing={3} align="stretch" h="100%">
               {/* Game history */}
-              <Box bg="chess-hover" rounded="lg" shadow="md" p={4} flex="1">
-                <Flex align="center" mb={4}>
+              <Box bg="chess-hover" rounded="lg" shadow="md" p={3}>
+                <Flex align="center" mb={2}>
                   <FaHistory style={{ marginRight: '8px' }} />
                   <Heading as="h2" size="lg" color="white">Game History</Heading>
                 </Flex>
                 <Box 
-                  h="300px" 
+                  h={{ md: "200px", lg: "250px", xl: "300px" }}
                   overflowY="auto" 
                   bg="white"
-                  p={3}
+                  p={2}
                   rounded="md"
                   css={{
                     '&::-webkit-scrollbar': {
@@ -590,20 +573,84 @@ const GamePage = () => {
               </Box>
               
               {/* Chat */}
-              <Box bg="chess-hover" rounded="lg" shadow="md" p={4} flex="1">
-                <Flex align="center" mb={4}>
+              <Box bg="chess-hover" rounded="lg" shadow="md" p={3} flex="1" display="flex" flexDirection="column">
+                <Flex align="center" mb={2}>
                   <FaComment style={{ marginRight: '8px' }} />
                   <Heading as="h2" size="lg" color="white">Chat</Heading>
                 </Flex>
-                <ChatWindow
-                  messages={chatMessages}
-                  currentUser={currentUser}
-                />
-                <ChatInput
-                  onSendMessage={handleSendMessage}
-                  disabled={false}
-                />
+                <Box 
+                  bg="white" 
+                  p={2} 
+                  rounded="md" 
+                  display="flex" 
+                  flexDirection="column" 
+                  h={{ md: "200px", lg: "250px", xl: "300px" }}
+                >
+                  <Box flex="1" overflowY="auto">
+                    <ChatWindow
+                      messages={chatMessages}
+                      currentUser={currentUser}
+                    />
+                  </Box>
+                  <ChatInput
+                    onSendMessage={handleSendMessage}
+                    disabled={false}
+                  />
+                </Box>
               </Box>
+
+              {/* Game controls for desktop only */}
+              <Box pt={2} pb={2} mt="auto">
+                <HStack spacing={4} justify="center" w="100%">
+                  <Button
+                    onClick={handleResign}
+                    bg="red.500"
+                    color="white"
+                    _hover={{ bg: "red.600" }}
+                    size="lg"
+                    w="50%"
+                    isDisabled={!gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                  >
+                    Resign
+                  </Button>
+                  <Button
+                    onClick={handleOfferDraw}
+                    bg="primary"
+                    color="white"
+                    _hover={{ bg: "blue.600" }}
+                    size="lg"
+                    w="50%"
+                    isDisabled={offeringDraw || drawOfferReceived || !gameStarted || gameStatus?.includes('wins') || gameStatus?.includes('Draw')}
+                  >
+                    {offeringDraw ? 'Draw Offered' : 'Offer Draw'}
+                  </Button>
+                </HStack>
+              </Box>
+
+              {/* Draw offer dialog */}
+              {drawOfferReceived && (
+                <Box p={4} bg="green.100" color="green.800" rounded="md" border="1px" borderColor="green.300">
+                  <Text mb={2}>Your opponent offers a draw</Text>
+                  <Flex gap={4}>
+                    <Button 
+                      onClick={handleAcceptDraw}
+                      bg="primary"
+                      color="white"
+                      _hover={{ bg: "blue.600" }}
+                    >
+                      Accept
+                    </Button>
+                    <Button 
+                      onClick={handleDeclineDraw}
+                      bg="red.500"
+                      color="white"
+                      _hover={{ bg: "red.600" }}
+                    >
+                      Decline
+                    </Button>
+                  </Flex>
+                </Box>
+              )}
             </VStack>
           </Box>
         </Flex>

@@ -39,7 +39,7 @@ const Sidebar = () => {
   const { isAuthenticated, currentUser, logout } = useContext(AuthContext);
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const hoverTimeoutRef = useRef(null);
   const { isOpen, onOpen, onClose } = useDisclosure();

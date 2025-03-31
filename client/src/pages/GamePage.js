@@ -95,13 +95,38 @@ const GamePage = () => {
 
   // Responsive board size
   useEffect(() => {
+    const calculateBoardSize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // Calculate board size based on container width, ensuring it maintains aspect ratio
+        const newSize = Math.min(containerWidth - 16, windowHeight * 0.7);
+        setBoardSize(newSize);
+      }
+    };
+
+    // Calculate immediately if container exists
+    calculateBoardSize();
+
+    // Also recalculate after a brief delay to ensure DOM is fully rendered
+    const resizeTimeout = setTimeout(() => {
+      calculateBoardSize();
+    }, 100);
+
+    // Set up a MutationObserver to detect changes in container dimensions
     if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      // Calculate board size based on container width, ensuring it maintains aspect ratio
-      const newSize = Math.min(containerWidth - 16, windowHeight * 0.7);
-      setBoardSize(newSize);
+      const observer = new ResizeObserver(() => {
+        calculateBoardSize();
+      });
+      observer.observe(containerRef.current);
+      
+      return () => {
+        observer.disconnect();
+        clearTimeout(resizeTimeout);
+      };
     }
-  }, [windowWidth, windowHeight, containerRef]);
+    
+    return () => clearTimeout(resizeTimeout);
+  }, [windowWidth, windowHeight]);
 
   // Show notification as toast
   useEffect(() => {

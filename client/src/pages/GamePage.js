@@ -99,8 +99,11 @@ const GamePage = () => {
     const calculateBoardSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
-        // Calculate board size based on container width, ensuring it maintains aspect ratio
-        const newSize = Math.min(containerWidth - 16, windowHeight * 0.7);
+        const viewportHeight = window.innerHeight;
+        // Calculate board size based on container width and viewport height
+        // Ensure it maintains aspect ratio and doesn't overflow
+        const maxHeightSize = viewportHeight * 0.65; // Limit to 65% of viewport height
+        const newSize = Math.min(containerWidth - 16, maxHeightSize);
         setBoardSize(newSize);
       }
     };
@@ -290,7 +293,7 @@ const GamePage = () => {
   }
 
   return (
-    <Container maxW="100%" px={4} py={4}>
+    <Container maxW="100%" px={4} py={4} minH={{ base: "100vh", md: "100vh" }} display="flex" flexDirection="column">
       {/* Confetti animation */}
       {showConfetti && <Confetti 
         width={windowWidth} 
@@ -393,15 +396,18 @@ const GamePage = () => {
       )}
 
       {/* Main game layout */}
-      <VStack spacing={2} align="stretch">
-        <Flex direction={{ base: "column", md: "row" }} gap={3}>
+      <VStack spacing={2} align="stretch" flex="1" overflow="hidden">
+        <Flex direction={{ base: "column", md: "row" }} gap={3} h={{ md: "calc(100vh - 120px)" }} overflow={{ md: "hidden" }}>
           {/* Left side - Chessboard and player info (fixed max width on large screens) */}
           <Box 
             w={{ base: "100%", md: "60%", xl: "750px" }}
             flexShrink={0}
             ref={containerRef}
+            h={{ md: "100%" }}
+            display="flex"
+            flexDirection="column"
           >
-            <VStack spacing={1} align="stretch">
+            <VStack spacing={1} align="stretch" h="100%">
               {/* Menu button for mobile */}
               <Box display={{ base: "none", md: "none" }} position="fixed" top={4} left={4} zIndex={10}>
                 <IconButton
@@ -447,7 +453,9 @@ const GamePage = () => {
                   <Timer
                     initialTime={playerColor === 'white' ? blackTime : whiteTime}
                     increment={timeIncrement}
-                    isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameEnded}
+                    isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && 
+                               gameStarted && !gameEnded && 
+                               playerIds && playerIds.white && playerIds.black}
                     onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
                     onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
                     gameEnded={gameEnded}
@@ -460,10 +468,12 @@ const GamePage = () => {
                 w="100%" 
                 mx="auto"
                 position="relative"
-                paddingBottom="100%"
+                flex={{ md: "1" }}
+                minH={{ base: "auto", md: "0" }}
+                paddingBottom={{ base: "100%", md: 0 }}
               >
                 <Box 
-                  position="absolute"
+                  position={{ base: "absolute", md: "relative" }}
                   top={0}
                   left={0}
                   right={0}
@@ -471,11 +481,28 @@ const GamePage = () => {
                   display="flex"
                   alignItems="center"
                   justifyContent="center"
+                  h="100%"
                 >
                   <ThemedChessboard
                     id="responsive-board"
                     position={position}
-                    onPieceDrop={onDrop}
+                    onPieceDrop={(source, target, piece) => {
+                      // Only make actual moves if both players have joined
+                      if (playerIds && playerIds.white && playerIds.black) {
+                        return onDrop(source, target, piece);
+                      } else if (playerColor === 'white' && piece[0] === 'w') {
+                        // For white player, store as premove but don't actually move yet
+                        toast({
+                          title: "Waiting for opponent",
+                          description: "Your move will be played when your opponent joins",
+                          status: "info",
+                          duration: 3000,
+                          isClosable: true,
+                        });
+                        return false; // Don't make the actual move yet
+                      }
+                      return false;
+                    }}
                     onPieceDragBegin={onPieceDragStart}
                     onSquareClick={onSquareClick}
                     boardOrientation={playerColor}
@@ -493,10 +520,12 @@ const GamePage = () => {
                     customPieces={customPieces}
                     ref={boardRef}
                     allowDrag={({ piece }) => {
+                      // Allow white to drag for premoves even if black hasn't joined
                       return !gameEnded && 
                              ((piece[0] === 'w' && playerColor === 'white') || 
                               (piece[0] === 'b' && playerColor === 'black')) &&
-                             playerIds && playerIds.white && playerIds.black;
+                             // Only require the current player's ID to be present
+                             playerIds && playerIds[playerColor];
                     }}
                   />
                 </Box>
@@ -533,7 +562,9 @@ const GamePage = () => {
                   <Timer
                     initialTime={playerColor === 'white' ? whiteTime : blackTime}
                     increment={timeIncrement}
-                    isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameEnded}
+                    isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && 
+                               gameStarted && !gameEnded && 
+                               playerIds && playerIds.white && playerIds.black}
                     onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
                     onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
                     gameEnded={gameEnded}
@@ -580,20 +611,20 @@ const GamePage = () => {
             p={3}
             borderRadius="md"
             shadow="md"
-            height="100%"
-            minH={{ lg: "700px" }}
+            h="100%"
+            overflow="hidden"
             position="relative"
           >
             {/* Game controls and info content */}
             <VStack spacing={3} align="stretch" h="100%">
               {/* Game history */}
-              <Box bg="chess-hover" rounded="lg" shadow="md" p={3}>
+              <Box bg="chess-hover" rounded="lg" shadow="md" p={3} h="40%">
                 <Flex align="center" mb={2}>
                   <FaHistory style={{ marginRight: '8px' }} />
                   <Heading as="h2" size="lg" color="white">Game History</Heading>
                 </Flex>
                 <Box 
-                  h={{ md: "200px", lg: "250px", xl: "300px" }}
+                  h="calc(100% - 40px)"
                   overflowY="auto" 
                   bg="white"
                   p={2}
@@ -617,7 +648,10 @@ const GamePage = () => {
                       {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
                         const moveIdx = idx * 2;
                         const whiteMove = moveHistory[moveIdx];
-                        const blackMove = moveHistory[moveIdx + 1];
+                        // For black's move, ensure we're not duplicating the white move
+                        const blackMove = moveHistory[moveIdx + 1] && 
+                          moveHistory[moveIdx + 1].notation !== whiteMove?.notation ? 
+                          moveHistory[moveIdx + 1] : null;
                         return (
                           <React.Fragment key={idx}>
                             <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
@@ -636,7 +670,7 @@ const GamePage = () => {
               </Box>
               
               {/* Chat */}
-              <Box bg="chess-hover" rounded="lg" shadow="md" p={3} flex="1" display="flex" flexDirection="column">
+              <Box bg="chess-hover" rounded="lg" shadow="md" p={3} h="50%" display="flex" flexDirection="column">
                 <Flex align="center" mb={2}>
                   <FaComment style={{ marginRight: '8px' }} />
                   <Heading as="h2" size="lg" color="white">Chat</Heading>
@@ -647,7 +681,7 @@ const GamePage = () => {
                   rounded="md" 
                   display="flex" 
                   flexDirection="column" 
-                  h={{ md: "200px", lg: "250px", xl: "300px" }}
+                  h="calc(100% - 40px)"
                 >
                   <Box flex="1" overflowY="auto">
                     <ChatWindow
@@ -719,7 +753,7 @@ const GamePage = () => {
         </Flex>
 
         {/* Mobile Game History and Chat (displayed at the bottom) */}
-        <Box display={{ base: "block", md: "none" }} mt={4}>
+        <Box display={{ base: "block", md: "none" }} mt={4} maxH={{ base: "calc(35vh)", sm: "calc(40vh)" }} overflow="auto">
           <VStack spacing={4} align="stretch">
             {/* Game history for mobile */}
             <Box bg="chess-hover" rounded="lg" shadow="md" p={3}>
@@ -728,7 +762,7 @@ const GamePage = () => {
                 <Heading as="h2" size="md" color="white">Game History</Heading>
               </Flex>
               <Box 
-                maxH="150px" 
+                maxH={{ base: "15vh", sm: "20vh" }}
                 overflowY="auto" 
                 bg="white"
                 p={2}
@@ -740,7 +774,10 @@ const GamePage = () => {
                     {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
                       const moveIdx = idx * 2;
                       const whiteMove = moveHistory[moveIdx];
-                      const blackMove = moveHistory[moveIdx + 1];
+                      // For black's move, ensure we're not duplicating the white move
+                      const blackMove = moveHistory[moveIdx + 1] && 
+                        moveHistory[moveIdx + 1].notation !== whiteMove?.notation ? 
+                        moveHistory[moveIdx + 1] : null;
                       return (
                         <React.Fragment key={idx}>
                           <Text color="gray.500" fontWeight="medium" fontSize="xs">{idx + 1}.</Text>
@@ -764,12 +801,14 @@ const GamePage = () => {
                 <FaComment style={{ marginRight: '8px' }} color="white" />
                 <Heading as="h2" size="md" color="white">Chat</Heading>
               </Flex>
-              <Box maxH="180px" bg="white" p={2} rounded="md">
-                <ChatWindow
-                  messages={chatMessages}
-                  currentUser={currentUser}
-                  isMobile={true}
-                />
+              <Box maxH={{ base: "15vh", sm: "20vh" }} bg="white" p={2} rounded="md" display="flex" flexDirection="column">
+                <Box flex="1" overflow="auto">
+                  <ChatWindow
+                    messages={chatMessages}
+                    currentUser={currentUser}
+                    isMobile={true}
+                  />
+                </Box>
                 <ChatInput
                   onSendMessage={handleSendMessage}
                   disabled={false}

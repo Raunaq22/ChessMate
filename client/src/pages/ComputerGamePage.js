@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import ThemedChessboard from '../components/Board/ThemedChessboard';
+import CapturedPieces from '../components/Game/CapturedPieces';
 import ComputerGameModal from '../components/Game/ComputerGameModal';
 import useWindowSize from '../hooks/useWindowSize';
 import Confetti from 'react-confetti';
@@ -773,6 +774,42 @@ const ComputerGamePage = () => {
     setShowResignConfirm(false);
   }, []);
 
+  // Function to calculate material advantage
+  const calculateAdvantage = (perspective) => {
+    if (!position) return 0;
+    
+    const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+    let materialDiff = 0;
+    
+    // Count pieces in current position
+    const pieceCount = {
+      p: 0, n: 0, b: 0, r: 0, q: 0,
+      P: 0, N: 0, B: 0, R: 0, Q: 0
+    };
+    
+    const board = position.split(' ')[0];
+    for (const char of board) {
+      if (pieceCount.hasOwnProperty(char)) {
+        pieceCount[char]++;
+      }
+    }
+    
+    // Calculate material difference
+    for (const piece in pieceCount) {
+      const pieceType = piece.toLowerCase();
+      const value = pieceValues[pieceType] || 0;
+      
+      if (piece === piece.toUpperCase()) {  // White piece
+        materialDiff += value * pieceCount[piece];
+      } else {  // Black piece
+        materialDiff -= value * pieceCount[piece];
+      }
+    }
+    
+    // Return material advantage from perspective
+    return materialDiff * (perspective === 'white' ? 1 : -1);
+  };
+
   // Main layout render
   return (
     <Container maxW="100%" px={[2, 4]} py={4}>
@@ -813,30 +850,51 @@ const ComputerGamePage = () => {
           <GridItem>
             <Flex direction="column" h="100%">
               {/* Top player (Computer) */}
-              <Flex justifyContent="space-between" alignItems="center" bg="chess-light" p={3} borderRadius="lg" mb={4}>
-                <Flex align="center">
-                  <Avatar
-                    icon={<FaRobot />}
-                    bg={playerColor === 'white' ? "gray.800" : "white"}
-                    color={playerColor === 'white' ? "white" : "black"}
-                    mr={3}
-                    size="md"
+              <Flex direction="column" bg="chess-light" p={3} borderRadius="lg" mb={4}>
+                <Flex justifyContent="space-between" alignItems="center">
+                  <Flex align="center">
+                    <Avatar
+                      icon={<FaRobot />}
+                      bg={playerColor === 'white' ? "gray.800" : "white"}
+                      color={playerColor === 'white' ? "white" : "black"}
+                      mr={3}
+                      size="md"
+                    />
+                    <Box>
+                      <Text fontWeight="bold" color="white">Computer</Text>
+                      <Flex align="center">
+                        <Badge colorScheme={playerColor === 'white' ? "gray" : "yellow"}>
+                          {playerColor === 'white' ? 'Black' : 'White'}
+                        </Badge>
+                        
+                        {/* Material advantage display */}
+                        {calculateAdvantage(playerColor === 'white' ? 'black' : 'white') > 0 && (
+                          <Text 
+                            ml={1}
+                            fontWeight="bold" 
+                            color="green.500"
+                            fontSize="sm"
+                          >
+                            +{calculateAdvantage(playerColor === 'white' ? 'black' : 'white')}
+                          </Text>
+                        )}
+                      </Flex>
+                    </Box>
+                  </Flex>
+                  <Timer
+                    initialTime={playerColor === 'white' ? blackTime : whiteTime}
+                    time={playerColor === 'white' ? blackTime : whiteTime}
+                    increment={timeIncrement}
+                    isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameOver}
+                    onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
+                    onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
+                    gameEnded={gameOver}
                   />
-                  <Box>
-                    <Text fontWeight="bold" color="white">Computer</Text>
-                    <Badge colorScheme={playerColor === 'white' ? "gray" : "yellow"}>
-                      {playerColor === 'white' ? 'Black' : 'White'}
-                    </Badge>
-                  </Box>
                 </Flex>
-                <Timer
-                  initialTime={playerColor === 'white' ? blackTime : whiteTime}
-                  time={playerColor === 'white' ? blackTime : whiteTime}
-                  increment={timeIncrement}
-                  isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameOver}
-                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
-                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'black' : 'white', time)}
-                  gameEnded={gameOver}
+                <CapturedPieces 
+                  fen={position} 
+                  color={playerColor === 'white' ? 'black' : 'white'}
+                  mt={1}
                 />
               </Flex>
               
@@ -875,30 +933,51 @@ const ComputerGamePage = () => {
               </Box>
               
               {/* Bottom player (You) */}
-              <Flex justifyContent="space-between" alignItems="center" bg="chess-light" p={3} borderRadius="lg" mb={4}>
-                <Flex align="center">
-                  <Avatar
-                    icon={<FaUser />}
-                    bg={playerColor === 'white' ? "white" : "gray.800"}
-                    color={playerColor === 'white' ? "black" : "white"}
-                    mr={3}
-                    size="md"
+              <Flex direction="column" bg="chess-light" p={3} borderRadius="lg">
+                <Flex justifyContent="space-between" alignItems="center">
+                  <Flex align="center">
+                    <Avatar
+                      icon={<FaUser />}
+                      bg={playerColor === 'white' ? "white" : "gray.800"}
+                      color={playerColor === 'white' ? "black" : "white"}
+                      mr={3}
+                      size="md"
+                    />
+                    <Box>
+                      <Text fontWeight="bold" color="white">You</Text>
+                      <Flex align="center">
+                        <Badge colorScheme={playerColor === 'white' ? "yellow" : "gray"}>
+                          {playerColor === 'white' ? 'White' : 'Black'}
+                        </Badge>
+                        
+                        {/* Material advantage display */}
+                        {calculateAdvantage(playerColor) > 0 && (
+                          <Text 
+                            ml={1}
+                            fontWeight="bold" 
+                            color="green.500"
+                            fontSize="sm"
+                          >
+                            +{calculateAdvantage(playerColor)}
+                          </Text>
+                        )}
+                      </Flex>
+                    </Box>
+                  </Flex>
+                  <Timer
+                    initialTime={playerColor === 'white' ? whiteTime : blackTime}
+                    time={playerColor === 'white' ? whiteTime : blackTime}
+                    increment={timeIncrement}
+                    isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameOver}
+                    onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
+                    onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
+                    gameEnded={gameOver}
                   />
-                  <Box>
-                    <Text fontWeight="bold" color="white">You</Text>
-                    <Badge colorScheme={playerColor === 'white' ? "yellow" : "gray"}>
-                      {playerColor}
-                    </Badge>
-                  </Box>
                 </Flex>
-                <Timer
-                  initialTime={playerColor === 'white' ? whiteTime : blackTime}
-                  time={playerColor === 'white' ? whiteTime : blackTime}
-                  increment={timeIncrement}
-                  isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameOver}
-                  onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}
-                  onTimeChange={(time) => handleTimeUpdate(playerColor === 'white' ? 'white' : 'black', time)}
-                  gameEnded={gameOver}
+                <CapturedPieces 
+                  fen={position} 
+                  color={playerColor}
+                  mt={1}
                 />
               </Flex>
 
@@ -907,16 +986,18 @@ const ComputerGamePage = () => {
               <Button
                 leftIcon={<Icon as={FaUndo} />}
                 onClick={handleRestartGame}
-                colorScheme="blue"
-                variant="outline"
+                bg="primary"
+                color="white"
+                _hover={{ bg: "chess-hover" }}
                 size="md"
               >
                 Restart
               </Button>
               <Button
                 onClick={handleResign}
-                colorScheme="red"
-                variant="solid"
+                bg="red.500"
+                color="white"
+                _hover={{ bg: "red.600" }}
                 size="md"
                 isDisabled={!gameStarted || gameOver}
               >
@@ -925,8 +1006,9 @@ const ComputerGamePage = () => {
               <Button
                 leftIcon={<Icon as={FaArrowLeft} />}
                 onClick={() => navigate("/home")}
-                colorScheme="gray"
-                variant="outline"
+                bg="gray.600"
+                color="white"
+                _hover={{ bg: "gray.700" }}
                 size="md"
               >
                 Exit
@@ -947,14 +1029,14 @@ const ComputerGamePage = () => {
               <CardBody>
                 <VStack align="stretch" spacing={3}>
                   <HStack justify="space-between">
-                    <Text fontWeight="medium" color="chess-dark">Difficulty:</Text>
-                    <Badge colorScheme="blue" fontSize="0.9em" p={1}>
+                    <Text fontWeight="medium" color="#ffffff">Difficulty:</Text>
+                    <Badge fontSize="0.9em" p={1}>
                       {difficultyNames[difficulty]}
                     </Badge>
                   </HStack>
                   
                   <HStack justify="space-between">
-                    <Text fontWeight="medium" color="chess-dark">Your color:</Text>
+                    <Text fontWeight="medium" color="#ffffff">Your color:</Text>
                     <Badge
                       colorScheme={playerColor === 'white' ? "yellow" : "gray"}
                       fontSize="0.9em"
@@ -965,7 +1047,7 @@ const ComputerGamePage = () => {
                   </HStack>
                   
                   <HStack justify="space-between">
-                    <Text fontWeight="medium" color="chess-dark">Game status:</Text>
+                    <Text fontWeight="medium" color="#ffffff">Game status:</Text>
                     <Badge
                       colorScheme={gameOver ? "red" : "green"}
                       fontSize="0.9em"
@@ -977,7 +1059,7 @@ const ComputerGamePage = () => {
                   
                   {!gameOver && (
                     <HStack justify="space-between">
-                      <Text fontWeight="medium" color="chess-dark">Current turn:</Text>
+                      <Text fontWeight="medium" color="#ffffff">Current turn:</Text>
                       <Badge
                         colorScheme={currentTurn === playerColor ? "green" : "purple"}
                         fontSize="0.9em"
@@ -1032,7 +1114,7 @@ const ComputerGamePage = () => {
                     </Grid>
                   </Box>
                 ) : (
-                  <Text color="chess-dark" textAlign="center" py={4}>
+                  <Text color="#ffffff" textAlign="center" py={4}>
                     No moves yet. Start playing!
                   </Text>
                 )}
@@ -1077,15 +1159,16 @@ const ComputerGamePage = () => {
               <Button 
                 onClick={cancelResign}
                 bg="gray.200"
+                color="gray.800"
                 _hover={{ bg: 'gray.300' }}
               >
                 Cancel
               </Button>
               <Button 
                 onClick={confirmResign}
-                bg="red.600"
+                bg="red.500"
                 color="white"
-                _hover={{ bg: 'red.700' }}
+                _hover={{ bg: 'red.600' }}
               >
                 Resign
               </Button>

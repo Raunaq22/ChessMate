@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import ThemedChessboard from '../Board/ThemedChessboard';
+import CapturedPieces from './CapturedPieces';
 import {
   Box,
   Flex,
@@ -371,6 +372,19 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                     opacity: isOffBook ? '0.95' : '1',
                   }}
                 />
+                
+                <Flex justifyContent="space-between" mt={3} width="100%">
+                  <CapturedPieces 
+                    fen={position} 
+                    color="white" 
+                    mt={1}
+                  />
+                  <CapturedPieces 
+                    fen={position} 
+                    color="black" 
+                    mt={1}
+                  />
+                </Flex>
                 
                 {isOffBook && (
                   <Button

@@ -8,6 +8,7 @@ import ChatWindow from '../components/Chat/ChatWindow';
 import ChatInput from '../components/Chat/ChatInput';
 import GameAnalysis from '../components/Game/GameAnalysis';
 import ThemedChessboard from '../components/Board/ThemedChessboard';
+import CapturedPieces from '../components/Game/CapturedPieces';
 import { motion } from 'framer-motion';
 import {
   Box,
@@ -201,6 +202,45 @@ const GamePage = () => {
       username = 'Waiting...';
     }
     
+    // Calculate material advantage
+    const calculateAdvantage = () => {
+      if (!position) return 0;
+      
+      const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+      let materialDiff = 0;
+      
+      // Count pieces in current position
+      const pieceCount = {
+        p: 0, n: 0, b: 0, r: 0, q: 0,
+        P: 0, N: 0, B: 0, R: 0, Q: 0
+      };
+      
+      const board = position.split(' ')[0];
+      for (const char of board) {
+        if (pieceCount.hasOwnProperty(char)) {
+          pieceCount[char]++;
+        }
+      }
+      
+      // Calculate material difference
+      for (const piece in pieceCount) {
+        const pieceType = piece.toLowerCase();
+        const value = pieceValues[pieceType] || 0;
+        
+        if (piece === piece.toUpperCase()) {  // White piece
+          materialDiff += value * pieceCount[piece];
+        } else {  // Black piece
+          materialDiff -= value * pieceCount[piece];
+        }
+      }
+      
+      // Return material advantage from this player's perspective
+      return materialDiff * (isWhite ? 1 : -1);
+    };
+    
+    const advantage = calculateAdvantage();
+    const hasAdvantage = advantage > 0;
+    
     return (
       <Flex 
         alignItems="center" 
@@ -217,11 +257,24 @@ const GamePage = () => {
         />
         <Box>
           <Text fontWeight="medium">{username}</Text>
-          <Badge 
-            colorScheme={color === 'white'}
-          >
-            {color.charAt(0).toUpperCase() + color.slice(1)}
-          </Badge>
+          <Flex align="center">
+            <Badge 
+              colorScheme={color === 'white'}
+            >
+              {color.charAt(0).toUpperCase() + color.slice(1)}
+            </Badge>
+            
+            {hasAdvantage && (
+              <Text 
+                ml={1}
+                fontWeight="bold" 
+                color="green.500"
+                fontSize="sm"
+              >
+                +{advantage}
+              </Text>
+            )}
+          </Flex>
         </Box>
       </Flex>
     );
@@ -375,6 +428,11 @@ const GamePage = () => {
               >
                 <Box flex="1" mr={2}>
                   <PlayerProfile color={playerColor === 'white' ? 'black' : 'white'} />
+                  <CapturedPieces 
+                    fen={position} 
+                    color={playerColor === 'white' ? 'black' : 'white'}
+                    mt={1}
+                  />
                 </Box>
                 <Flex 
                   bg="chess-dark" 
@@ -456,6 +514,11 @@ const GamePage = () => {
               >
                 <Box flex="1" mr={2}>
                   <PlayerProfile color={playerColor} />
+                  <CapturedPieces 
+                    fen={position} 
+                    color={playerColor}
+                    mt={1}
+                  />
                 </Box>
                 <Flex 
                   bg="chess-dark" 

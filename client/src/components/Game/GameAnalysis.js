@@ -296,29 +296,39 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   return (
     <Modal isOpen={true} onClose={onClose} size="6xl" isCentered>
       <ModalOverlay backdropFilter="blur(3px)" />
-      <ModalContent bg={bgColor} borderRadius="lg" shadow="xl" h="90vh" maxH="900px">
+      <ModalContent bg={bgColor} borderRadius="lg" shadow="xl" maxH={{ base: "95vh", md: "90vh" }} h={{ base: "auto", md: "90vh" }} my={2} mx={2}>
         <ModalHeader bg={headerBg} color="white" borderTopRadius="lg" display="flex" alignItems="center">
           <Box mr={2}><FaChess /></Box>
-          <Heading size="lg">Game Analysis</Heading>
+          <Heading size={{ base: "md", md: "lg" }}>Game Analysis</Heading>
           {isOffBook && (
             <Badge ml={3} colorScheme="yellow" fontSize="sm">Exploring Variations</Badge>
           )}
         </ModalHeader>
         <ModalCloseButton color="white" />
         
-        <ModalBody p={4} overflow="hidden">
-          <Grid templateColumns={{ base: "1fr", md: "80px 1fr 300px" }} gap={4} h="100%">
+        <ModalBody p={{ base: 2, md: 4 }} overflow="auto">
+          <Grid templateColumns={{ base: "1fr", md: "80px 1fr 300px" }} templateRows={{ base: "auto auto auto", md: "1fr" }} gap={4} h="100%">
             {/* Evaluation bar */}
-            <GridItem display={{ base: 'none', md: 'block' }}>
-              <Box position="relative" h="100%" w="40px" mx="auto" bg={evaluationBarBg} borderRadius="md" overflow="hidden">
+            <GridItem display="block" order={{ base: 1, md: 1 }} width={{ base: "100%", md: "auto" }} height={{ base: "50px", md: "100%" }}>
+              <Box 
+                position="relative" 
+                h={{ base: "40px", md: "100%" }} 
+                w={{ base: "100%", md: "40px" }} 
+                mx="auto" 
+                bg={evaluationBarBg} 
+                borderRadius="md" 
+                overflow="hidden"
+              >
                 <Box 
                   position="absolute" 
-                  bottom="0" 
-                  left="0" 
-                  right="0" 
+                  bottom={{ base: 0, md: 0 }}
+                  left={0}
+                  right={{ base: "auto", md: 0 }}
+                  top={{ base: 0, md: "auto" }}
                   bg="black" 
-                  transition="height 0.3s"
-                  height={getEvaluationBarHeight()}
+                  transition="all 0.3s"
+                  height={{ md: getEvaluationBarHeight() }}
+                  width={{ base: `${100 - (parseFloat(getEvaluationBarHeight()) || 50)}%`, md: "100%" }}
                 />
                 <Flex position="absolute" inset="0" align="center" justify="center">
                   <Badge 
@@ -336,14 +346,13 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             </GridItem>
             
             {/* Chessboard with analysis */}
-            <GridItem ref={containerRef}>
+            <GridItem ref={containerRef} order={{ base: 2, md: 2 }}>
               <Box 
                 bg={isOffBook ? "yellow.50" : "transparent"} 
-                p={3} 
+                p={{ base: 1, md: 3 }}
                 borderRadius="md"
                 borderWidth={isOffBook ? "1px" : "0"}
                 borderColor="yellow.300"
-                h="100%"
                 display="flex"
                 flexDir="column"
                 justifyContent="center"
@@ -395,7 +404,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             </GridItem>
             
             {/* Move history */}
-            <GridItem>
+            <GridItem order={{ base: 3, md: 3 }} maxH={{ base: "250px", md: "none" }}>
               <Box 
                 bg="chess-light" 
                 p={4} 
@@ -405,7 +414,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 display="flex"
                 flexDirection="column"
               >
-                <Heading size="md" mb={3} color="chess-dark">Move History</Heading>
+                <Heading size="md" mb={3} color="#ffffff">Move History</Heading>
                 <Divider mb={3} />
                 
                 <Box overflowY="auto" flex="1" mb={2} px={1}>
@@ -424,7 +433,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                             variant={isCurrentMove ? "solid" : "ghost"}
                             size="xs"
                             bg={isCurrentMove ? "primary" : "transparent"}
-                            color={isCurrentMove ? "white" : "chess-dark"}
+                            color={isCurrentMove ? "white" : "#ffffff"}
                             _hover={{ bg: isCurrentMove ? "primary" : "gray.100" }}
                             onClick={() => returnToGamePosition(idx)}
                             h="auto"
@@ -455,6 +464,28 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                         </Text>
                       )}
                     </Text>
+                    {evaluation && (
+                      <Flex mt={1} alignItems="center">
+                        <Badge 
+                          colorScheme={
+                            evaluation.score > 0.2 ? "yellow" : 
+                            evaluation.score < -0.2 ? "blackAlpha" : 
+                            "gray"
+                          }
+                          mr={2}
+                        >
+                          {evaluation.score > 0.2 ? "White" : 
+                           evaluation.score < -0.2 ? "Black" : 
+                           "Equal"}
+                        </Badge>
+                        <Text fontSize="sm" color="gray.700">
+                          {evaluation.score > 0.2 ? "has advantage" : 
+                           evaluation.score < -0.2 ? "has advantage" : 
+                           "position"}
+                          {evaluation.mate && ` - ${evaluation.formatted}`}
+                        </Text>
+                      </Flex>
+                    )}
                   </Box>
                 )}
               </Box>

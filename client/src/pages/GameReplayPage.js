@@ -73,17 +73,22 @@ const GameReplayPage = () => {
 
   // Theme colors
   const bgColor = useColorModeValue('white', 'gray.800');
-  const headerBg = useColorModeValue('chess-hover', 'chess-dark');
+  const headerBg = useColorModeValue('chess-hover', '#ffffff');
   const cardBg = useColorModeValue('chess-light', 'gray.700');
-  const textColor = useColorModeValue('chess-dark', 'white');
+  const textColor = useColorModeValue('#ffffff', 'white');
   const primaryColor = useColorModeValue('primary', 'primary');
-  const buttonHoverBg = useColorModeValue('chess-hover', 'chess-dark');
-
+  const buttonHoverBg = useColorModeValue('chess-hover', '#ffffff');
   // Get API URL with fallback
   const getApiUrl = () => {
     return process.env.REACT_APP_API_URL || 
            window.REACT_APP_API_URL || 
            'http://localhost:3001'; // Fallback URL
+  };
+
+  // Prevent any piece movement in replay mode
+  const onDrop = (sourceSquare, targetSquare) => {
+    // In replay mode, always return false to prevent any piece movements
+    return false;
   };
 
   // Responsive board size
@@ -577,8 +582,8 @@ const GameReplayPage = () => {
           {/* Game result banner */}
           <Box bg="chess-light" py={3} px={4} borderBottom="1px" borderColor="gray.200">
             <Flex align="center" justify="center">
-              <Icon as={FaTrophy} mr={2} color="chess-dark" />
-              <Text fontSize="lg" fontWeight="bold" color="chess-dark">
+              <Icon as={FaTrophy} mr={2} color="#ffffff" />
+              <Text fontSize="lg" fontWeight="bold" color="#ffffff">
                 {formatGameResult()}
               </Text>
               <Text ml={4} fontSize="sm" color="gray.600">
@@ -600,6 +605,8 @@ const GameReplayPage = () => {
                       boardWidth={boardSize}
                       areArrowsAllowed={false}
                       showBoardNotation={true}
+                      onPieceDrop={onDrop}
+                      allowDrag={({ piece }) => false}
                       customBoardStyle={{
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
@@ -694,7 +701,7 @@ const GameReplayPage = () => {
                                   variant={isCurrentWhiteMove ? "solid" : "ghost"}
                                   size="xs"
                                   bg={isCurrentWhiteMove ? "primary" : "transparent"}
-                                  color={isCurrentWhiteMove ? "white" : "chess-dark"}
+                                  color={isCurrentWhiteMove ? "white" : "#ffffff"}
                                   _hover={{ bg: isCurrentWhiteMove ? "primary" : "gray.100" }}
                                   onClick={() => {
                                     if (whiteMove) {
@@ -716,7 +723,7 @@ const GameReplayPage = () => {
                                   variant={isCurrentBlackMove ? "solid" : "ghost"}
                                   size="xs"
                                   bg={isCurrentBlackMove ? "primary" : "transparent"}
-                                  color={isCurrentBlackMove ? "white" : "chess-dark"}
+                                  color={isCurrentBlackMove ? "white" : "#ffffff"}
                                   _hover={{ bg: isCurrentBlackMove ? "primary" : "gray.100" }}
                                   onClick={() => {
                                     if (blackMove) {
@@ -759,8 +766,8 @@ const GameReplayPage = () => {
                     <VStack spacing={3} align="stretch">
                       <Flex justify="space-between">
                         <HStack>
-                          <Icon as={FaClock} color="chess-dark" />
-                          <Text fontWeight="semibold" color="chess-dark">Time Control:</Text>
+                          <Icon as={FaClock} color="#ffffff" />
+                          <Text fontWeight="semibold" color="#ffffff">Time Control:</Text>
                         </HStack>
                         <Badge colorScheme="blue" px={2} py={1}>
                           {formatTimeControl()}
@@ -771,29 +778,29 @@ const GameReplayPage = () => {
                       
                       <Flex justify="space-between">
                         <HStack>
-                          <Icon as={FaUserFriends} color="chess-dark" />
-                          <Text fontWeight="semibold" color="chess-dark">Players:</Text>
+                          <Icon as={FaUserFriends} color="#ffffff" />
+                          <Text fontWeight="semibold" color="#ffffff">Players:</Text>
                         </HStack>
                       </Flex>
                       
                       <Flex justify="space-between" pl={6}>
-                        <Text color="chess-dark">White:</Text>
-                        <Text fontWeight="medium" color="chess-dark">{formatPlayerName('white')}</Text>
+                        <Text color="#ffffff">White:</Text>
+                        <Text fontWeight="medium" color="#ffffff">{formatPlayerName('white')}</Text>
                       </Flex>
                       
                       <Flex justify="space-between" pl={6}>
-                        <Text color="chess-dark">Black:</Text>
-                        <Text fontWeight="medium" color="chess-dark">{formatPlayerName('black')}</Text>
+                        <Text color="#ffffff">Black:</Text>
+                        <Text fontWeight="medium" color="#ffffff">{formatPlayerName('black')}</Text>
                       </Flex>
                       
                       <Divider />
                       
                       <Flex justify="space-between">
                         <HStack>
-                          <Icon as={FaTrophy} color="chess-dark" />
-                          <Text fontWeight="semibold" color="chess-dark">Result:</Text>
+                          <Icon as={FaTrophy} color="#ffffff" />
+                          <Text fontWeight="semibold" color="#ffffff">Result:</Text>
                         </HStack>
-                        <Text color="chess-dark" fontStyle="italic">{formatGameResult()}</Text>
+                        <Text color="#ffffff" fontStyle="italic">{formatGameResult()}</Text>
                       </Flex>
                     </VStack>
                   </CardBody>

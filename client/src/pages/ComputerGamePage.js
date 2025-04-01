@@ -139,11 +139,8 @@ const ComputerGamePage = () => {
     const calculateBoardSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
-        const viewportHeight = window.innerHeight;
-        // Calculate board size based on container width and viewport height
-        // Ensure it maintains aspect ratio and doesn't overflow
-        const maxHeightSize = viewportHeight * 0.65; // Limit to 65% of viewport height
-        const newSize = Math.min(containerWidth - 16, maxHeightSize);
+        // Calculate board size based on container width
+        const newSize = Math.min(containerWidth, windowHeight * 0.7);
         setBoardSize(newSize);
       }
     };
@@ -815,7 +812,7 @@ const ComputerGamePage = () => {
 
   // Main layout render
   return (
-    <Container maxW="100%" px={[2, 4]} py={4} minH="100vh" display="flex" flexDirection="column">
+    <Container maxW="100%" px={[2, 4]} py={4}>
       {showConfetti && <Confetti 
         width={windowWidth} 
         height={windowHeight} 
@@ -848,15 +845,12 @@ const ComputerGamePage = () => {
         <Grid
           templateColumns={{ base: "1fr", lg: "60% 40%" }}
           gap={6}
-          flex="1"
-          overflow="hidden"
-          h={{ base: "auto", md: "calc(100vh - 120px)" }}
         >
           {/* Left column - Chessboard and player info */}
-          <GridItem display="flex" flexDirection="column" h="100%">
+          <GridItem>
             <Flex direction="column" h="100%">
               {/* Top player (Computer) */}
-              <Flex direction="column" bg="chess-light" p={3} borderRadius="lg" mb={2}>
+              <Flex direction="column" bg="chess-light" p={3} borderRadius="lg" mb={4}>
                 <Flex justifyContent="space-between" alignItems="center">
                   <Flex align="center">
                     <Avatar
@@ -908,30 +902,14 @@ const ComputerGamePage = () => {
               <Box
                 ref={containerRef}
                 position="relative"
-                mb={2}
+                mb={4}
                 alignSelf="center"
                 w="100%"
                 maxW="800px"
                 mx="auto"
-                flex="1"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
               >
-                <Box w="100%" h="100%" position="relative" paddingBottom={{ base: "100%", md: "0" }}>
-                  <Box 
-                    position={{ base: "absolute", md: "relative" }}
-                    top={0}
-                    left={0}
-                    right={0}
-                    bottom={0}
-                    height="100%"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    {chessBoard}
-                  </Box>
+                <Box w="100%" mx="auto">
+                  {chessBoard}
                 </Box>
                 
                 {/* Computer thinking indicator */}
@@ -947,7 +925,6 @@ const ComputerGamePage = () => {
                     borderRadius="md"
                     alignItems="center"
                     shadow="md"
-                    zIndex="10"
                   >
                     <Spinner size="sm" mr={2} />
                     <Text>Computer thinking...</Text>
@@ -1041,110 +1018,108 @@ const ComputerGamePage = () => {
         </GridItem>
           
           {/* Right column - Game info, timers, and history */}
-          <GridItem display="flex" flexDirection="column" h="100%" overflow="hidden">
-            <Flex direction="column" h="100%">
-              <Card bg="chess-light" mb={4} boxShadow="md" flexShrink={0}>
-                <CardHeader bg="chess-hover" py={3}>
-                  <Flex align="center">
-                    <Icon as={FaRobot} mr={2} color="white" />
-                    <Heading size="md" color="white">Game Info</Heading>
-                  </Flex>
-                </CardHeader>
-                <CardBody>
-                  <VStack align="stretch" spacing={3}>
-                    <HStack justify="space-between">
-                      <Text fontWeight="medium" color="#ffffff">Difficulty:</Text>
-                      <Badge fontSize="0.9em" p={1}>
-                        {difficultyNames[difficulty]}
-                      </Badge>
-                    </HStack>
-                    
-                    <HStack justify="space-between">
-                      <Text fontWeight="medium" color="#ffffff">Your color:</Text>
-                      <Badge
-                        colorScheme={playerColor === 'white' ? "yellow" : "gray"}
-                        fontSize="0.9em"
-                        p={1}
-                      >
-                        {playerColor.charAt(0).toUpperCase() + playerColor.slice(1)}
-                      </Badge>
-                    </HStack>
-                    
-                    <HStack justify="space-between">
-                      <Text fontWeight="medium" color="#ffffff">Game status:</Text>
-                      <Badge
-                        colorScheme={gameOver ? "red" : "green"}
-                        fontSize="0.9em"
-                        p={1}
-                      >
-                        {gameOver ? "Game Over" : "In Progress"}
-                      </Badge>
-                    </HStack>
-                    
-                    {!gameOver && (
-                      <HStack justify="space-between">
-                        <Text fontWeight="medium" color="#ffffff">Current turn:</Text>
-                        <Badge
-                          colorScheme={currentTurn === playerColor ? "green" : "purple"}
-                          fontSize="0.9em"
-                          p={1}
-                        >
-                          {currentTurn === playerColor ? "Your Turn" : "Computer's Turn"}
-                        </Badge>
-                      </HStack>
-                    )}
-                    
-                    {result && (
-                      <HStack justify="space-between">
-                        <Text fontWeight="medium" color="chess-dark">Result:</Text>
-                        <Text color="chess-dark" fontStyle="italic">{result}</Text>
-                      </HStack>
-                    )}
-                  </VStack>
-                </CardBody>
-              </Card>
-              
-              {/* Move history */}
-              <Card bg="chess-light" boxShadow="md" flex="1" overflow="hidden" display="flex" flexDirection="column">
-                <CardHeader bg="chess-hover" py={3} flexShrink={0}>
-                  <Flex align="center">
-                    <Icon as={FaHistory} mr={2} color="white" />
-                    <Heading size="md" color="white">Move History</Heading>
-                  </Flex>
-                </CardHeader>
-                <CardBody overflow="hidden" display="flex" flexDirection="column">
-                  {moveHistory.length > 0 ? (
-                    <Box
-                      flex="1"
-                      overflowY="auto"
-                      p={2}
-                      borderRadius="md"
-                      bg="white"
-                      fontSize="sm"
+          <GridItem>
+            <Card bg="chess-light" mb={4} boxShadow="md">
+              <CardHeader bg="chess-hover" py={3}>
+                <Flex align="center">
+                  <Icon as={FaRobot} mr={2} color="white" />
+                  <Heading size="md" color="white">Game Info</Heading>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                <VStack align="stretch" spacing={3}>
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="#ffffff">Difficulty:</Text>
+                    <Badge fontSize="0.9em" p={1}>
+                      {difficultyNames[difficulty]}
+                    </Badge>
+                  </HStack>
+                  
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="#ffffff">Your color:</Text>
+                    <Badge
+                      colorScheme={playerColor === 'white' ? "yellow" : "gray"}
+                      fontSize="0.9em"
+                      p={1}
                     >
-                      <Grid templateColumns="auto 1fr 1fr" gap={2}>
-                        {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
-                          const moveIdx = idx * 2;
-                          const whiteMove = moveHistory[moveIdx];
-                          const blackMove = moveHistory[moveIdx + 1];
-                          return (
-                            <React.Fragment key={`move-pair-${idx}`}>
-                              <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
-                              <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
-                              <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
-                            </React.Fragment>
-                          );
-                        })}
-                      </Grid>
-                    </Box>
-                  ) : (
-                    <Flex color="#ffffff" textAlign="center" py={4} flex="1" align="center" justify="center">
-                      <Text>No moves yet. Start playing!</Text>
-                    </Flex>
+                      {playerColor.charAt(0).toUpperCase() + playerColor.slice(1)}
+                    </Badge>
+                  </HStack>
+                  
+                  <HStack justify="space-between">
+                    <Text fontWeight="medium" color="#ffffff">Game status:</Text>
+                    <Badge
+                      colorScheme={gameOver ? "red" : "green"}
+                      fontSize="0.9em"
+                      p={1}
+                    >
+                      {gameOver ? "Game Over" : "In Progress"}
+                    </Badge>
+                  </HStack>
+                  
+                  {!gameOver && (
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" color="#ffffff">Current turn:</Text>
+                      <Badge
+                        colorScheme={currentTurn === playerColor ? "green" : "purple"}
+                        fontSize="0.9em"
+                        p={1}
+                      >
+                        {currentTurn === playerColor ? "Your Turn" : "Computer's Turn"}
+                      </Badge>
+                    </HStack>
                   )}
-                </CardBody>
-              </Card>
-            </Flex>
+                  
+                  {result && (
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" color="chess-dark">Result:</Text>
+                      <Text color="chess-dark" fontStyle="italic">{result}</Text>
+                    </HStack>
+                  )}
+                </VStack>
+              </CardBody>
+            </Card>
+            
+            {/* Move history */}
+            <Card bg="chess-light" boxShadow="md">
+              <CardHeader bg="chess-hover" py={3}>
+                <Flex align="center">
+                  <Icon as={FaHistory} mr={2} color="white" />
+                  <Heading size="md" color="white">Move History</Heading>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                {moveHistory.length > 0 ? (
+                  <Box
+                    maxH="300px"
+                    overflowY="auto"
+                    p={2}
+                    borderRadius="md"
+                    bg="white"
+                    fontSize="sm"
+                  >
+                    <Grid templateColumns="auto 1fr 1fr" gap={2}>
+                      {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
+                        const moveIdx = idx * 2;
+                        const whiteMove = moveHistory[moveIdx];
+                        const blackMove = moveHistory[moveIdx + 1];
+                        return (
+                          <React.Fragment key={`move-pair-${idx}`}>
+                            <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
+                            <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
+                            <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
+                          </React.Fragment>
+                        );
+                      })}
+                    </Grid>
+                  </Box>
+                ) : (
+                  <Text color="#ffffff" textAlign="center" py={4}>
+                    No moves yet. Start playing!
+                  </Text>
+                )}
+              </CardBody>
+            </Card>
           </GridItem>
         </Grid>
       ) : (
@@ -1156,7 +1131,6 @@ const ComputerGamePage = () => {
           bg="chess-light"
           p={8}
           borderRadius="lg"
-          flex="1"
         >
           <Heading size="lg" mb={6} color="#ffffff">Play Against Computer</Heading>
           <Text mb={6} color="#ffffff" textAlign="center">

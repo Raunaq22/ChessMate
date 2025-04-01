@@ -297,8 +297,26 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   return (
     <Modal isOpen={true} onClose={onClose} size="6xl" isCentered>
       <ModalOverlay backdropFilter="blur(3px)" />
-      <ModalContent bg={bgColor} borderRadius="lg" shadow="xl" maxH={{ base: "95vh", md: "90vh" }} h={{ base: "auto", md: "90vh" }} my={2} mx={2}>
-        <ModalHeader bg={headerBg} color="white" borderTopRadius="lg" display="flex" alignItems="center">
+      <ModalContent 
+        bg={bgColor} 
+        borderRadius="lg" 
+        shadow="xl" 
+        maxH={{ base: "85vh", md: "90vh" }} 
+        h={{ base: "auto", md: "90vh" }} 
+        my={2} 
+        mx={2}
+        display="flex"
+        flexDirection="column"
+      >
+        <ModalHeader 
+          bg={headerBg} 
+          color="white" 
+          borderTopRadius="lg" 
+          display="flex" 
+          alignItems="center"
+          py={{ base: 2, md: 4 }}
+          px={{ base: 3, md: 6 }}
+        >
           <Box mr={2}><FaChess /></Box>
           <Heading size={{ base: "md", md: "lg" }}>Game Analysis</Heading>
           {isOffBook && (
@@ -307,8 +325,19 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
         </ModalHeader>
         <ModalCloseButton color="white" />
         
-        <ModalBody p={{ base: 2, md: 4 }} overflow="auto">
-          <Grid templateColumns={{ base: "1fr", md: "80px 1fr 300px" }} templateRows={{ base: "auto auto auto", md: "1fr" }} gap={4} h="100%">
+        <ModalBody 
+          p={{ base: 2, md: 4 }} 
+          overflow="auto" 
+          flex="1"
+          display="flex"
+          flexDirection="column"
+        >
+          <Grid 
+            templateColumns={{ base: "1fr", md: "80px 1fr 300px" }} 
+            templateRows={{ base: "60px 1fr auto", md: "1fr" }} 
+            gap={{ base: 2, md: 4 }} 
+            h="100%"
+          >
             {/* Evaluation bar */}
             <GridItem display="block" order={{ base: 1, md: 1 }} width={{ base: "100%", md: "auto" }} height={{ base: "50px", md: "100%" }}>
               <Box 
@@ -347,7 +376,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             </GridItem>
             
             {/* Chessboard with analysis */}
-            <GridItem ref={containerRef} order={{ base: 2, md: 2 }}>
+            <GridItem ref={containerRef} order={{ base: 2, md: 2 }} minH={0}>
               <Box 
                 bg={isOffBook ? "yellow.50" : "transparent"} 
                 p={{ base: 1, md: 3 }}
@@ -358,6 +387,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 flexDir="column"
                 justifyContent="center"
                 alignItems="center"
+                maxHeight={{ base: "calc(50vh - 70px)", md: "none" }}
               >
                 <ThemedChessboard
                   position={position}
@@ -392,7 +422,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                     mt={4}
                     colorScheme="blue"
                     leftIcon={<FaChessBoard />}
-                    size="md"
+                    size={{ base: "sm", md: "md" }}
                   >
                     Return to Game Position
                   </Button>
@@ -418,18 +448,24 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
             </GridItem>
             
             {/* Move history */}
-            <GridItem order={{ base: 3, md: 3 }} maxH={{ base: "250px", md: "none" }}>
+            <GridItem 
+              order={{ base: 3, md: 3 }} 
+              maxH={{ base: "150px", md: "none" }}
+              overflow="auto"
+              display="flex"
+              flexDirection="column"
+            >
               <Box 
                 bg="chess-light" 
-                p={4} 
+                p={{ base: 2, md: 4 }} 
                 borderRadius="md" 
                 boxShadow="sm" 
                 h="100%" 
                 display="flex"
                 flexDirection="column"
               >
-                <Heading size="md" mb={3} color="#ffffff">Move History</Heading>
-                <Divider mb={3} />
+                <Heading size="md" mb={{ base: 1, md: 3 }} color="#ffffff">Move History</Heading>
+                <Divider mb={{ base: 1, md: 3 }} />
                 
                 <Box overflowY="auto" flex="1" mb={2} px={1}>
                   <Grid templateColumns="max-content 1fr 1fr" gap={1} fontSize="sm">
@@ -468,9 +504,9 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                   <Box mt="auto" p={2} bg="blue.50" borderRadius="md">
                     <Flex alignItems="center" mb={1}>
                       <Box as={FaBrain} color="blue.500" mr={2} />
-                      <Text fontWeight="medium" color="blue.700">Engine Suggestion</Text>
+                      <Text fontWeight="medium" color="blue.700" fontSize={{ base: "xs", md: "sm" }}>Engine Suggestion</Text>
                     </Flex>
-                    <Text fontSize="sm" color="gray.700">
+                    <Text fontSize={{ base: "xs", md: "sm" }} color="gray.700">
                       Best move: <Badge colorScheme="green">{bestMove}</Badge>
                       {evaluation && (
                         <Text as="span" ml={2}>
@@ -487,12 +523,13 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                             "gray"
                           }
                           mr={2}
+                          fontSize="2xs"
                         >
                           {evaluation.score > 0.2 ? "White" : 
                            evaluation.score < -0.2 ? "Black" : 
                            "Equal"}
                         </Badge>
-                        <Text fontSize="sm" color="gray.700">
+                        <Text fontSize={{ base: "xs", md: "sm" }} color="gray.700">
                           {evaluation.score > 0.2 ? "has advantage" : 
                            evaluation.score < -0.2 ? "has advantage" : 
                            "position"}
@@ -507,8 +544,17 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
           </Grid>
         </ModalBody>
         
-        <ModalFooter bg="gray.100" borderBottomRadius="lg">
-          <HStack spacing={3} justify="center" width="100%">
+        <ModalFooter 
+          bg="gray.100" 
+          borderBottomRadius="lg"
+          py={{ base: 2, md: 3 }}
+          px={{ base: 2, md: 4 }}
+          position="sticky"
+          bottom={0}
+          minH={{ base: "60px", md: "auto" }}
+          mt="auto"
+        >
+          <HStack spacing={{ base: 1, md: 3 }} justify="center" width="100%">
             <Tooltip label="First Move">
               <IconButton
                 icon={<FaStepBackward />}
@@ -516,6 +562,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 colorScheme="gray"
                 isDisabled={!isOffBook && currentMoveIndex === -1}
                 aria-label="First move"
+                size={{ base: "sm", md: "md" }}
               />
             </Tooltip>
             <Tooltip label="Previous Move">
@@ -525,6 +572,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 colorScheme="gray" 
                 isDisabled={!isOffBook && currentMoveIndex === -1}
                 aria-label="Previous move"
+                size={{ base: "sm", md: "md" }}
               />
             </Tooltip>
             <Tooltip label="Next Move">
@@ -534,6 +582,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 colorScheme="gray"
                 isDisabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
                 aria-label="Next move"
+                size={{ base: "sm", md: "md" }}
               />
             </Tooltip>
             <Tooltip label="Last Move">
@@ -543,6 +592,7 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
                 colorScheme="gray"
                 isDisabled={isOffBook || currentMoveIndex === gameHistory.length - 1}
                 aria-label="Last move"
+                size={{ base: "sm", md: "md" }}
               />
             </Tooltip>
           </HStack>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, Flex } from '@chakra-ui/react';
+import { Box, Text, Flex, Icon } from '@chakra-ui/react';
+import { FaInfinity } from 'react-icons/fa';
 
 const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
   // State for display time
@@ -15,8 +16,14 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
   const lastKnownTimeRef = useRef(time || initialTime || 0);
   const initializedRef = useRef(false);
   
+  // Check if this is an unlimited time game - more robust condition
+  const isUnlimited = initialTime === null || time === null || 
+                     initialTime === undefined || time === undefined || 
+                     initialTime === 0 || time === 0 || 
+                     initialTime === "unlimited" || time === "unlimited";
+  
   // Debug mode flag - turn on to see detailed logs
-  const DEBUG = false;
+  const DEBUG = true;
   
   // Safe logging function
   const log = (message) => {
@@ -24,11 +31,23 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
       console.log(`Timer: ${message}`);
     }
   };
+  
+  // Log on component mount to help debug
+  useEffect(() => {
+    log(`Component mounted with initialTime=${initialTime}, time=${time}`);
+    log(`isUnlimited evaluation: ${isUnlimited}`);
+  }, []);
 
   // Initialize timer when component mounts
   useEffect(() => {
     // Set initialized flag
     initializedRef.current = true;
+    
+    // For unlimited time, don't set any timer values
+    if (isUnlimited) {
+      log('Unlimited time game detected');
+      return;
+    }
     
     // Use the provided time prop with fallback to initialTime
     const providedTime = time !== undefined && time !== null ? time : initialTime;
@@ -40,11 +59,11 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
       setDisplayTime(providedTime);
       lastKnownTimeRef.current = providedTime;
     }
-  }, []);  // Only run once on mount
+  }, [isUnlimited, initialTime, time]);  // Run on mount and when these values change
 
   // Handle time prop changes
   useEffect(() => {
-    if (!initializedRef.current) return;
+    if (!initializedRef.current || isUnlimited) return;
     
     const providedTime = time !== undefined && time !== null ? time : initialTime;
     
@@ -73,7 +92,7 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
         setDisplayTime(providedTime);
       }
     }
-  }, [time, initialTime, increment, isRunning]);
+  }, [time, initialTime, increment, isRunning, isUnlimited]);
 
   // Format time as mm:ss
   const formatTime = (seconds) => {
@@ -88,6 +107,12 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
 
   // Handle timer running state
   useEffect(() => {
+    // For unlimited time games, don't run any timer logic
+    if (isUnlimited) {
+      log('Unlimited time game - no timer needed');
+      return;
+    }
+    
     // Clear any existing timer
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -181,45 +206,62 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
         pendingUpdateRef.current = null;
       }
     };
-  }, [isRunning, gameEnded, onTimeUp, onTimeChange]);
+  }, [isRunning, gameEnded, onTimeUp, onTimeChange, isUnlimited]);
 
   return (
     <Flex align="center" justify="center">
-      <Text 
-        fontSize="2xl" 
-        fontFamily="mono" 
-        fontWeight="bold" 
-        color={displayTime <= 30 ? "red.500" : "black"}
-        px={2}
-        py={1}
-        position="relative"
-      >
-        {formatTime(displayTime)}
-        {isRunning && (
-          <Box 
-            as="span" 
-            ml={1} 
-            display="inline-block"
-            animation="pulse 1.5s infinite" 
-            color={displayTime < 30 ? "red.300" : "gray.600"}
+      {isUnlimited ? (
+        // Render infinity symbol for unlimited time
+        <Flex align="center" justify="center">
+          <Text 
+            fontSize="2xl" 
+            fontFamily="mono" 
+            fontWeight="bold" 
+            color="white"
+            px={2}
+            py={1}
           >
-            •
-          </Box>
-        )}
-        {displayTime < 30 && (
-          <Box 
-            position="absolute"
-            left="0"
-            top="0"
-            right="0"
-            bottom="0"
-            borderRadius="md"
-            bg="red.500"
-            opacity="0.15"
-            zIndex="-1"
-          />
-        )}
-      </Text>
+            <Icon as={FaInfinity} boxSize="1.5em" color="white" verticalAlign="middle" />
+          </Text>
+        </Flex>
+      ) : (
+        // Regular time display
+        <Text 
+          fontSize="2xl" 
+          fontFamily="mono" 
+          fontWeight="bold" 
+          color={displayTime <= 30 ? "red.500" : "white"}
+          px={2}
+          py={1}
+          position="relative"
+        >
+          {formatTime(displayTime)}
+          {isRunning && (
+            <Box 
+              as="span" 
+              ml={1} 
+              display="inline-block"
+              animation="pulse 1.5s infinite" 
+              color={displayTime < 30 ? "red.300" : "gray.200"}
+            >
+              •
+            </Box>
+          )}
+          {displayTime < 30 && (
+            <Box 
+              position="absolute"
+              left="0"
+              top="0"
+              right="0"
+              bottom="0"
+              borderRadius="md"
+              bg="red.500"
+              opacity="0.15"
+              zIndex="-1"
+            />
+          )}
+        </Text>
+      )}
     </Flex>
   );
 };

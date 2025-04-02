@@ -645,21 +645,57 @@ const GamePage = () => {
                 >
                   {moveHistory && moveHistory.length > 0 ? (
                     <Grid templateColumns="auto 1fr 1fr" gap={2} fontSize={{ base: "sm", md: "md" }}>
-                      {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
-                        const moveIdx = idx * 2;
-                        const whiteMove = moveHistory[moveIdx];
-                        // For black's move, ensure we're not duplicating the white move
-                        const blackMove = moveHistory[moveIdx + 1] && 
-                          moveHistory[moveIdx + 1].notation !== whiteMove?.notation ? 
-                          moveHistory[moveIdx + 1] : null;
-                        return (
+                      {(() => {
+                        // Process the move history to remove duplicates
+                        const processedMoves = [];
+                        
+                        // Process moves into white/black pairs
+                        moveHistory.forEach(move => {
+                          if (!move || !move.notation) return;
+                          
+                          // Skip if this notation already exists in processed moves
+                          const moveExists = processedMoves.some(
+                            pm => pm.white?.notation === move.notation || pm.black?.notation === move.notation
+                          );
+                          
+                          if (moveExists) return;
+                          
+                          const isWhiteMove = move.color === 'w';
+                          
+                          if (isWhiteMove) {
+                            // For white moves, create a new pair
+                            processedMoves.push({
+                              number: processedMoves.length + 1,
+                              white: move,
+                              black: null
+                            });
+                          } else {
+                            // For black moves, find the last pair without a black move
+                            let lastPair = processedMoves[processedMoves.length - 1];
+                            
+                            // If no pairs or last pair has black move, create a new pair
+                            if (!lastPair || lastPair.black) {
+                              processedMoves.push({
+                                number: processedMoves.length + 1,
+                                white: null,
+                                black: move
+                              });
+                            } else {
+                              // Add black move to the last pair
+                              lastPair.black = move;
+                            }
+                          }
+                        });
+                        
+                        // Render the processed moves
+                        return processedMoves.map((pair, idx) => (
                           <React.Fragment key={idx}>
-                            <Text color="gray.500" fontWeight="medium">{idx + 1}.</Text>
-                            <Text fontFamily="mono">{whiteMove?.notation || ''}</Text>
-                            <Text fontFamily="mono" color="gray.800">{blackMove?.notation || ''}</Text>
+                            <Text color="gray.500" fontWeight="medium">{pair.number}.</Text>
+                            <Text fontFamily="mono">{pair.white?.notation || ''}</Text>
+                            <Text fontFamily="mono" color="gray.800">{pair.black?.notation || ''}</Text>
                           </React.Fragment>
-                        );
-                      })}
+                        ));
+                      })()}
                     </Grid>
                   ) : (
                     <Flex align="center" justify="center" h="full" color="gray.500">
@@ -771,21 +807,57 @@ const GamePage = () => {
               >
                 {moveHistory && moveHistory.length > 0 ? (
                   <Grid templateColumns="auto 1fr 1fr" gap={1}>
-                    {Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, idx) => {
-                      const moveIdx = idx * 2;
-                      const whiteMove = moveHistory[moveIdx];
-                      // For black's move, ensure we're not duplicating the white move
-                      const blackMove = moveHistory[moveIdx + 1] && 
-                        moveHistory[moveIdx + 1].notation !== whiteMove?.notation ? 
-                        moveHistory[moveIdx + 1] : null;
-                      return (
+                    {(() => {
+                      // Process the move history to remove duplicates
+                      const processedMoves = [];
+                      
+                      // Process moves into white/black pairs
+                      moveHistory.forEach(move => {
+                        if (!move || !move.notation) return;
+                        
+                        // Skip if this notation already exists in processed moves
+                        const moveExists = processedMoves.some(
+                          pm => pm.white?.notation === move.notation || pm.black?.notation === move.notation
+                        );
+                        
+                        if (moveExists) return;
+                        
+                        const isWhiteMove = move.color === 'w';
+                        
+                        if (isWhiteMove) {
+                          // For white moves, create a new pair
+                          processedMoves.push({
+                            number: processedMoves.length + 1,
+                            white: move,
+                            black: null
+                          });
+                        } else {
+                          // For black moves, find the last pair without a black move
+                          let lastPair = processedMoves[processedMoves.length - 1];
+                          
+                          // If no pairs or last pair has black move, create a new pair
+                          if (!lastPair || lastPair.black) {
+                            processedMoves.push({
+                              number: processedMoves.length + 1,
+                              white: null,
+                              black: move
+                            });
+                          } else {
+                            // Add black move to the last pair
+                            lastPair.black = move;
+                          }
+                        }
+                      });
+                      
+                      // Render the processed moves
+                      return processedMoves.map((pair, idx) => (
                         <React.Fragment key={idx}>
-                          <Text color="gray.500" fontWeight="medium" fontSize="xs">{idx + 1}.</Text>
-                          <Text fontFamily="mono" fontSize="xs">{whiteMove?.notation || ''}</Text>
-                          <Text fontFamily="mono" color="gray.800" fontSize="xs">{blackMove?.notation || ''}</Text>
+                          <Text color="gray.500" fontWeight="medium" fontSize="xs">{pair.number}.</Text>
+                          <Text fontFamily="mono" fontSize="xs">{pair.white?.notation || ''}</Text>
+                          <Text fontFamily="mono" color="gray.800" fontSize="xs">{pair.black?.notation || ''}</Text>
                         </React.Fragment>
-                      );
-                    })}
+                      ));
+                    })()}
                   </Grid>
                 ) : (
                   <Flex align="center" justify="center" h="50px" color="gray.500">

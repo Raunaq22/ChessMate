@@ -261,11 +261,11 @@ const GamePage = () => {
         <Box>
           <Text fontWeight="medium">{username}</Text>
           <Flex align="center">
-            <Badge 
-              colorScheme={color === 'white'}
-            >
-              {color.charAt(0).toUpperCase() + color.slice(1)}
-            </Badge>
+          <Badge 
+            colorScheme={color === 'white'}
+          >
+            {color.charAt(0).toUpperCase() + color.slice(1)}
+          </Badge>
             
             {hasAdvantage && (
               <Text 
@@ -875,11 +875,11 @@ const GamePage = () => {
               </Flex>
               <Box maxH={{ base: "15vh", sm: "20vh" }} bg="white" p={2} rounded="md" display="flex" flexDirection="column">
                 <Box flex="1" overflow="auto">
-                  <ChatWindow
-                    messages={chatMessages}
-                    currentUser={currentUser}
-                    isMobile={true}
-                  />
+                <ChatWindow
+                  messages={chatMessages}
+                  currentUser={currentUser}
+                  isMobile={true}
+                />
                 </Box>
                 <ChatInput
                   onSendMessage={handleSendMessage}

@@ -395,14 +395,16 @@ const ComputerGamePage = () => {
   useEffect(() => {
     if (!gameInitialized || !gameStarted || gameOver) return;
     
-    const currentGameState = gameRef.current;
     const computerColor = playerColor === 'white' ? 'black' : 'white';
     
     // If it's computer's turn, make a move
     if (currentTurn === computerColor && !loading && !computerThinking) {
-      // Short delay before computer makes its move
+      // Use a ref to track if a move has been started for this turn
       const timeoutId = setTimeout(() => {
-        makeComputerMove();
+        // Only make a computer move if the game is still active
+        if (!gameOver && currentTurn === computerColor) {
+          makeComputerMove();
+        }
       }, 500);
       
       return () => clearTimeout(timeoutId);
@@ -444,10 +446,10 @@ const ComputerGamePage = () => {
     const turn = gameRef.current.turn() === 'w' ? 'white' : 'black';
     if (turn !== playerColor) return false;
     
-    // Check if player's timer has reached zero
+    // Check if player's timer has reached zero (only if we're using timers)
     const playerIsWhite = playerColor === 'white';
     const playerTime = playerIsWhite ? whiteTime : blackTime;
-    if (playerTime <= 0) return false;
+    if (playerTime !== null && playerTime <= 0) return false;
     
     try {
       // Try to make the move
@@ -496,10 +498,10 @@ const ComputerGamePage = () => {
     const turn = gameRef.current.turn() === 'w' ? 'white' : 'black';
     if (turn !== playerColor) return;
     
-    // Check if player's timer has reached zero
+    // Check if player's timer has reached zero (only if we're using timers)
     const playerIsWhite = playerColor === 'white';
     const playerTime = playerIsWhite ? whiteTime : blackTime;
-    if (playerTime <= 0) return;
+    if (playerTime !== null && playerTime <= 0) return;
     
     // Get piece at clicked square
     const piece = gameRef.current.get(square);
@@ -574,14 +576,16 @@ const ComputerGamePage = () => {
     setDifficulty(selectedDifficulty);
     setSelectedTimeControl(timeControl);
     setShowConfetti(false);
+    setComputerThinking(false); // Reset computer thinking state
     
-    // Initialize timers only if they haven't been set yet
+    // Initialize timers
     if (timeControl && timeControl.time !== null) {
       console.log(`Setting initial times: ${timeControl.time}s`);
       setWhiteTime(timeControl.time);
       setBlackTime(timeControl.time);
       setTimeIncrement(0);
     } else {
+      // For unlimited time, set time to null explicitly
       setWhiteTime(null);
       setBlackTime(null);
       setTimeIncrement(0);
@@ -600,9 +604,10 @@ const ComputerGamePage = () => {
       isClosable: true,
     });
     
-    // If player is black, computer (white) makes the first move
+    // If player is black, computer (white) makes the first move after a delay
     if (selectedColor === 'black') {
-      // Small delay before computer makes the first move
+      // Ensure we set computerThinking to prevent multiple moves
+      setComputerThinking(true);
       setTimeout(() => {
         makeComputerMove();
       }, 500);
@@ -714,39 +719,39 @@ const ComputerGamePage = () => {
 
   // Memoize the board to avoid unnecessary re-renders
   const chessBoard = useMemo(() => (
-              <ThemedChessboard
-                id="computer-game"
-                position={position}
-                onPieceDrop={onDrop}
-                onPieceDragBegin={onPieceDragBegin}
-                onSquareClick={onSquareClick}
-                boardOrientation={playerColor}
-                boardWidth={boardSize}
-                customSquareStyles={Array.isArray(possibleMoves.current) ? 
-                  possibleMoves.current.reduce((obj, square) => {
-                    obj[square] = {
-                      background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
-                      borderRadius: '50%'
-                    };
-                    return obj;
-                  }, {}) : {}}
-                areArrowsAllowed={true}
-                arePremovesAllowed={true}
-                showBoardNotation={true}
-                allowDrag={({ piece }) => {
-                  // Prevent moves if game is over, loading, or player's timer is at 0
-                  if (gameOver || loading) return false;
-                  
-                  // Check if player's timer has reached zero
-                  const playerIsWhite = playerColor === 'white';
-                  const playerTime = playerIsWhite ? whiteTime : blackTime;
-                  if (playerTime <= 0) return false;
-                  
-                  return (piece[0] === 'w' && playerColor === 'white') || 
-                         (piece[0] === 'b' && playerColor === 'black');
-                }}
-              />
-  ), [position, boardSize, playerColor, gameOver, loading, onDrop, onPieceDragBegin, onSquareClick, possibleMoves]);
+  <ThemedChessboard
+    id="computer-game"
+    position={position}
+    onPieceDrop={onDrop}
+    onPieceDragBegin={onPieceDragBegin}
+    onSquareClick={onSquareClick}
+    boardOrientation={playerColor}
+    boardWidth={boardSize}
+    customSquareStyles={Array.isArray(possibleMoves.current) ? 
+      possibleMoves.current.reduce((obj, square) => {
+        obj[square] = {
+          background: 'radial-gradient(circle, rgba(0,0,0,0.1) 25%, transparent 25%)',
+          borderRadius: '50%'
+        };
+        return obj;
+      }, {}) : {}}
+    areArrowsAllowed={true}
+    arePremovesAllowed={true}
+    showBoardNotation={true}
+    allowDrag={({ piece }) => {
+      // Prevent moves if game is over, loading
+      if (gameOver || loading) return false;
+      
+      // Check if player's timer has reached zero (only if we're using timers)
+      const playerIsWhite = playerColor === 'white';
+      const playerTime = playerIsWhite ? whiteTime : blackTime;
+      if (playerTime !== null && playerTime <= 0) return false;
+      
+      return (piece[0] === 'w' && playerColor === 'white') || 
+             (piece[0] === 'b' && playerColor === 'black');
+    }}
+  />
+), [position, boardSize, playerColor, gameOver, loading, onDrop, onPieceDragBegin, onSquareClick, possibleMoves, whiteTime, blackTime]);
 
   // Handle resignation
   const handleResign = useCallback(() => {

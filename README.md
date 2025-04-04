@@ -6,7 +6,7 @@ ChessMate is a feature-rich, real-time multiplayer chess platform that allows us
 
 ### Frontend 🖥️
 - React (with functional components and hooks)
-- Redux for state management
+- React Context API for state management
 - Chakra UI for responsive UI components
 - Socket.io client for real-time communication
 - Chess.js and React-Chessboard for chess logic and UI
@@ -28,8 +28,7 @@ ChessMate is a feature-rich, real-time multiplayer chess platform that allows us
 - Game analysis mode 🔍
 - Chat functionality during games 💬
 - Friends system and private game invitations 👥
-- ELO rating system 📊
-- Game history and statistics 📈
+- Match history and statistics 📈
 
 ## Project Structure 📁
 This project is organized into two main directories:

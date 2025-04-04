@@ -31,7 +31,7 @@ const timeControls = [
   { id: 'rapid10', name: 'Rapid', time: 600, increment: 0, label: '10+0' },
   { id: 'rapid10inc5', name: 'Rapid', time: 600, increment: 5, label: '10+5' },
   { id: 'rapid15', name: 'Rapid', time: 900, increment: 10, label: '15+10' },
-  { id: 'unlimited', name: 'Unlimited', time: null, increment: 0, label: 'Unlimited' }
+  { id: 'unlimited', name: 'Unlimited', time: "unlimited", increment: 0, label: 'Unlimited' }
 ];
 
 // Computer difficulty levels

@@ -683,6 +683,11 @@ const useChessLogic = (gameId, navigate) => {
   const handleTimeUpdate = useCallback((color, timeLeft) => {
     if (!socket || gameEnded) return;
     
+    // If using unlimited time, don't update time values
+    if ((color === 'white' && whiteTime === null) || (color === 'black' && blackTime === null)) {
+      return;
+    }
+    
     const roundedTime = Math.floor(timeLeft);
     
     // Only send updates if time changed by at least 1 second

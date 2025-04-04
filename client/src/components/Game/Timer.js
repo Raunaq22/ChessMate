@@ -3,24 +3,22 @@ import { Box, Text, Flex, Icon } from '@chakra-ui/react';
 import { FaInfinity } from 'react-icons/fa';
 
 const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange, gameEnded }) => {
-  // State for display time
-  const [displayTime, setDisplayTime] = useState(time || initialTime || 0);
+  // Check if this is an unlimited time game - more specific condition
+  const isUnlimited = initialTime === "unlimited" || time === "unlimited";
+  
+  // State for display time - if unlimited, set to "unlimited" string instead of a number
+  const [displayTime, setDisplayTime] = useState(isUnlimited ? "unlimited" : (time || initialTime || 0));
   
   // Refs to maintain stable values between renders
-  const actualTimeRef = useRef(time || initialTime || 0);
+  const actualTimeRef = useRef(isUnlimited ? "unlimited" : (time || initialTime || 0));
   const timerIntervalRef = useRef(null);
   const lastTickRef = useRef(Date.now());
   const lastUpdateRef = useRef(Date.now());
   const pendingUpdateRef = useRef(null);
   const justReceivedIncrementRef = useRef(false);
-  const lastKnownTimeRef = useRef(time || initialTime || 0);
+  const lastKnownTimeRef = useRef(isUnlimited ? "unlimited" : (time || initialTime || 0));
   const initializedRef = useRef(false);
-  
-  // Check if this is an unlimited time game - more robust condition
-  const isUnlimited = initialTime === null || time === null || 
-                     initialTime === undefined || time === undefined || 
-                     initialTime === 0 || time === 0 || 
-                     initialTime === "unlimited" || time === "unlimited";
+  const isUnlimitedRef = useRef(isUnlimited);
   
   // Debug mode flag - turn on to see detailed logs
   const DEBUG = true;
@@ -36,7 +34,8 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
   useEffect(() => {
     log(`Component mounted with initialTime=${initialTime}, time=${time}`);
     log(`isUnlimited evaluation: ${isUnlimited}`);
-  }, []);
+    isUnlimitedRef.current = isUnlimited;
+  }, [initialTime, time, isUnlimited]);
 
   // Initialize timer when component mounts
   useEffect(() => {
@@ -46,6 +45,10 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
     // For unlimited time, don't set any timer values
     if (isUnlimited) {
       log('Unlimited time game detected');
+      actualTimeRef.current = "unlimited";
+      setDisplayTime("unlimited");
+      lastKnownTimeRef.current = "unlimited";
+      isUnlimitedRef.current = true;
       return;
     }
     
@@ -54,7 +57,7 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
     
     // Only update if we have a valid time
     if (providedTime !== undefined && providedTime !== null && providedTime > 0) {
-      log(`Initial timer setup: ${providedTime.toFixed(1)}s`);
+      log(`Initial timer setup: ${typeof providedTime === 'number' ? providedTime.toFixed(1) : providedTime}s`);
       actualTimeRef.current = providedTime;
       setDisplayTime(providedTime);
       lastKnownTimeRef.current = providedTime;
@@ -63,28 +66,52 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
 
   // Handle time prop changes
   useEffect(() => {
-    if (!initializedRef.current || isUnlimited) return;
+    if (!initializedRef.current) return;
+    
+    // Check if unlimited status has changed
+    if (initialTime === "unlimited" || time === "unlimited") {
+      if (!isUnlimitedRef.current) {
+        log('Switching to unlimited time mode');
+        actualTimeRef.current = "unlimited";
+        setDisplayTime("unlimited");
+        lastKnownTimeRef.current = "unlimited";
+        isUnlimitedRef.current = true;
+      }
+      return;
+    }
+    
+    // If we were in unlimited mode but now we're not, reinitialize timer
+    if (isUnlimitedRef.current && initialTime !== "unlimited" && time !== "unlimited") {
+      log('Switching from unlimited to timed mode');
+      isUnlimitedRef.current = false;
+    }
     
     const providedTime = time !== undefined && time !== null ? time : initialTime;
     
     if (providedTime !== undefined && providedTime !== null) {
       const prevTime = actualTimeRef.current;
+      
+      // Skip if we're in unlimited mode or comparing with unlimited mode
+      if (prevTime === "unlimited" || providedTime === "unlimited") {
+        return;
+      }
+      
       const diff = providedTime - prevTime;
 
       // Store the last known server time to detect future changes
       if (providedTime !== lastKnownTimeRef.current) {
-        log(`Time changed from ${lastKnownTimeRef.current.toFixed(1)}s to ${providedTime.toFixed(1)}s (diff: ${diff.toFixed(1)}s)`);
+        log(`Time changed from ${typeof lastKnownTimeRef.current === 'number' ? lastKnownTimeRef.current.toFixed(1) : lastKnownTimeRef.current}s to ${typeof providedTime === 'number' ? providedTime.toFixed(1) : providedTime}s (diff: ${typeof diff === 'number' ? diff.toFixed(1) : diff}s)`);
         lastKnownTimeRef.current = providedTime;
       }
 
       // Always accept server time values immediately
       if (Math.abs(diff) > 0.1) { // Only update if difference is significant (> 0.1s)
-        log(`Accepting server time update: ${prevTime.toFixed(1)}s → ${providedTime.toFixed(1)}s`);
+        log(`Accepting server time update: ${typeof prevTime === 'number' ? prevTime.toFixed(1) : prevTime}s → ${typeof providedTime === 'number' ? providedTime.toFixed(1) : providedTime}s`);
         
         // If time increased, mark as increment for UI feedback
         if (diff > 0) {
           justReceivedIncrementRef.current = true;
-          log(`✓ Increment detected via server: +${diff.toFixed(1)}s`);
+          log(`✓ Increment detected via server: +${typeof diff === 'number' ? diff.toFixed(1) : diff}s`);
         }
         
         // Always update the time
@@ -92,10 +119,13 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
         setDisplayTime(providedTime);
       }
     }
-  }, [time, initialTime, increment, isRunning, isUnlimited]);
+  }, [time, initialTime, increment, isRunning]);
 
   // Format time as mm:ss
   const formatTime = (seconds) => {
+    // Special case for unlimited time
+    if (seconds === "unlimited") return "∞";
+    
     if (seconds === null || seconds === undefined) return '0:00';
     
     // Use ceiling for display to avoid jumping from 1:00 to 0:59 too early
@@ -108,7 +138,7 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
   // Handle timer running state
   useEffect(() => {
     // For unlimited time games, don't run any timer logic
-    if (isUnlimited) {
+    if (isUnlimitedRef.current || actualTimeRef.current === "unlimited") {
       log('Unlimited time game - no timer needed');
       return;
     }
@@ -134,7 +164,7 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
     if (isRunning) {
       // Reset tick reference when timer starts
       lastTickRef.current = Date.now();
-      log(`Starting timer at ${actualTimeRef.current.toFixed(1)}s`);
+      log(`Starting timer at ${typeof actualTimeRef.current === 'number' ? actualTimeRef.current.toFixed(1) : actualTimeRef.current}s`);
       justReceivedIncrementRef.current = false;
       
       // Increase timer update frequency for smoother visuals
@@ -186,7 +216,7 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
       }, 50); // 20 updates per second for smoother visuals (was 100ms)
     } else {
       // Timer is paused
-      log(`Timer paused at ${actualTimeRef.current.toFixed(1)}s`);
+      log(`Timer paused at ${typeof actualTimeRef.current === 'number' ? actualTimeRef.current.toFixed(1) : actualTimeRef.current}s`);
       
       // Mark that increment flag should be reset when next running
       if (justReceivedIncrementRef.current) {
@@ -206,11 +236,11 @@ const Timer = ({ initialTime, time, increment, isRunning, onTimeUp, onTimeChange
         pendingUpdateRef.current = null;
       }
     };
-  }, [isRunning, gameEnded, onTimeUp, onTimeChange, isUnlimited]);
+  }, [isRunning, gameEnded, onTimeUp, onTimeChange]);
 
   return (
     <Flex align="center" justify="center">
-      {isUnlimited ? (
+      {isUnlimitedRef.current || actualTimeRef.current === "unlimited" ? (
         // Render infinity symbol for unlimited time
         <Flex align="center" justify="center">
           <Text 

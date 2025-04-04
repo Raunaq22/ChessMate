@@ -226,12 +226,18 @@ const ComputerGamePage = () => {
   const handleTimeUpdate = useCallback((color, timeLeft) => {
     if (color === 'white') {
       setWhiteTime(prev => {
+        // If current time is null (unlimited), preserve it
+        if (prev === null) return null;
+        
         // Only update if the new time is less than or equal to the previous time
         // This prevents the timer from resetting to a higher value
         return timeLeft <= prev ? timeLeft : prev;
       });
     } else {
       setBlackTime(prev => {
+        // If current time is null (unlimited), preserve it
+        if (prev === null) return null;
+        
         // Only update if the new time is less than or equal to the previous time
         // This prevents the timer from resetting to a higher value
         return timeLeft <= prev ? timeLeft : prev;
@@ -887,8 +893,8 @@ const ComputerGamePage = () => {
                     </Box>
                   </Flex>
                   <Timer
-                    initialTime={playerColor === 'white' ? blackTime : whiteTime}
-                    time={playerColor === 'white' ? blackTime : whiteTime}
+                    initialTime={playerColor === 'white' ? blackTime : whiteTime === null ? "unlimited" : whiteTime}
+                    time={playerColor === 'white' ? blackTime === null ? "unlimited" : blackTime : whiteTime === null ? "unlimited" : whiteTime}
                     increment={timeIncrement}
                     isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && gameStarted && !gameOver}
                     onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'b' : 'w')}
@@ -970,8 +976,8 @@ const ComputerGamePage = () => {
                     </Box>
                   </Flex>
                   <Timer
-                    initialTime={playerColor === 'white' ? whiteTime : blackTime}
-                    time={playerColor === 'white' ? whiteTime : blackTime}
+                    initialTime={playerColor === 'white' ? whiteTime === null ? "unlimited" : whiteTime : blackTime === null ? "unlimited" : blackTime}
+                    time={playerColor === 'white' ? whiteTime === null ? "unlimited" : whiteTime : blackTime === null ? "unlimited" : blackTime}
                     increment={timeIncrement}
                     isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && gameStarted && !gameOver}
                     onTimeUp={() => handleTimeUp(playerColor === 'white' ? 'w' : 'b')}

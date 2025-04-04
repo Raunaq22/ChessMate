@@ -451,7 +451,7 @@ const GamePage = () => {
                 >
                   <FaClock size={16} style={{ marginRight: '8px' }} />
                   <Timer
-                    initialTime={playerColor === 'white' ? blackTime : whiteTime}
+                    initialTime={playerColor === 'white' ? (blackTime === null ? "unlimited" : blackTime) : (whiteTime === null ? "unlimited" : whiteTime)}
                     increment={timeIncrement}
                     isRunning={(playerColor === 'white' ? isBlackTimerRunning : isWhiteTimerRunning) && 
                                gameStarted && !gameEnded && 
@@ -560,7 +560,7 @@ const GamePage = () => {
                 >
                   <FaClock size={16} style={{ marginRight: '8px' }} />
                   <Timer
-                    initialTime={playerColor === 'white' ? whiteTime : blackTime}
+                    initialTime={playerColor === 'white' ? (whiteTime === null ? "unlimited" : whiteTime) : (blackTime === null ? "unlimited" : blackTime)}
                     increment={timeIncrement}
                     isRunning={(playerColor === 'white' ? isWhiteTimerRunning : isBlackTimerRunning) && 
                                gameStarted && !gameEnded && 

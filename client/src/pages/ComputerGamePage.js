@@ -357,7 +357,7 @@ const ComputerGamePage = () => {
           const chessMove = gameRef.current.move({
             from: move.from,
             to: move.to,
-            promotion: 'q' // Always promote to queen for simplicity
+            promotion: move.promotion // Use the promotion piece provided by the engine
           });
           
           if (!chessMove) {
@@ -442,7 +442,7 @@ const ComputerGamePage = () => {
   }, [gameOver, loading, playerColor]);
 
   // Handle piece drop (player move)
-  const onDrop = useCallback((sourceSquare, targetSquare) => {
+  const onDrop = useCallback((sourceSquare, targetSquare, piece) => {
     // Clear possible moves
     possibleMoves.current = [];
     
@@ -458,11 +458,16 @@ const ComputerGamePage = () => {
     if (playerTime !== null && playerTime <= 0) return false;
     
     try {
+      // Extract promotion information from the piece parameter if available
+      const isPawnPromotion = 
+        (piece === 'wP' && targetSquare[1] === '8') || 
+        (piece === 'bP' && targetSquare[1] === '1');
+      
       // Try to make the move
       const move = gameRef.current.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q' // Always promote to queen for simplicity
+        promotion: isPawnPromotion ? null : undefined // Let the promotion dialog show when needed
       });
       
       // If the move is invalid, return false to snap piece back
@@ -550,8 +555,11 @@ const ComputerGamePage = () => {
       }
       // If clicking on a valid destination, make the move
       else if (possibleMoves.current.includes(square)) {
+        // Get the piece from the selected square
+        const piece = gameRef.current.get(selectedSquare);
+        
         // Make the move
-        onDrop(selectedSquare, square);
+        onDrop(selectedSquare, square, piece ? (piece.color === 'w' ? 'w' : 'b') + piece.type.toUpperCase() : null);
         
         // Clear selection and possible moves
         setSelectedSquare(null);

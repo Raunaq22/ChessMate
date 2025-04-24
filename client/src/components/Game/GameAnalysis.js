@@ -219,24 +219,38 @@ const GameAnalysis = ({ gameHistory, initialFen, onClose }) => {
   }, [currentMoveIndex, gameHistory, initialFen, engineReady, isOffBook, customPosition]);
   
   // Handle making a move on the board
-  const onDrop = (sourceSquare, targetSquare) => {
+  const onDrop = (sourceSquare, targetSquare, piece) => {
+    // If we're exploring variations, check if this is a valid move
+    // Otherwise snap back the piece
     try {
-      const tempGame = new Chess(position);
-      const move = tempGame.move({
+      // Check if this is a pawn promotion move
+      const isPawnPromotion = 
+        (piece === 'wP' && targetSquare[1] === '8') || 
+        (piece === 'bP' && targetSquare[1] === '1');
+      
+      // Try the move
+      const move = game.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q', // Default to queen promotion
+        promotion: isPawnPromotion ? null : undefined, // Let the promotion dialog show when needed
       });
       
-      if (move) {
-        // If move is legal, set to off-book mode and update custom position
-        setIsOffBook(true);
-        setCustomPosition(tempGame.fen());
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Invalid move attempt:', error);
+      if (!move) return false;
+      
+      setPosition(game.fen());
+      
+      // We're now in a custom position
+      setIsOffBook(true);
+      
+      // This position isn't in the original game history
+      setCustomPosition(game.fen());
+      
+      // Clear evaluation when position changes
+      setEvaluation(null);
+      
+      return true;
+    } catch (err) {
+      console.error("Invalid move:", err);
       return false;
     }
   };

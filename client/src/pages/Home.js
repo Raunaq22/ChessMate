@@ -61,7 +61,7 @@ const Home = () => {
   }, [width, height, containerRef]);
 
   // Handle piece movement
-  const onDrop = (sourceSquare, targetSquare) => {
+  const onDrop = (sourceSquare, targetSquare, pieceParameter) => {
     try {
       // Get the piece at the source square
       const piece = game.get(sourceSquare);
@@ -73,11 +73,16 @@ const Home = () => {
         return false; // Can't capture own pieces
       }
       
+      // Check if this is a pawn promotion move
+      const isPawnPromotion = 
+        (piece.type === 'p' && piece.color === 'w' && targetSquare[1] === '8') || 
+        (piece.type === 'p' && piece.color === 'b' && targetSquare[1] === '1');
+      
       // Try to make the move using chess.js built-in validation
       const move = game.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q', // Always promote to queen for simplicity
+        promotion: isPawnPromotion ? null : undefined, // Let the promotion dialog show when needed
       });
       
       // If the move is invalid, return false
@@ -88,6 +93,30 @@ const Home = () => {
       return true;
     } catch (error) {
       console.error('Error making move:', error);
+      return false;
+    }
+  };
+
+  // Handle promotion piece selection
+  const handlePromotionPieceSelect = (piece, fromSquare, toSquare) => {
+    try {
+      // Get just the piece type (q, r, n, b) from the full piece name (wQ, bR, etc.)
+      const pieceType = piece.charAt(1).toLowerCase();
+      
+      // Execute the move with the selected promotion piece
+      const move = game.move({
+        from: fromSquare,
+        to: toSquare,
+        promotion: pieceType
+      });
+      
+      if (!move) return false;
+      
+      // Update the board position
+      setPosition(game.fen());
+      return true;
+    } catch (error) {
+      console.error('Error during promotion:', error);
       return false;
     }
   };
@@ -120,6 +149,7 @@ const Home = () => {
               id="home-board"
               position={position}
               onPieceDrop={onDrop}
+              onPromotionPieceSelect={handlePromotionPieceSelect}
               boardWidth={boardSize}
               showBoardNotation={true}
               areArrowsAllowed={false}

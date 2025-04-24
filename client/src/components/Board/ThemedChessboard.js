@@ -24,6 +24,17 @@ const ThemedChessboard = forwardRef((props, ref) => {
     ...props.customPremoveLightSquareStyle
   };
   
+  // Create a handler for promotion that enables full piece selection
+  const handleOnPromotionPieceSelect = (piece, fromSquare, toSquare) => {
+    // If component has its own handler, use that
+    if (props.onPromotionPieceSelect) {
+      return props.onPromotionPieceSelect(piece, fromSquare, toSquare);
+    }
+    
+    // Default behavior: always return true to accept the selected piece
+    return true;
+  };
+  
   return (
     <Box 
       width="100%" 
@@ -58,6 +69,9 @@ const ThemedChessboard = forwardRef((props, ref) => {
           customPremoveDarkSquareStyle={premoveDarkSquareStyle}
           customPremoveLightSquareStyle={premoveLightSquareStyle}
           arePremovesAllowed={props.arePremovesAllowed || false}
+          autoPromoteToQueen={false}
+          promotionDialogVariant={props.promotionDialogVariant || "default"}
+          onPromotionPieceSelect={handleOnPromotionPieceSelect}
           customBoardStyle={{
             borderRadius: "8px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",

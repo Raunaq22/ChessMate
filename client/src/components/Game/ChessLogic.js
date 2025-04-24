@@ -353,7 +353,7 @@ const useChessLogic = (gameId, navigate) => {
       if (hasPremoves && premoves.length > 0) {
         const [fromSquare, toSquare] = premoves[0];
         // Try to make the premove
-        const success = executePremove(fromSquare, toSquare);
+        const success = applyPremove(fromSquare, toSquare);
         // Remove this premove regardless of success
         setPremoves(prev => prev.slice(1));
         if (premoves.length <= 1) {
@@ -752,12 +752,12 @@ const useChessLogic = (gameId, navigate) => {
   };
 
   // Simplify the onDrop function to avoid duplicate event emission
-  const onDrop = (sourceSquare, targetSquare) => {
-    if (!gameInitialized.current || gameEnded) return false;
+  const onDrop = (sourceSquare, targetSquare, piece) => {
+    if (gameEnded) return false;
     
-    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
-    if (currentTurn !== playerColor) return false;
-
+    // Record the move start time for increment calculations
+    const moveStartTime = Date.now();
+    
     // First check if the move is legal
     const moves = game.moves({ verbose: true });
     const validMove = moves.find(m => 
@@ -767,15 +767,23 @@ const useChessLogic = (gameId, navigate) => {
 
     if (!validMove) return false;
 
+    // Check if this is a pawn promotion move
+    const isPawnPromotion = 
+      (piece === 'wP' && targetSquare[1] === '8') || 
+      (piece === 'bP' && targetSquare[1] === '1');
+
     const gameCopy = new Chess(game.fen());
     const move = gameCopy.move({
       from: sourceSquare,
       to: targetSquare,
-      promotion: validMove.promotion || 'q'
+      promotion: isPawnPromotion ? null : validMove.promotion
     });
 
     if (!move) return false;
 
+    // Get the current turn from the game state
+    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+    
     const isFirstMove = !firstMoveMade && currentTurn === 'white';
     if (isFirstMove) {
       setFirstMoveMade(true);
@@ -817,7 +825,7 @@ const useChessLogic = (gameId, navigate) => {
       move: { 
         from: sourceSquare, 
         to: targetSquare,
-        promotion: validMove.promotion || 'q'
+        promotion: move.promotion // Use the actual promotion piece selected
       },
       fen: gameCopy.fen(),
       moveNotation: move.san,
@@ -1022,7 +1030,7 @@ const useChessLogic = (gameId, navigate) => {
       // If clicking on valid destination square, make the move
       else if (possibleMoves.includes(square)) {
         // Make the move
-        onDrop(selectedSquare, square);
+        onDrop(selectedSquare, square, piece);
         
         // Clear selection and possible moves
         setSelectedSquare(null);
@@ -1037,28 +1045,33 @@ const useChessLogic = (gameId, navigate) => {
   }, [game, playerColor, selectedSquare, possibleMoves, gameEnded, gameInitialized, onDrop]);
 
   // Helper function to execute a premove
-  const executePremove = useCallback((sourceSquare, targetSquare) => {
-    // Only execute premove if it's our turn now
-    const currentTurn = game.turn() === 'w' ? 'white' : 'black';
-    if (currentTurn !== playerColor) return false;
-    
-    // Try to make the move
+  const applyPremove = useCallback((sourceSquare, targetSquare) => {
     try {
-      const moves = game.moves({ verbose: true });
-      const validMove = moves.find(m => 
-        m.from === sourceSquare && 
-        m.to === targetSquare
+      // First, check if the move is even valid now
+      const validMove = game.moves({ 
+        verbose: true 
+      }).find(move => 
+        move.from === sourceSquare && 
+        move.to === targetSquare
       );
       
-      if (!validMove) return false;
+      if (!validMove) {
+        console.log('Premove is not valid in current position');
+        return false;
+      }
+      
+      // Check if this is a pawn promotion move
+      const isPawnPromotion = 
+        (validMove.piece === 'p' && validMove.color === 'w' && targetSquare[1] === '8') || 
+        (validMove.piece === 'p' && validMove.color === 'b' && targetSquare[1] === '1');
       
       // If valid, use onDrop to make the move
-      return onDrop(sourceSquare, targetSquare);
+      return onDrop(sourceSquare, targetSquare, validMove.piece);
     } catch (error) {
       console.error('Error executing premove:', error);
       return false;
     }
-  }, [game, playerColor, onDrop]);
+  }, [game, onDrop]);
   
   // Function to clear all premoves
   const clearPremoves = useCallback(() => {

@@ -31,6 +31,7 @@ const ThemedChessboard = forwardRef((props, ref) => {
       mx="auto"
       aspectRatio="1/1"
       position="relative"
+      pb="32px"
     >
       <Box
         position="absolute"
@@ -59,9 +60,14 @@ const ThemedChessboard = forwardRef((props, ref) => {
           arePremovesAllowed={props.arePremovesAllowed || false}
           customBoardStyle={{
             borderRadius: "8px",
-            overflow: "hidden",
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             ...props.customBoardStyle
+          }}
+          customPromotionPieceStyle={{
+            borderRadius: "50%",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
+            cursor: "pointer",
+            ...props.customPromotionPieceStyle
           }}
         />
       </Box>

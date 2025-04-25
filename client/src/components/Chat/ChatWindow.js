@@ -3,13 +3,22 @@ import { Box, Text, Flex, VStack } from '@chakra-ui/react';
 
 const ChatWindow = ({ messages = [], currentUser, isMobile = false }) => {
   const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current && containerRef.current) {
+      // Use a more controlled scroll that only affects the container
+      // instead of scrollIntoView which can affect the whole page
+      const container = containerRef.current;
+      const scrollElement = messagesEndRef.current;
+      
+      container.scrollTop = scrollElement.offsetTop;
+    }
   }, [messages]);
 
   return (
     <Box 
+      ref={containerRef}
       h={isMobile ? "120px" : "250px"} 
       overflowY="auto" 
       p={isMobile ? 1 : 2} 

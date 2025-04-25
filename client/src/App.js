@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ChakraProvider, CSSReset, Box, Flex, Avatar, Tooltip } from '@chakra-ui/react';
 import PrivateRoute from './components/Auth/PrivateRoute';
@@ -67,13 +67,55 @@ const ProfileAvatar = () => {
 };
 
 function App() {
+  // Prevent default behavior for form elements
+  useEffect(() => {
+    const preventDefaultScroll = (e) => {
+      if (e.target.tagName === 'BUTTON' || 
+          e.target.tagName === 'INPUT' || 
+          e.target.tagName === 'TEXTAREA') {
+        // Don't prevent default completely as it breaks input functionality
+        // Just handle the scroll side effects
+        if (e.key === 'Enter') {
+          // Prevent any scrolling behavior when Enter is pressed
+          // but still allow the form submission
+          window.scrollTo({
+            top: window.pageYOffset,
+            behavior: 'auto'
+          });
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', preventDefaultScroll);
+    
+    return () => {
+      document.removeEventListener('keydown', preventDefaultScroll);
+    };
+  }, []);
+  
   return (
     <ChakraProvider theme={theme}>
       <CSSReset />
       <AuthProvider>
         <ThemeProvider>
           <Router>
-            <Box display="flex" minH="100vh">
+            <Box 
+              display="flex" 
+              minH="100vh" 
+              id="app-container"
+              sx={{
+                // Fix for preventing unwanted scrolling
+                "& button": {
+                  cursor: "pointer"
+                },
+                // Prevent scrolling on button click in forms
+                "& button[type='submit']": {
+                  "&:focus": {
+                    outline: "none"
+                  }
+                }
+              }}
+            >
               <Sidebar />
               <Box 
                 flex="1" 
@@ -83,6 +125,7 @@ function App() {
                 transition="margin-left 0.3s ease-in-out"
                 width="100%"
                 maxW="100vw"
+                overscrollBehavior="none" // Prevent scroll chaining
               >
                 {/* Global avatar in top-right corner */}
                 <ProfileAvatar />
@@ -93,6 +136,7 @@ function App() {
                   p={{ base: 4, md: 8 }} 
                   pt={{ base: 16, md: 8 }} /* Added top padding for mobile */
                   width="100%"
+                  overscrollBehavior="none" // Prevent scroll chaining
                 >
                   <Routes>
                     <Route path="/" element={<Home />} />

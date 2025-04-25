@@ -105,6 +105,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add the updateUser function
+  const updateUser = (userData) => {
+    // Update the current user in state
+    setCurrentUser(prevState => ({ ...prevState, ...userData }));
+    
+    // Optionally update user data in localStorage if you store it there
+    // For simplicity, we're just updating the state here, 
+    // assuming the backend keeps the persistent source of truth.
+  };
+
   const value = {
     currentUser,
     setCurrentUser,
@@ -114,7 +124,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     register,
-    updateActivity
+    updateActivity,
+    updateUser // Add updateUser to the context value
   };
 
   return (

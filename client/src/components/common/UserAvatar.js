@@ -4,19 +4,14 @@ import React, { useState, useEffect } from 'react';
 export const formatImageUrl = (url) => {
   if (!url) return '/assets/default-avatar.png';
   
-  // Special handling for Google images
-  if (url.includes('googleusercontent.com')) {
-    console.log("UserAvatar: Google profile image detected:", url);
-    // Add a timestamp to prevent caching issues
-    const timestamp = new Date().getTime();
-    return `${url}?t=${timestamp}`;
-  }
+  // Add a timestamp to prevent caching issues for all external/uploaded images
+  const timestamp = new Date().getTime();
   
-  if (url.startsWith('http')) {
-    return url;
-  }
-  
-  return url;
+  // Check if it's already a URL with query params
+  const separator = url.includes('?') ? '&' : '?';
+
+  // Return the URL with the timestamp, unless it's the default avatar
+  return `${url}${separator}t=${timestamp}`;
 };
 
 // Define size classes for different avatar sizes

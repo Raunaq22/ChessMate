@@ -32,6 +32,29 @@ import {
 } from '@chakra-ui/react';
 import { FaTrophy, FaGamepad, FaCalendarAlt, FaChessKing } from 'react-icons/fa';
 
+// Helper function to get proper image URL with backend origin
+const getFormattedImageUrl = (url) => {
+  if (!url) return '/assets/default-avatar.png';
+  
+  if (url.startsWith('/uploads/profile/')) {
+    // Extract the filename from the path
+    const filename = url.split('/').pop();
+    
+    // Use the dedicated API endpoint for profile images
+    const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    const apiPath = `/api/users/profile-image/${filename}`;
+    
+    // Add cache busting
+    const timestamp = new Date().getTime();
+    const fullUrl = `${backendUrl}${apiPath}?t=${timestamp}`;
+    
+    console.log("ProfilePage: Using profile image API endpoint:", fullUrl);
+    return fullUrl;
+  }
+  
+  return url;
+};
+
 const ProfilePage = () => {
   const { currentUser, isAuthenticated, setCurrentUser } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -177,13 +200,19 @@ const ProfilePage = () => {
           <GridItem bg="primary" p={8} color="white">
             <VStack spacing={4} align="center">
               <Avatar 
+                key={`profile-avatar-${currentUser.profile_image_url || ''}-${Date.now()}`}
                 size="2xl"
                 name={currentUser.username}
-                src={formatImageUrl(currentUser.avatar_url)}
+                src={getFormattedImageUrl(currentUser.profile_image_url)}
                 bg="white"
                 color="gray.600"
                 border="4px solid"
                 borderColor="white"
+                onError={(e) => {
+                  console.error("Profile page avatar failed to load");
+                  // Fallback is automatic with name prop
+                }}
+                crossOrigin="anonymous"
               />
               <Heading size="lg">{currentUser.username}</Heading>
               <Text opacity={0.8}>{currentUser.email}</Text>

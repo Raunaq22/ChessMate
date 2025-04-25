@@ -21,7 +21,30 @@ import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 // Helper function to format image URLs
 const formatImageUrl = (url) => {
   if (!url) return '/assets/default-avatar.png';
-  if (url.startsWith('http')) return url;
+  
+  // If it's a base64 data URL from FileReader, use it directly
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // If it's an uploaded profile image, use the dedicated API endpoint
+  if (url.startsWith('/uploads/profile/')) {
+    // Extract the filename from the path
+    const filename = url.split('/').pop();
+    
+    // Use the dedicated API endpoint for profile images
+    const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    const apiPath = `/api/users/profile-image/${filename}`;
+    
+    // Add cache busting
+    const timestamp = new Date().getTime();
+    const fullUrl = `${backendUrl}${apiPath}?t=${timestamp}`;
+    
+    console.log("ProfileSettings: Using profile image API endpoint:", fullUrl);
+    return fullUrl;
+  }
+  
+  // Otherwise just return the URL as is
   return url;
 };
 
@@ -72,11 +95,17 @@ const ProfileSettings = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      console.log("Selected file:", file.name, "size:", file.size);
       setSelectedFile(file);
       
       const reader = new FileReader();
       reader.onloadend = () => {
+        console.log("FileReader completed, setting image preview to Base64 data");
+        // Set preview directly from FileReader result (Base64 data)
         setImagePreview(reader.result);
+      };
+      reader.onerror = (error) => {
+        console.error("FileReader error:", error);
       };
       reader.readAsDataURL(file);
       
@@ -88,12 +117,14 @@ const ProfileSettings = () => {
   const uploadImage = async () => {
     if (!selectedFile) return null;
     
+    console.log("Starting image upload for file:", selectedFile.name);
     setUploadingImage(true);
     
     try {
       const imageData = new FormData();
       imageData.append('profileImage', selectedFile);
       
+      console.log("Sending image upload request to:", `${process.env.REACT_APP_API_URL}/api/users/upload-image`);
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/users/upload-image`, 
         imageData, 
@@ -104,6 +135,15 @@ const ProfileSettings = () => {
         }
       );
       
+      console.log("Image upload successful, received URL:", response.data.imageUrl);
+      
+      // Store the full URL including the origin to avoid path resolution issues
+      const fullImageUrl = new URL(
+        response.data.imageUrl, 
+        window.location.origin
+      ).toString();
+      
+      console.log("Full image URL with origin:", fullImageUrl);
       return response.data.imageUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -113,6 +153,17 @@ const ProfileSettings = () => {
     }
   };
 
+  // After successful profile update, make sure we're using the correct URL format
+  const updateSuccessHandler = (profileImageUrl) => {
+    // If we received a URL from the server, format it properly
+    if (profileImageUrl) {
+      const formattedUrl = formatImageUrl(profileImageUrl);
+      console.log("Setting preview to formatted URL:", formattedUrl);
+      setImagePreview(formattedUrl);
+    }
+  };
+
+  // Update the handleProfileUpdate function to use our new handler
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -137,7 +188,9 @@ const ProfileSettings = () => {
       let profileImageUrl = formData.profile_image_url;
       if (selectedFile) {
         try {
+          console.log("Selected file exists, uploading...");
           profileImageUrl = await uploadImage();
+          console.log("Image uploaded successfully, new URL:", profileImageUrl);
         } catch (error) {
           toast({
             title: 'Image Upload Failed',
@@ -158,6 +211,7 @@ const ProfileSettings = () => {
         email: formData.email,
         profile_image_url: profileImageUrl
       };
+      console.log("Update payload:", updatePayload);
 
       // Add password update if provided
       if (formData.currentPassword && formData.newPassword) {
@@ -170,12 +224,16 @@ const ProfileSettings = () => {
       
       // Update context with new user data
       if (updateUser) {
+        console.log("Calling updateUser with:", response.data.user);
         updateUser(response.data.user);
+      } else {
+        console.error("updateUser function is not available in context");
       }
 
-      // Update image preview
+      // Update image preview with the proper URL format
       if (profileImageUrl) {
-        setImagePreview(formatImageUrl(profileImageUrl));
+        console.log("Setting image preview with formatted URL");
+        updateSuccessHandler(profileImageUrl);
       }
 
       toast({
@@ -228,12 +286,28 @@ const ProfileSettings = () => {
             boxSize={{ base: "100px", md: "120px" }}
             borderRadius="full" 
             bg="gray.100" 
-            backgroundImage={`url(${imagePreview})`}
-            backgroundSize="cover"
-            backgroundPosition="center"
             position="relative"
             mb="15px"
+            border="3px solid"
+            borderColor="blue.400"
+            overflow="hidden"
           >
+            <img 
+              src={imagePreview}
+              alt="Profile Preview"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '50%'
+              }}
+              crossOrigin="anonymous"
+              onError={(e) => {
+                console.error("Image preview failed to load:", e.target.src);
+                e.target.onerror = null; // Prevent infinite loops
+                e.target.src = '/assets/default-avatar.png';
+              }}
+            />
             {uploadingImage && (
               <Flex 
                 position="absolute" 

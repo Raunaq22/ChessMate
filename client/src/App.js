@@ -23,20 +23,73 @@ import theme from './config/theme'; // Ensure this path is correct
 
 // Format image URL helper function
 const formatImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return url;
+  if (!url) {
+    console.log("formatImageUrl: No URL provided, using default avatar");
+    return '/assets/default-avatar.png';
+  }
+  
+  // Convert relative URLs to absolute with the correct backend URL
+  let absoluteUrl = url;
+  if (!url.startsWith('http') && !url.startsWith('/assets/')) {
+    try {
+      // Use the backend API URL instead of the frontend URL
+      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      absoluteUrl = `${backendUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+      console.log("formatImageUrl: Converted to backend URL:", absoluteUrl);
+    } catch (e) {
+      console.error("formatImageUrl: Error converting to backend URL:", e);
+    }
+  }
+  
+  // Add a timestamp to prevent caching issues for all external/uploaded images
+  const timestamp = new Date().getTime();
+  
+  // Check if it's already a URL with query params
+  const separator = absoluteUrl.includes('?') ? '&' : '?';
+
+  // Return the URL with the timestamp
+  const finalUrl = `${absoluteUrl}${separator}t=${timestamp}`;
+  console.log("formatImageUrl: Final URL with cache busting:", finalUrl);
+  
+  return finalUrl;
 };
 
 // Profile Avatar Component - will only be rendered when AuthContext is available
 const ProfileAvatar = () => {
   const { currentUser, isAuthenticated } = React.useContext(AuthContext);
   const navigate = useNavigate();
+  const [imageError, setImageError] = React.useState(false);
   
   if (!isAuthenticated || !currentUser) return null;
   
   const name = currentUser.username || 'User';
-  const src = formatImageUrl(currentUser.profile_image_url);
+  
+  // Get properly formatted image URL with backend origin
+  let src = '/assets/default-avatar.png';
+  
+  if (currentUser.profile_image_url) {
+    if (currentUser.profile_image_url.startsWith('/uploads/profile/')) {
+      // Extract the filename from the path
+      const filename = currentUser.profile_image_url.split('/').pop();
+      
+      // Use the dedicated API endpoint for profile images
+      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      const apiPath = `/api/users/profile-image/${filename}`;
+      
+      // Add cache busting
+      const timestamp = Date.now();
+      src = `${backendUrl}${apiPath}?t=${timestamp}`;
+      
+      console.log("Using profile image API endpoint:", src);
+    } else {
+      src = currentUser.profile_image_url;
+    }
+  }
+  
+  // Add a unique timestamp to force re-rendering of the avatar
+  const uniqueKey = `avatar-${currentUser.profile_image_url || ''}-${Date.now()}`;
+  
+  console.log("Rendering ProfileAvatar with src:", src);
   
   return (
     <Flex 
@@ -48,9 +101,10 @@ const ProfileAvatar = () => {
     >
       <Tooltip label="View Profile" placement="bottom">
         <Avatar
+          key={uniqueKey}
           size="md"
           name={name}
-          src={src}
+          src={imageError ? '/assets/default-avatar.png' : src}
           bg="chess-light"
           color="white"
           cursor="pointer"
@@ -60,6 +114,11 @@ const ProfileAvatar = () => {
             shadow: "md" 
           }}
           transition="all 0.2s"
+          onError={() => {
+            console.error("Avatar image failed to load:", src);
+            setImageError(true);
+          }}
+          crossOrigin="anonymous"
         />
       </Tooltip>
     </Flex>

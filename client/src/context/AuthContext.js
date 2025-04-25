@@ -77,7 +77,15 @@ export const AuthProvider = ({ children }) => {
       return res.data;
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      
+      // Extract and throw the correct error message from the server response
+      if (error.response && error.response.data && error.response.data.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Login failed. Please check your credentials and try again.');
+      }
     }
   };
 
@@ -101,7 +109,15 @@ export const AuthProvider = ({ children }) => {
       return res.data;
     } catch (error) {
       console.error('Registration error:', error);
-      throw error;
+      
+      // Extract and throw the correct error message from the server response
+      if (error.response && error.response.data && error.response.data.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Registration failed. Please try again with different information.');
+      }
     }
   };
 

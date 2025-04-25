@@ -21,11 +21,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
+    // Only redirect for actual auth errors from protected endpoints
+    // Not for login/register endpoint failures
+    if (error.response?.status === 401 && 
+        !error.config.url.includes('/login') && 
+        !error.config.url.includes('/register')) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );

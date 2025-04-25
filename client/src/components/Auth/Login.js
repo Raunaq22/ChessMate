@@ -14,6 +14,7 @@ const Login = () => {
   
   const handleSubmit = async e => {
     e.preventDefault();
+    
     setError('');
     setLoading(true);
     
@@ -22,6 +23,7 @@ const Login = () => {
       navigate('/');
     } catch (err) {
       setError(err.message || 'Login failed');
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,11 @@ const Login = () => {
         )}
         
         <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form 
+            onSubmit={handleSubmit} 
+            className="space-y-6"
+            method="post"
+          >
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700" htmlFor="email">
                 Email

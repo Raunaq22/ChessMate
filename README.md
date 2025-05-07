@@ -1,4 +1,13 @@
-# ChessMate: Real-time Multiplayer Chess Platform ♟️
+<div align="center">
+  <a href="https://chess-mate-frontend.vercel.app/" target="_blank">
+    <img src="client/public/logo192.png" alt="ChessMate Webapp Logo" width="150">
+  </a>
+  <br><br>
+  <h1>ChessMate</h1>
+  <h3>
+    <a href="https://chess-mate-frontend.vercel.app/" target="_blank">♔ Live Demo</a>
+  </h3>
+</div>
 
 ChessMate is a feature-rich, real-time multiplayer chess platform that allows users to play chess against friends, random opponents, or a computer. Built with modern web technologies, it provides a seamless chess experience with features like match-making, time controls, game analysis, and more.
 
@@ -96,10 +105,6 @@ This project is organized into two main directories:
    ```
    npm start
    ```
-
-## Live Demo 🌐
-
-[Visit ChessMate](https://chess-mate-frontend.vercel.app/) 
 
 ## Author 👨‍💻
 
